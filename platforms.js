@@ -15,13 +15,6 @@ const PLATFORMS = [
     publishUrl: 'https://juejin.cn/editor/drafts/new',
   },
   {
-    id: 'zhihu',
-    name: 'Zhihu',
-    icon: 'https://static.zhihu.com/heifetz/favicon.ico',
-    url: 'https://www.zhihu.com',
-    publishUrl: 'https://zhuanlan.zhihu.com/write',
-  },
-  {
     id: 'wechat',
     name: 'WeChat',
     icon: 'https://res.wx.qq.com/a/wx_fed/assets/res/NTI4MWU5.ico',

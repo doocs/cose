@@ -2,7 +2,6 @@
 const PLATFORMS = [
   { id: 'csdn', name: 'CSDN', icon: 'https://g.csdnimg.cn/static/logo/favicon32.ico', url: 'https://blog.csdn.net', publishUrl: 'https://editor.csdn.net/md/' },
   { id: 'juejin', name: 'Juejin', icon: 'https://lf-web-assets.juejin.cn/obj/juejin-web/xitu_juejin_web/static/favicons/favicon-32x32.png', url: 'https://juejin.cn', publishUrl: 'https://juejin.cn/editor/drafts/new' },
-  { id: 'zhihu', name: 'Zhihu', icon: 'https://static.zhihu.com/heifetz/favicon.ico', url: 'https://www.zhihu.com', publishUrl: 'https://zhuanlan.zhihu.com/write' },
   { id: 'wechat', name: 'WeChat', icon: 'https://res.wx.qq.com/a/wx_fed/assets/res/NTI4MWU5.ico', url: 'https://mp.weixin.qq.com', publishUrl: 'https://mp.weixin.qq.com/cgi-bin/appmsg?t=media/appmsg_edit_v2&action=edit&isNew=1&type=10' },
 ]
 
@@ -71,15 +70,6 @@ const LOGIN_CHECK_CONFIG = {
     getUserInfo: (response) => ({
       username: response?.data?.user_name,
       avatar: response?.data?.avatar_large,
-    }),
-  },
-  zhihu: {
-    api: 'https://www.zhihu.com/api/v4/me',
-    method: 'GET',
-    checkLogin: (response) => response?.id && !response?.error,
-    getUserInfo: (response) => ({
-      username: response?.name,
-      avatar: response?.avatar_url,
     }),
   },
   wechat: {
@@ -538,17 +528,6 @@ function fillContentOnPage(content, platformId) {
         } else {
           console.log('[COSE] CSDN 未找到编辑器元素')
         }
-      }
-    }
-    // 知乎
-    else if (host.includes('zhihu.com')) {
-      const titleInput = await waitFor('textarea[placeholder*="标题"]')
-      setInputValue(titleInput, title)
-      
-      const editor = await waitFor('.public-DraftEditor-content, [contenteditable="true"]')
-      if (editor) {
-        editor.focus()
-        document.execCommand('insertText', false, contentToFill)
       }
     }
     // 掘金 - 使用 ByteMD (CodeMirror)

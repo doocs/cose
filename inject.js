@@ -65,7 +65,6 @@
   const PLATFORMS = [
     { id: 'csdn', name: 'CSDN', icon: 'https://g.csdnimg.cn/static/logo/favicon32.ico', title: 'CSDN', type: 'csdn' },
     { id: 'juejin', name: 'Juejin', icon: 'https://lf-web-assets.juejin.cn/obj/juejin-web/xitu_juejin_web/static/favicons/favicon-32x32.png', title: '掘金', type: 'juejin' },
-    { id: 'zhihu', name: 'Zhihu', icon: 'https://static.zhihu.com/heifetz/favicon.ico', title: '知乎', type: 'zhihu' },
     { id: 'wechat', name: 'WeChat', icon: 'https://res.wx.qq.com/a/wx_fed/assets/res/NTI4MWU5.ico', title: '微信公众号', type: 'wechat' },
   ]
 
@@ -110,6 +109,10 @@
         return accounts
       } catch (error) {
         console.error('获取账号列表失败:', error)
+        // 检测是否是扩展重新加载的错误
+        if (error.message && (error.message.includes('扩展已重新加载') || error.message.includes('Extension context'))) {
+          throw new Error('扩展已重新加载，请刷新页面后重试')
+        }
         const accounts = PLATFORMS.map(p => ({
           uid: p.id,
           type: p.type,

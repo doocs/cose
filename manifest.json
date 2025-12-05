@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "COSE - Create Once Sync Everywhere",
+  "name": "COSE - 多平台文章同步",
   "version": "1.0.0",
   "description": "Create Once, Sync Everywhere. 一键将文章同步到多个平台",
   "permissions": [
@@ -16,7 +16,6 @@
   ],
   "host_permissions": [
     "https://*.csdn.net/*",
-    "https://*.zhihu.com/*",
     "https://*.juejin.cn/*",
     "https://*.jianshu.com/*",
     "https://*.segmentfault.com/*",
@@ -37,9 +36,9 @@
   ],
   "action": {
     "default_icon": {
-      "16": "icons/icon16.png",
-      "48": "icons/icon48.png",
-      "128": "icons/icon128.png"
+      "16": "icons/cose_16.png",
+      "48": "icons/cose_48.png",
+      "128": "icons/cose_128.png"
     },
     "default_title": "COSE"
   },
@@ -58,9 +57,9 @@
     }
   ],
   "icons": {
-    "16": "icons/icon16.png",
-    "48": "icons/icon48.png",
-    "128": "icons/icon128.png"
+    "16": "icons/cose_16.png",
+    "48": "icons/cose_48.png",
+    "128": "icons/cose_128.png"
   },
   "web_accessible_resources": [
     {
