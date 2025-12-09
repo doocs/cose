@@ -30,8 +30,6 @@
     "https://*.eastmoney.com/*",
     "https://*.wordpress.com/*",
     "https://*.wordpress.org/*",
-    "http://localhost:*/*",
-    "http://127.0.0.1:*/*",
     "https://md.doocs.org/*"
   ],
   "action": {
@@ -49,7 +47,6 @@
     {
       "matches": [
         "http://localhost:*/*",
-        "http://127.0.0.1:*/*",
         "https://md.doocs.org/*"
       ],
       "js": ["content.js"],
