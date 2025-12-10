@@ -164,10 +164,10 @@
         if (hasWechat) {
           // 先点击复制按钮，将带样式的内容复制到剪贴板
           const copyBtn = document.querySelector('.copy-btn') || 
-                          document.querySelector('[class*="copy"]') ||
+                          document.querySelector('button[class*="copy"]') ||
                           document.querySelector('button:has(.lucide-copy)') ||
                           Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('复制'))
-          if (copyBtn) {
+          if (copyBtn && typeof copyBtn.click === 'function') {
             copyBtn.click()
             // 等待复制完成
             await new Promise(resolve => setTimeout(resolve, 2000))
