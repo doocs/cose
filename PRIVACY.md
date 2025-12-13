@@ -1,6 +1,6 @@
 # Privacy Policy for COSE - 多平台文章同步
 
-**Last Updated: December 5, 2025**
+**Last Updated: December 13, 2025**
 
 ## Overview
 
@@ -24,20 +24,19 @@ All data processed by COSE remains on your local device:
 
 - **Article Content**: Your article title, body, and formatting are only read from md.doocs.org and transferred directly to the target publishing platforms within your browser.
 - **Login Status**: The extension checks login cookies on target platforms (CSDN, Juejin, WeChat, etc.) solely to verify if you are logged in. This information is not stored or transmitted.
-- **User Preferences**: Any settings are stored locally using Chrome's storage API and never leave your device.
+- **User Preferences**: COSE does not persist user preferences or settings.
 
 ## Permissions Explained
 
 | Permission | Purpose |
 |------------|---------|
-| `storage` | Save user preferences locally |
-| `tabs` | Open new tabs for target platforms |
 | `tabGroups` | Organize sync tabs into groups |
-| `activeTab` | Read article content from the editor |
+| `activeTab` | Temporarily access the current tab when you initiate a sync |
 | `scripting` | Fill article content into platform editors |
 | `cookies` | Check platform login status |
 | `debugger` | Simulate paste events for WeChat editor |
-| `clipboardRead/Write` | Handle formatted content for syncing |
+| `clipboardRead` | Read formatted content (HTML) from the clipboard for syncing |
+| `clipboardWrite` | Write content to the clipboard when needed for syncing |
 
 ## Third-Party Services
 

@@ -4,8 +4,6 @@
   "version": "1.0.2",
   "description": "Create Once, Sync Everywhere. 一键将文章同步到多个平台",
   "permissions": [
-    "storage",
-    "tabs",
     "tabGroups",
     "activeTab",
     "scripting",
