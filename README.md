@@ -30,6 +30,7 @@ Create Once Sync Everywhere
 | CSDN | 自动填充 Markdown 内容 |
 | 掘金 | 自动填充 Markdown 内容 |
 | 微信公众号 | 保留完整样式，自动保存草稿 |
+| 知乎 | 自动填充 Markdown 内容 |
 
 更多想要添加的平台欢迎提 [issue](https://github.com/doocs/cose/issues) 。
 
