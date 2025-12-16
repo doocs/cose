@@ -687,51 +687,6 @@ function fillContentOnPage(content, platformId) {
     else if (host.includes('zhihu.com')) {
       console.log('[COSE] 知乎由导入文档功能处理')
     }
-    // 简书
-    else if (host.includes('jianshu.com')) {
-      const editor = await waitFor('[contenteditable="true"], .public-DraftEditor-content')
-      if (editor) {
-        editor.focus()
-        document.execCommand('insertText', false, contentToFill)
-      }
-    }
-    // 思否
-    else if (host.includes('segmentfault.com')) {
-      const titleInput = await waitFor('input[placeholder*="标题"]')
-      setInputValue(titleInput, title)
-      
-      const textarea = await waitFor('textarea.editor, .CodeMirror')
-      if (textarea) {
-        if (textarea.CodeMirror) {
-          textarea.CodeMirror.setValue(contentToFill)
-        } else {
-          setInputValue(textarea, contentToFill)
-        }
-      }
-    }
-    // 头条号
-    else if (host.includes('toutiao.com')) {
-      const titleInput = await waitFor('input[placeholder*="标题"], textarea[placeholder*="标题"]')
-      setInputValue(titleInput, title)
-      
-      const editor = await waitFor('.ProseMirror, [contenteditable="true"]')
-      if (editor) {
-        editor.focus()
-        editor.innerHTML = `<p>${contentToFill.replace(/\n/g, '</p><p>')}</p>`
-        editor.dispatchEvent(new Event('input', { bubbles: true }))
-      }
-    }
-    // B站
-    else if (host.includes('bilibili.com')) {
-      const titleInput = await waitFor('input[placeholder*="标题"]')
-      setInputValue(titleInput, title)
-      
-      const editor = await waitFor('.ql-editor, [contenteditable="true"]')
-      if (editor) {
-        editor.innerHTML = `<p>${contentToFill.replace(/\n/g, '</p><p>')}</p>`
-        editor.dispatchEvent(new Event('input', { bubbles: true }))
-      }
-    }
     // 通用处理
     else {
       const titleSelectors = ['input[placeholder*="标题"]', 'input[name="title"]', 'textarea[placeholder*="标题"]']

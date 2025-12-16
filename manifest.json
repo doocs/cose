@@ -40,7 +40,7 @@
     "default_title": "COSE"
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "src/background.js"
   },
   "content_scripts": [
     {
@@ -48,7 +48,7 @@
         "http://*/*",
         "https://*/*"
       ],
-      "js": ["content.js"],
+      "js": ["src/content.js"],
       "run_at": "document_start"
     }
   ],
@@ -59,7 +59,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["inject.js", "platforms/*.js"],
+      "resources": ["src/inject.js", "src/platforms/*.js"],
       "matches": ["<all_urls>"]
     }
   ]

@@ -6,7 +6,7 @@
 
   // 注入脚本到页面主世界
   const script = document.createElement('script')
-  script.src = chrome.runtime.getURL('inject.js')
+  script.src = chrome.runtime.getURL('src/inject.js')
   script.onload = function () {
     this.remove()
   }
