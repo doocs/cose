@@ -22,6 +22,13 @@ const PLATFORMS = [
     // 先打开草稿箱，再自动点击新建
     publishUrl: 'https://mp.weixin.qq.com/cgi-bin/appmsg?t=media/appmsg_edit_v2&action=edit&isNew=1&type=10',
   },
+  {
+    id: 'zhihu',
+    name: 'Zhihu',
+    icon: 'https://static.zhihu.com/heifetz/favicon.ico',
+    url: 'https://www.zhihu.com',
+    publishUrl: 'https://zhuanlan.zhihu.com/write',
+  },
 ]
 
 // 导出供其他脚本使用

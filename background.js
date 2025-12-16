@@ -3,6 +3,7 @@ const PLATFORMS = [
   { id: 'csdn', name: 'CSDN', icon: 'https://g.csdnimg.cn/static/logo/favicon32.ico', url: 'https://blog.csdn.net', publishUrl: 'https://editor.csdn.net/md/' },
   { id: 'juejin', name: 'Juejin', icon: 'https://lf-web-assets.juejin.cn/obj/juejin-web/xitu_juejin_web/static/favicons/favicon-32x32.png', url: 'https://juejin.cn', publishUrl: 'https://juejin.cn/editor/drafts/new' },
   { id: 'wechat', name: 'WeChat', icon: 'https://res.wx.qq.com/a/wx_fed/assets/res/NTI4MWU5.ico', url: 'https://mp.weixin.qq.com', publishUrl: 'https://mp.weixin.qq.com/cgi-bin/appmsg?t=media/appmsg_edit_v2&action=edit&isNew=1&type=10' },
+  { id: 'zhihu', name: 'Zhihu', icon: 'https://static.zhihu.com/heifetz/favicon.ico', url: 'https://www.zhihu.com', publishUrl: 'https://zhuanlan.zhihu.com/write' },
 ]
 
 // 当前同步任务的 Tab Group ID
@@ -79,6 +80,15 @@ const LOGIN_CHECK_CONFIG = {
     // 获取用户信息需要从页面抓取
     fetchUserInfoFromPage: true,
     userInfoUrl: 'https://mp.weixin.qq.com/',
+  },
+  zhihu: {
+    api: 'https://www.zhihu.com/api/v4/me',
+    method: 'GET',
+    checkLogin: (response) => response?.id,
+    getUserInfo: (response) => ({
+      username: response?.name,
+      avatar: response?.avatar_url,
+    }),
   },
 }
 
@@ -369,6 +379,114 @@ async function syncToPlatform(platformId, content) {
       } else {
         console.log('[COSE] 未能获取微信 token，使用默认页面')
       }
+    } else if (platformId === 'zhihu') {
+      // 知乎：使用导入文档功能上传 md 文件
+      tab = await chrome.tabs.create({ url: platform.publishUrl, active: false })
+      await addTabToSyncGroup(tab.id, tab.windowId)
+      await waitForTab(tab.id)
+      
+      // 等待页面完全加载
+      await new Promise(resolve => setTimeout(resolve, 3000))
+      
+      // 在页面中执行：点击导入文档并上传 md 文件
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: (title, markdown) => {
+          // 等待元素出现的工具函数
+          function waitFor(selector, timeout = 10000) {
+            return new Promise((resolve) => {
+              const start = Date.now()
+              const check = () => {
+                const el = document.querySelector(selector)
+                if (el) resolve(el)
+                else if (Date.now() - start > timeout) resolve(null)
+                else setTimeout(check, 200)
+              }
+              check()
+            })
+          }
+          
+          async function uploadMarkdown() {
+            // 先填充标题
+            const titleInput = await waitFor('textarea[placeholder*="标题"]')
+            if (titleInput && title) {
+              titleInput.focus()
+              titleInput.value = title
+              titleInput.dispatchEvent(new Event('input', { bubbles: true }))
+              console.log('[COSE] 知乎标题填充成功')
+            }
+            
+            // 第一步：点击工具栏的"导入"按钮，打开子菜单
+            // 注意：按钮文本可能包含零宽字符，使用 includes 匹配
+            const importBtn = Array.from(document.querySelectorAll('button'))
+              .find(el => el.innerText.includes('导入') && !el.innerText.includes('导入文档') && !el.innerText.includes('导入链接'))
+            
+            if (importBtn) {
+              importBtn.click()
+              console.log('[COSE] 已点击导入按钮')
+              
+              // 等待子菜单出现
+              await new Promise(resolve => setTimeout(resolve, 500))
+              
+              // 第二步：点击子菜单中的"导入文档"按钮
+              const importDocBtn = Array.from(document.querySelectorAll('button'))
+                .find(el => el.innerText.includes('导入文档'))
+              
+              if (importDocBtn) {
+                importDocBtn.click()
+                console.log('[COSE] 已点击导入文档按钮')
+                
+                // 等待上传对话框出现
+                await new Promise(resolve => setTimeout(resolve, 1000))
+                
+                // 查找接受 md 文件的输入框
+                const fileInput = document.querySelector('input[type="file"][accept*=".md"]')
+                if (fileInput) {
+                  // 创建 md 文件（使用 text/plain 类型，更通用）
+                  const mdContent = markdown || ''
+                  const fileName = (title || 'article').replace(/[\\/:*?"<>|]/g, '_') + '.md'
+                  const file = new File([mdContent], fileName, { type: 'text/plain' })
+                  
+                  // 创建 DataTransfer 并设置文件
+                  const dt = new DataTransfer()
+                  dt.items.add(file)
+                  fileInput.files = dt.files
+                  
+                  // 触发 input 和 change 事件
+                  fileInput.dispatchEvent(new Event('input', { bubbles: true }))
+                  fileInput.dispatchEvent(new Event('change', { bubbles: true }))
+                  console.log('[COSE] 已上传 md 文件:', fileName)
+                  
+                  // 如果 change 不起作用，尝试拖放方式
+                  await new Promise(resolve => setTimeout(resolve, 500))
+                  
+                  // 查找上传按钮区域并触发拖放
+                  const dropZone = document.querySelector('[class*="Modal"]') || document.body
+                  const dropEvent = new DragEvent('drop', {
+                    bubbles: true,
+                    cancelable: true,
+                    dataTransfer: dt
+                  })
+                  dropZone.dispatchEvent(dropEvent)
+                  console.log('[COSE] 已触发拖放事件')
+                } else {
+                  console.log('[COSE] 未找到文件输入框')
+                }
+              } else {
+                console.log('[COSE] 未找到导入文档按钮')
+              }
+            } else {
+              console.log('[COSE] 未找到导入按钮')
+            }
+          }
+          
+          uploadMarkdown().catch(console.error)
+        },
+        args: [content.title, content.markdown],
+        world: 'MAIN',
+      })
+      
+      return { success: true, message: '已打开知乎并导入文档', tabId: tab.id }
     } else {
       // 其他平台直接打开发布页面
       tab = await chrome.tabs.create({ url: platform.publishUrl, active: false })
@@ -564,6 +682,10 @@ function fillContentOnPage(content, platformId) {
     // 微信公众号 - 由 syncToPlatform 单独处理，这里跳过
     else if (host.includes('mp.weixin.qq.com')) {
       console.log('[COSE] 微信公众号由 debugger API 处理')
+    }
+    // 知乎专栏 - 由 syncToPlatform 单独处理（使用导入文档功能）
+    else if (host.includes('zhihu.com')) {
+      console.log('[COSE] 知乎由导入文档功能处理')
     }
     // 简书
     else if (host.includes('jianshu.com')) {
