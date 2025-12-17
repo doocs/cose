@@ -1,0 +1,112 @@
+name: Bug Report / 问题报告
+description: Report a bug or issue with the extension / 报告扩展的 bug 或问题
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this bug! Please fill out the information below to help us resolve the issue.
+        
+        感谢您花时间报告此问题！请填写以下信息以帮助我们解决问题。
+  
+  - type: textarea
+    id: description
+    attributes:
+      label: Description / 问题描述
+      description: A clear and concise description of the bug / 清晰简洁地描述问题
+      placeholder: Describe the bug you encountered / 描述您遇到的问题
+    validations:
+      required: true
+  
+  - type: textarea
+    id: reproduction-steps
+    attributes:
+      label: Steps to Reproduce / 复现步骤
+      description: Detailed steps to reproduce the behavior / 详细的复现步骤
+      placeholder: |
+        1. Go to '...' / 前往 '...'
+        2. Click on '...' / 点击 '...'
+        3. Scroll down to '...' / 滚动到 '...'
+        4. See error / 看到错误
+    validations:
+      required: true
+  
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected Behavior / 预期行为
+      description: What you expected to happen / 您期望发生什么
+      placeholder: Describe the expected behavior / 描述预期行为
+    validations:
+      required: true
+  
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual Behavior / 实际行为
+      description: What actually happened / 实际发生了什么
+      placeholder: Describe what actually happened / 描述实际发生的情况
+    validations:
+      required: true
+  
+  - type: input
+    id: platform
+    attributes:
+      label: Platform / 平台
+      description: Which platform is affected? / 哪个平台受到影响？
+      placeholder: e.g., CSDN, Zhihu, Juejin, Toutiao / 如：CSDN、知乎、掘金、头条
+    validations:
+      required: true
+  
+  - type: dropdown
+    id: browser
+    attributes:
+      label: Browser / 浏览器
+      description: Which browser are you using? / 您使用的是哪个浏览器？
+      options:
+        - Chrome
+        - Firefox
+        - Edge
+        - Safari
+        - Other / 其他
+    validations:
+      required: true
+  
+  - type: input
+    id: extension-version
+    attributes:
+      label: Extension Version / 扩展版本
+      description: What version of the extension are you running? / 您运行的扩展版本是多少？
+      placeholder: e.g., 1.2.0 / 如：1.2.0
+    validations:
+      required: true
+  
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment Details / 环境信息
+      description: Any additional environment information / 其他环境信息
+      placeholder: |
+        - OS / 操作系统: [e.g., Windows 10, macOS 13.0]
+        - Browser Version / 浏览器版本: [e.g., Chrome 120.0]
+        - Additional context / 其他信息
+    validations:
+      required: false
+  
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots / 截图
+      description: If applicable, add screenshots to help explain your problem / 如有需要，请添加截图帮助说明问题
+      placeholder: Drag and drop images here / 拖放图片到这里
+    validations:
+      required: false
+  
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context / 补充信息
+      description: Any other context about the problem / 关于此问题的其他补充信息
+    validations:
+      required: false

@@ -1,0 +1,71 @@
+name: Feature Request / 功能请求
+description: Suggest a new feature or enhancement / 建议新功能或改进
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for your interest in improving this project! Please describe your feature request below.
+        
+        感谢您对改进本项目的兴趣！请在下方描述您的功能请求。
+  
+  - type: textarea
+    id: problem-description
+    attributes:
+      label: Problem Description / 问题描述
+      description: Is your feature request related to a problem? Describe what the problem is / 您的功能请求是否与某个问题相关？请描述问题
+      placeholder: "I'm frustrated when... / 我感到困扰的是..."
+    validations:
+      required: true
+  
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Proposed Solution / 建议的解决方案
+      description: Describe the solution you'd like to see / 描述您希望看到的解决方案
+      placeholder: A clear and concise description of what you want to happen / 清晰简洁地描述您希望实现的功能
+    validations:
+      required: true
+  
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered / 考虑过的替代方案
+      description: Describe any alternative solutions or features you've considered / 描述您考虑过的其他解决方案或功能
+      placeholder: What other approaches could solve this problem? / 还有哪些方法可以解决这个问题？
+    validations:
+      required: false
+  
+  - type: dropdown
+    id: feature-type
+    attributes:
+      label: Feature Type / 功能类型
+      description: What type of feature is this? / 这是什么类型的功能？
+      options:
+        - New platform support / 新平台支持
+        - UI/UX improvement / 界面/体验改进
+        - Performance enhancement / 性能优化
+        - Content formatting / 内容格式化
+        - Authentication/Login / 认证/登录
+        - Other / 其他
+    validations:
+      required: true
+  
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context / 补充信息
+      description: Add any other context, screenshots, or examples about the feature request / 添加其他相关信息、截图或示例
+      placeholder: Any mockups, examples, or additional details / 任何原型图、示例或其他细节
+    validations:
+      required: false
+  
+  - type: checkboxes
+    id: willingness
+    attributes:
+      label: Implementation / 实现意愿
+      description: Would you be willing to help implement this feature? / 您是否愿意帮助实现此功能？
+      options:
+        - label: I'm willing to submit a PR for this feature / 我愿意为此功能提交 PR
+          required: false
