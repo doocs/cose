@@ -38,6 +38,15 @@ const PLATFORMS = [
     title: '知乎',
     type: 'zhihu',
   },
+  {
+    id: 'toutiao',
+    name: 'Toutiao',
+    icon: 'https://sf3-cdn-tos.toutiaostatic.com/obj/eden-cn/uhbfnupkbps/toutiao_favicon.ico',
+    url: 'https://mp.toutiao.com',
+    publishUrl: 'https://mp.toutiao.com/profile_v4/graphic/publish',
+    title: '今日头条',
+    type: 'toutiao',
+  },
 ]
 
 // 登录检测配置
@@ -76,6 +85,15 @@ const LOGIN_CHECK_CONFIG = {
       avatar: response?.avatar_url,
     }),
   },
+  toutiao: {
+    api: 'https://mp.toutiao.com/mp/agw/media/get_media_info',
+    method: 'GET',
+    checkLogin: (response) => response?.err_no === 0 && response?.data?.media?.display_name,
+    getUserInfo: (response) => ({
+      username: response?.data?.media?.display_name,
+      avatar: response?.data?.media?.https_avatar_url,
+    }),
+  },
 }
 
 // 根据 hostname 获取平台填充函数
@@ -84,6 +102,7 @@ function getPlatformFiller(hostname) {
   if (hostname.includes('juejin.cn')) return 'juejin'
   if (hostname.includes('mp.weixin.qq.com')) return 'wechat'
   if (hostname.includes('zhihu.com')) return 'zhihu'
+  if (hostname.includes('toutiao.com')) return 'toutiao'
   return 'generic'
 }
 

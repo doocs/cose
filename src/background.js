@@ -4,6 +4,7 @@ const PLATFORMS = [
   { id: 'juejin', name: 'Juejin', icon: 'https://lf-web-assets.juejin.cn/obj/juejin-web/xitu_juejin_web/static/favicons/favicon-32x32.png', url: 'https://juejin.cn', publishUrl: 'https://juejin.cn/editor/drafts/new' },
   { id: 'wechat', name: 'WeChat', icon: 'https://res.wx.qq.com/a/wx_fed/assets/res/NTI4MWU5.ico', url: 'https://mp.weixin.qq.com', publishUrl: 'https://mp.weixin.qq.com/cgi-bin/appmsg?t=media/appmsg_edit_v2&action=edit&isNew=1&type=10' },
   { id: 'zhihu', name: 'Zhihu', icon: 'https://static.zhihu.com/heifetz/favicon.ico', url: 'https://www.zhihu.com', publishUrl: 'https://zhuanlan.zhihu.com/write' },
+  { id: 'toutiao', name: 'Toutiao', icon: 'https://sf3-cdn-tos.toutiaostatic.com/obj/eden-cn/uhbfnupkbps/toutiao_favicon.ico', url: 'https://mp.toutiao.com', publishUrl: 'https://mp.toutiao.com/profile_v4/graphic/publish' },
 ]
 
 // 当前同步任务的 Tab Group ID
@@ -90,6 +91,15 @@ const LOGIN_CHECK_CONFIG = {
       avatar: response?.avatar_url,
     }),
   },
+  toutiao: {
+    api: 'https://mp.toutiao.com/mp/agw/media/get_media_info',
+    method: 'GET',
+    checkLogin: (response) => response?.err_no === 0 && response?.data?.media?.display_name,
+    getUserInfo: (response) => ({
+      username: response?.data?.media?.display_name,
+      avatar: response?.data?.media?.https_avatar_url,
+    }),
+  },
 }
 
 // 消息监听
@@ -172,7 +182,7 @@ async function checkPlatformLogin(platform) {
 
     let data = null
     const contentType = response.headers.get('content-type') || ''
-    if (contentType.includes('application/json')) {
+    if (contentType.includes('application/json') || contentType.includes('text/plain')) {
       try { data = await response.json() } catch (e) { data = null }
     }
 
@@ -243,7 +253,7 @@ async function checkLoginByCookie(platformId, config) {
       }
     }
     
-    // 从微信公众号页面抓取用户信息
+    // 从页面抓取用户信息
     if (config.fetchUserInfoFromPage && config.userInfoUrl) {
       try {
         const response = await fetch(config.userInfoUrl, {
@@ -251,22 +261,43 @@ async function checkLoginByCookie(platformId, config) {
           credentials: 'include'
         })
         const html = await response.text()
-        // 从 HTML 中提取公众号名称
-        const nameMatch = html.match(/nick_name\s*[:=]\s*["']([^"']+)["']/i) ||
-                          html.match(/<span[^>]*class="nickname"[^>]*>([^<]+)<\/span>/i)
-        if (nameMatch) {
-          username = nameMatch[1]
-        }
-        // 从 HTML 中提取头像
-        const avatarMatch = html.match(/head_img\s*[:=]\s*["']([^"']+)["']/i) ||
-                            html.match(/<img[^>]*class="avatar"[^>]*src="([^"]+)"/i)
-        if (avatarMatch) {
-          avatar = avatarMatch[1].replace(/\\x26amp;/g, '&').replace(/\\/g, '')
-          if (!avatar.startsWith('http')) {
-            avatar = 'https://mp.weixin.qq.com' + avatar
+        
+        // 头条号用户信息提取
+        if (platformId === 'toutiao') {
+          // 尝试从页面中提取用户名
+          const nameMatch = html.match(/\"name\"\s*:\s*\"([^"]+)\"/i) ||
+                            html.match(/screen_name[\"']?\s*[:=]\s*[\"']([^\"']+)[\"']/i) ||
+                            html.match(/<span[^>]*class="[^"]*name[^"]*"[^>]*>([^<]+)<\/span>/i)
+          if (nameMatch) {
+            username = nameMatch[1]
           }
+          // 尝试从页面中提取头像
+          const avatarMatch = html.match(/\"avatar_url\"\s*:\s*\"([^"]+)\"/i) ||
+                              html.match(/avatar[\"']?\s*[:=]\s*[\"']([^\"']+)[\"']/i)
+          if (avatarMatch) {
+            avatar = avatarMatch[1].replace(/\\/g, '')
+          }
+          console.log(`[COSE] ${platformId} 用户信息:`, username, avatar ? '有头像' : '无头像')
         }
-        console.log(`[COSE] ${platformId} 用户信息:`, username, avatar ? '有头像' : '无头像')
+        // 微信公众号用户信息提取
+        else {
+          // 从 HTML 中提取公众号名称
+          const nameMatch = html.match(/nick_name\s*[:=]\s*["']([^"']+)["']/i) ||
+                            html.match(/<span[^>]*class="nickname"[^>]*>([^<]+)<\/span>/i)
+          if (nameMatch) {
+            username = nameMatch[1]
+          }
+          // 从 HTML 中提取头像
+          const avatarMatch = html.match(/head_img\s*[:=]\s*["']([^"']+)["']/i) ||
+                              html.match(/<img[^>]*class="avatar"[^>]*src="([^"]+)"/i)
+          if (avatarMatch) {
+            avatar = avatarMatch[1].replace(/\\x26amp;/g, '&').replace(/\\/g, '')
+            if (!avatar.startsWith('http')) {
+              avatar = 'https://mp.weixin.qq.com' + avatar
+            }
+          }
+          console.log(`[COSE] ${platformId} 用户信息:`, username, avatar ? '有头像' : '无头像')
+        }
       } catch (e) {
         console.log(`[COSE] ${platformId} 获取用户信息失败:`, e.message)
       }
@@ -686,6 +717,41 @@ function fillContentOnPage(content, platformId) {
     // 知乎专栏 - 由 syncToPlatform 单独处理（使用导入文档功能）
     else if (host.includes('zhihu.com')) {
       console.log('[COSE] 知乎由导入文档功能处理')
+    }
+    // 今日头条
+    else if (host.includes('toutiao.com')) {
+      // 填充标题 - 头条使用 textarea 作为标题输入
+      const titleInput = await waitFor('textarea[placeholder*="标题"], input[placeholder*="标题"], .editor-title textarea, .title-input textarea')
+      if (titleInput) {
+        titleInput.focus()
+        // 使用 nativeInputValueSetter 触发 React 状态更新
+        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set 
+          || Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
+        if (nativeInputValueSetter) {
+          nativeInputValueSetter.call(titleInput, title)
+        } else {
+          titleInput.value = title
+        }
+        titleInput.dispatchEvent(new Event('input', { bubbles: true }))
+        titleInput.dispatchEvent(new Event('change', { bubbles: true }))
+        console.log('[COSE] 头条标题填充成功')
+      } else {
+        console.log('[COSE] 头条未找到标题输入框')
+      }
+      
+      // 等待编辑器加载
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      // 头条使用富文本编辑器
+      const editor = document.querySelector('.ProseMirror, [contenteditable="true"], .editor-content')
+      if (editor) {
+        editor.focus()
+        editor.innerHTML = body || contentToFill.replace(/\n/g, '<br>')
+        editor.dispatchEvent(new Event('input', { bubbles: true }))
+        console.log('[COSE] 头条内容填充成功')
+      } else {
+        console.log('[COSE] 头条未找到编辑器')
+      }
     }
     // 通用处理
     else {
