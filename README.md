@@ -4,16 +4,16 @@
     <img src="assets/headerLight.svg" alt="COSE" />
   </picture>
 
+_**C**reate **O**nce **S**ync **E**verywhere_
+
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Chrome Web Store](https://img.shields.io/badge/Install-Chrome%20Web%20Store-4285F4?logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/)
 [![YouTube](https://img.shields.io/badge/Video-YouTube-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=KTskiA8Xaj4)
-<!-- [![Bilibili](https://img.shields.io/badge/Video-Bilibili-00A1D6?logo=bilibili&logoColor=white)](https://www.bilibili.com/video/BV) -->
-
-Create Once Sync Everywhere
+[![Bilibili](https://img.shields.io/badge/Video-Bilibili-00A1D6?logo=bilibili&logoColor=white)](https://www.bilibili.com/video/BV1ZxqnB1E2C/)
 
 </div>
 
-配合 [doocs/md](https://github.com/doocs/md) 微信 Markdown 编辑器使用的浏览器扩展，支持一键将文章同步到多个内容平台。
+配合 [doocs/md](https://github.com/doocs/md) Markdown 编辑器使用的浏览器扩展，支持一键将文章同步到多个内容平台。
 
 ## 特性
 
@@ -35,22 +35,20 @@ Create Once Sync Everywhere
 
 更多想要添加的平台欢迎提 [issue](https://github.com/doocs/cose/issues) 。
 
-## 安装方法
+## 使用方法
 
-### 开发者模式安装
+> 点击观看视频：[![Bilibili](https://img.shields.io/badge/Video-Bilibili-00A1D6?logo=bilibili&logoColor=white)](https://www.bilibili.com/video/BV1ZxqnB1E2C/) [![YouTube](https://img.shields.io/badge/Video-YouTube-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=KTskiA8Xaj4) 
+
+1. 先点击安装扩展 [![Chrome Web Store](https://img.shields.io/badge/Install-Chrome%20Web%20Store-4285F4?logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/) 然后打开 [md.doocs.org](https://md.doocs.org) 或本地开发环境
+2. 编辑 Markdown 内容
+3. 点击顶部的 **发布** 按钮
+4. 在弹出的对话框中选择要同步的平台
+5. 点击 **确定** 开始同步
+
+## 开发者模式安装测试
 
 1. 克隆或下载本项目
 2. 打开 Chrome 浏览器，进入 `chrome://extensions/`
 3. 开启右上角的 **开发者模式**
 4. 点击 **加载已解压的扩展程序**
 5. 选择 `cose` 目录
-
-## 使用方法
-
-观看视频：[![YouTube](https://img.shields.io/badge/Video-YouTube-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=KTskiA8Xaj4)
-
-1. 安装扩展后，打开 [md.doocs.org](https://md.doocs.org) 或本地开发服务器
-2. 编辑 Markdown 内容
-3. 点击顶部的 **发布** 按钮
-4. 在弹出的对话框中选择要同步的平台
-5. 点击 **确定** 开始同步
