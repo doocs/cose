@@ -37,7 +37,7 @@ Create Once Sync Everywhere
 
 ## 使用方法
 
-观看视频：[![YouTube](https://img.shields.io/badge/Video-YouTube-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=KTskiA8Xaj4) [![Bilibili](https://img.shields.io/badge/Video-Bilibili-00A1D6?logo=bilibili&logoColor=white)](https://www.bilibili.com/video/BV1ZxqnB1E2C/)
+点击观看视频：[![YouTube](https://img.shields.io/badge/Video-YouTube-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=KTskiA8Xaj4) [![Bilibili](https://img.shields.io/badge/Video-Bilibili-00A1D6?logo=bilibili&logoColor=white)](https://www.bilibili.com/video/BV1ZxqnB1E2C/)
 
 1. 先安装扩展[![Chrome Web Store](https://img.shields.io/badge/Install-Chrome%20Web%20Store-4285F4?logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/)，然后打开 [md.doocs.org](https://md.doocs.org) 或本地开发服务器
 2. 编辑 Markdown 内容
