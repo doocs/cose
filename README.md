@@ -4,7 +4,7 @@
     <img src="assets/headerLight.svg" alt="COSE" />
   </picture>
 
-*Create Once Sync Everywhere*
+_**C**reate **O**nce **S**ync **E**verywhere_
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Chrome Web Store](https://img.shields.io/badge/Install-Chrome%20Web%20Store-4285F4?logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/)
