@@ -15,6 +15,8 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 
 配合 [doocs/md](https://github.com/doocs/md) Markdown 编辑器使用的浏览器扩展，支持一键将文章同步到多个内容平台。
 
+> 本插件完全本地运行，不收集、不存储任何用户信息。**如需添加更多平台或改善同步准确度，欢迎提 [Issue](https://github.com/doocs/cose/issues) 或 [PR](https://github.com/doocs/cose/pulls)**。
+
 ## 使用方法
 
 > 点击观看视频：[![Bilibili](https://img.shields.io/badge/Video-Bilibili-00A1D6?logo=bilibili&logoColor=white)](https://www.bilibili.com/video/BV1ZxqnB1E2C/) [![YouTube](https://img.shields.io/badge/Video-YouTube-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=KTskiA8Xaj4) 
@@ -43,7 +45,7 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 | 知乎 | 自动填充 Markdown 内容 |
 | 今日头条 | 自动填充 Markdown 内容 |
 
-更多想要添加的平台欢迎提 [issue](https://github.com/doocs/cose/issues) 。
+更多想要添加的平台欢迎提 [Issue](https://github.com/doocs/cose/issues) 。
 
 ## 开发者模式测试
 
