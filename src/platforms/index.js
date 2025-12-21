@@ -47,6 +47,15 @@ const PLATFORMS = [
     title: '今日头条',
     type: 'toutiao',
   },
+  {
+    id: 'segmentfault',
+    name: 'SegmentFault',
+    icon: 'https://static.segmentfault.com/main_site_next/prod/favicon.ico',
+    url: 'https://segmentfault.com',
+    publishUrl: 'https://segmentfault.com/write',
+    title: '思否',
+    type: 'segmentfault',
+  },
 ]
 
 // 登录检测配置
@@ -94,6 +103,13 @@ const LOGIN_CHECK_CONFIG = {
       avatar: response?.data?.media?.https_avatar_url,
     }),
   },
+  segmentfault: {
+    useCookie: true,
+    cookieUrl: 'https://segmentfault.com',
+    cookieNames: ['PHPSESSID'],
+    fetchUserInfoFromPage: true,
+    userInfoUrl: 'https://segmentfault.com/write',
+  },
 }
 
 // 根据 hostname 获取平台填充函数
@@ -103,6 +119,7 @@ function getPlatformFiller(hostname) {
   if (hostname.includes('mp.weixin.qq.com')) return 'wechat'
   if (hostname.includes('zhihu.com')) return 'zhihu'
   if (hostname.includes('toutiao.com')) return 'toutiao'
+  if (hostname.includes('segmentfault.com')) return 'segmentfault'
   return 'generic'
 }
 

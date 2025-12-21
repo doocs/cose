@@ -5,6 +5,7 @@ const PLATFORMS = [
   { id: 'wechat', name: 'WeChat', icon: 'https://res.wx.qq.com/a/wx_fed/assets/res/NTI4MWU5.ico', url: 'https://mp.weixin.qq.com', publishUrl: 'https://mp.weixin.qq.com/cgi-bin/appmsg?t=media/appmsg_edit_v2&action=edit&isNew=1&type=10' },
   { id: 'zhihu', name: 'Zhihu', icon: 'https://static.zhihu.com/heifetz/favicon.ico', url: 'https://www.zhihu.com', publishUrl: 'https://zhuanlan.zhihu.com/write' },
   { id: 'toutiao', name: 'Toutiao', icon: 'https://sf3-cdn-tos.toutiaostatic.com/obj/eden-cn/uhbfnupkbps/toutiao_favicon.ico', url: 'https://mp.toutiao.com', publishUrl: 'https://mp.toutiao.com/profile_v4/graphic/publish' },
+  { id: 'segmentfault', name: 'SegmentFault', icon: 'https://static.segmentfault.com/main_site_next/prod/favicon.ico', url: 'https://segmentfault.com', publishUrl: 'https://segmentfault.com/write' },
 ]
 
 // 当前同步任务的 Tab Group ID
@@ -99,6 +100,13 @@ const LOGIN_CHECK_CONFIG = {
       username: response?.data?.media?.display_name,
       avatar: response?.data?.media?.https_avatar_url,
     }),
+  },
+  segmentfault: {
+    useCookie: true,
+    cookieUrl: 'https://segmentfault.com',
+    cookieNames: ['PHPSESSID'],
+    fetchUserInfoFromPage: true,
+    userInfoUrl: 'https://segmentfault.com/write',
   },
 }
 
@@ -279,8 +287,32 @@ async function checkLoginByCookie(platformId, config) {
           }
           console.log(`[COSE] ${platformId} 用户信息:`, username, avatar ? '有头像' : '无头像')
         }
+        // 思否用户信息提取（从 __NEXT_DATA__ 中获取）
+        // 注意：思否的 PHPSESSID 即使未登录也存在，必须通过用户信息判断登录状态
+        else if (platformId === 'segmentfault') {
+          // 从 __NEXT_DATA__ 中提取用户信息
+          const nextDataMatch = html.match(/<script\s+id="__NEXT_DATA__"[^>]*>([^<]+)<\/script>/i)
+          if (nextDataMatch) {
+            try {
+              const nextData = JSON.parse(nextDataMatch[1])
+              const sessionUser = nextData?.props?.pageProps?.initialState?.global?.sessionUser?.user
+              if (sessionUser && sessionUser.name) {
+                username = sessionUser.name
+                avatar = sessionUser.avatar_url || ''
+              }
+            } catch (e) {
+              console.log(`[COSE] ${platformId} 解析 NEXT_DATA 失败:`, e.message)
+            }
+          }
+          // 思否：只有成功提取到用户名才算已登录
+          if (!username) {
+            console.log(`[COSE] ${platformId} 未登录或无法获取用户信息`)
+            return { loggedIn: false }
+          }
+          console.log(`[COSE] ${platformId} 用户信息:`, username, avatar ? '有头像' : '无头像')
+        }
         // 微信公众号用户信息提取
-        else {
+        else if (platformId === 'wechat') {
           // 从 HTML 中提取公众号名称
           const nameMatch = html.match(/nick_name\s*[:=]\s*["']([^"']+)["']/i) ||
                             html.match(/<span[^>]*class="nickname"[^>]*>([^<]+)<\/span>/i)
@@ -747,6 +779,41 @@ function fillContentOnPage(content, platformId) {
         console.log('[COSE] 头条内容填充成功')
       } else {
         console.log('[COSE] 头条未找到编辑器')
+      }
+    }
+    // 思否 SegmentFault
+    else if (host.includes('segmentfault.com')) {
+      // 填充标题
+      const titleInput = await waitFor('input#title, input[placeholder*="标题"]')
+      if (titleInput) {
+        titleInput.focus()
+        titleInput.value = title
+        titleInput.dispatchEvent(new Event('input', { bubbles: true }))
+        titleInput.dispatchEvent(new Event('change', { bubbles: true }))
+        console.log('[COSE] 思否标题填充成功')
+      } else {
+        console.log('[COSE] 思否未找到标题输入框')
+      }
+      
+      // 等待编辑器加载
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      // 思否使用 CodeMirror 编辑器
+      const cmElement = document.querySelector('.CodeMirror')
+      if (cmElement && cmElement.CodeMirror) {
+        cmElement.CodeMirror.setValue(contentToFill)
+        console.log('[COSE] 思否 CodeMirror 填充成功')
+      } else {
+        // 降级到 textarea
+        const textarea = document.querySelector('textarea')
+        if (textarea) {
+          textarea.focus()
+          textarea.value = contentToFill
+          textarea.dispatchEvent(new Event('input', { bubbles: true }))
+          console.log('[COSE] 思否 textarea 填充成功')
+        } else {
+          console.log('[COSE] 思否 未找到编辑器')
+        }
       }
     }
     // 通用处理

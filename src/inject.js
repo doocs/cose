@@ -68,6 +68,7 @@
     { id: 'wechat', name: 'WeChat', icon: 'https://res.wx.qq.com/a/wx_fed/assets/res/NTI4MWU5.ico', title: '微信公众号', type: 'wechat' },
     { id: 'zhihu', name: 'Zhihu', icon: 'https://static.zhihu.com/heifetz/favicon.ico', title: '知乎', type: 'zhihu' },
     { id: 'toutiao', name: 'Toutiao', icon: 'https://sf3-cdn-tos.toutiaostatic.com/obj/eden-cn/uhbfnupkbps/toutiao_favicon.ico', title: '今日头条', type: 'toutiao' },
+    { id: 'segmentfault', name: 'SegmentFault', icon: 'https://youke2.picui.cn/s1/2025/12/21/6947b2935a41e.ico', title: '思否', type: 'segmentfault' },
   ]
 
   // 暴露 $cose 全局对象
@@ -93,17 +94,21 @@
         const result = await sendMessage('CHECK_PLATFORM_STATUS', { platforms: PLATFORMS })
         const status = result?.status || {}
         
-        const accounts = PLATFORMS.map(p => ({
-          uid: p.id,
-          type: p.type,
-          title: p.title,
-          displayName: status[p.id]?.username || p.title,
-          icon: p.icon,
-          avatar: status[p.id]?.avatar,
-          home: '',
-          checked: false,
-          loggedIn: status[p.id]?.loggedIn || false,
-        }))
+        const accounts = PLATFORMS.map(p => {
+          const platformStatus = status[p.id] || {}
+          const isLoggedIn = platformStatus.loggedIn || false
+          return {
+            uid: p.id,
+            type: p.type,
+            title: p.title,
+            displayName: isLoggedIn ? (platformStatus.username || p.title) : p.title,
+            icon: p.icon,
+            avatar: platformStatus.avatar,
+            home: '',
+            checked: false,
+            loggedIn: isLoggedIn,
+          }
+        })
         
         if (typeof callback === 'function') {
           callback(accounts)

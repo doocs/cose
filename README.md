@@ -35,17 +35,16 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 - 微信公众号同步时完整保留渲染样式并自动保存为草稿
 
 
-## 支持的平台
+## 已支持的平台
 
-| 平台 | 说明 |
-|------|------|
-| CSDN | 自动填充 Markdown 内容 |
-| 掘金 | 自动填充 Markdown 内容 |
-| 微信公众号 | 保留完整样式，自动保存草稿 |
-| 知乎 | 自动填充 Markdown 内容 |
-| 今日头条 | 自动填充 Markdown 内容 |
+- 微信公众号
+- 今日头条
+- 知乎
+- CSDN
+- 掘金
+- 思否
 
-更多想要添加的平台欢迎提 [Issue](https://github.com/doocs/cose/issues) 。
+更多想要添加的平台欢迎提 [Issue](https://github.com/doocs/cose/issues) ！
 
 ## 开发者模式测试
 
