@@ -65,10 +65,10 @@ We may update this Privacy Policy from time to time. Any changes will be posted 
 
 If you have questions about this Privacy Policy, please open an issue at:
 
-https://github.com/doocs/md/issues
+https://github.com/doocs/cose/issues
 
 ## Open Source
 
 COSE is open source. You can review the complete source code at:
 
-https://github.com/doocs/md
+https://github.com/doocs/cose
