@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "COSE - 多平台文章同步",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Create Once, Sync Everywhere. 一键将文章同步到多个平台",
   "permissions": [
     "tabGroups",
@@ -28,7 +28,8 @@
     "https://*.eastmoney.com/*",
     "https://*.wordpress.com/*",
     "https://*.wordpress.org/*",
-    "https://md.doocs.org/*"
+    "https://md.doocs.org/*",
+    "https://*.cnblogs.com/*"
   ],
   "action": {
     "default_icon": {

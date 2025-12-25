@@ -6,6 +6,7 @@ const PLATFORMS = [
   { id: 'zhihu', name: 'Zhihu', icon: 'https://static.zhihu.com/heifetz/favicon.ico', url: 'https://www.zhihu.com', publishUrl: 'https://zhuanlan.zhihu.com/write' },
   { id: 'toutiao', name: 'Toutiao', icon: 'https://sf3-cdn-tos.toutiaostatic.com/obj/eden-cn/uhbfnupkbps/toutiao_favicon.ico', url: 'https://mp.toutiao.com', publishUrl: 'https://mp.toutiao.com/profile_v4/graphic/publish' },
   { id: 'segmentfault', name: 'SegmentFault', icon: 'https://static.segmentfault.com/main_site_next/prod/favicon.ico', url: 'https://segmentfault.com', publishUrl: 'https://segmentfault.com/write' },
+  { id: 'cnblogs', name: 'Cnblogs', icon: 'https://www.cnblogs.com/favicon.ico', url: 'https://www.cnblogs.com', publishUrl: 'https://i.cnblogs.com/posts/edit' },
 ]
 
 // 当前同步任务的 Tab Group ID
@@ -107,6 +108,15 @@ const LOGIN_CHECK_CONFIG = {
     cookieNames: ['PHPSESSID'],
     fetchUserInfoFromPage: true,
     userInfoUrl: 'https://segmentfault.com/write',
+  },
+  cnblogs: {
+    api: 'https://i.cnblogs.com/api/user',
+    method: 'GET',
+    checkLogin: (response) => response?.loginName,
+    getUserInfo: (response) => ({
+      username: response?.displayName || response?.loginName,
+      avatar: response?.avatarName ? `https:${response.avatarName}` : '',
+    }),
   },
 }
 
@@ -814,6 +824,38 @@ function fillContentOnPage(content, platformId) {
         } else {
           console.log('[COSE] 思否 未找到编辑器')
         }
+      }
+    }
+    // 博客园
+    else if (host.includes('cnblogs.com')) {
+      // 等待页面加载
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      // 填充标题 - 博客园标题输入框
+      const titleInput = await waitFor('input[placeholder="标题"]') || document.querySelector('input')
+      if (titleInput) {
+        titleInput.focus()
+        titleInput.value = title
+        titleInput.dispatchEvent(new Event('input', { bubbles: true }))
+        titleInput.dispatchEvent(new Event('change', { bubbles: true }))
+        console.log('[COSE] 博客园标题填充成功')
+      } else {
+        console.log('[COSE] 博客园未找到标题输入框')
+      }
+      
+      // 等待编辑器加载
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      // 博客园使用 id="md-editor" 的 textarea 作为 Markdown 编辑器
+      const editor = document.querySelector('#md-editor') || document.querySelector('textarea.not-resizable')
+      if (editor) {
+        editor.focus()
+        editor.value = contentToFill
+        editor.dispatchEvent(new Event('input', { bubbles: true }))
+        editor.dispatchEvent(new Event('change', { bubbles: true }))
+        console.log('[COSE] 博客园内容填充成功')
+      } else {
+        console.log('[COSE] 博客园未找到编辑器')
       }
     }
     // 通用处理

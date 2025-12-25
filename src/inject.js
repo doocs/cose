@@ -69,6 +69,7 @@
     { id: 'zhihu', name: 'Zhihu', icon: 'https://static.zhihu.com/heifetz/favicon.ico', title: '知乎', type: 'zhihu' },
     { id: 'toutiao', name: 'Toutiao', icon: 'https://sf3-cdn-tos.toutiaostatic.com/obj/eden-cn/uhbfnupkbps/toutiao_favicon.ico', title: '今日头条', type: 'toutiao' },
     { id: 'segmentfault', name: 'SegmentFault', icon: 'https://youke2.picui.cn/s1/2025/12/21/6947b2935a41e.ico', title: '思否', type: 'segmentfault' },
+    { id: 'cnblogs', name: 'Cnblogs', icon: 'https://www.cnblogs.com/favicon.ico', title: '博客园', type: 'cnblogs' },
   ]
 
   // 暴露 $cose 全局对象

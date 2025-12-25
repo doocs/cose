@@ -56,6 +56,15 @@ const PLATFORMS = [
     title: '思否',
     type: 'segmentfault',
   },
+  {
+    id: 'cnblogs',
+    name: 'Cnblogs',
+    icon: 'https://www.cnblogs.com/favicon.ico',
+    url: 'https://www.cnblogs.com',
+    publishUrl: 'https://i.cnblogs.com/posts/edit',
+    title: '博客园',
+    type: 'cnblogs',
+  },
 ]
 
 // 登录检测配置
@@ -110,6 +119,15 @@ const LOGIN_CHECK_CONFIG = {
     fetchUserInfoFromPage: true,
     userInfoUrl: 'https://segmentfault.com/write',
   },
+  cnblogs: {
+    api: 'https://i.cnblogs.com/api/user',
+    method: 'GET',
+    checkLogin: (response) => response?.loginName,
+    getUserInfo: (response) => ({
+      username: response?.displayName || response?.loginName,
+      avatar: response?.avatarName ? `https:${response.avatarName}` : '',
+    }),
+  },
 }
 
 // 根据 hostname 获取平台填充函数
@@ -120,6 +138,7 @@ function getPlatformFiller(hostname) {
   if (hostname.includes('zhihu.com')) return 'zhihu'
   if (hostname.includes('toutiao.com')) return 'toutiao'
   if (hostname.includes('segmentfault.com')) return 'segmentfault'
+  if (hostname.includes('cnblogs.com')) return 'cnblogs'
   return 'generic'
 }
 
