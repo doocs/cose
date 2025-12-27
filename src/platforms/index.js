@@ -1,7 +1,10 @@
 // 平台配置汇总
+import { OSChinaPlatform, OSChinaLoginConfig } from './oschina.js'
+// 这里可以继续导入其他平台的配置
+// import { CSDNPlatform, CSDNLoginConfig } from './csdn.js'
 
-// 所有平台配置
-const PLATFORMS = [
+// 基础平台配置（未来可以逐步拆分到各独立文件）
+const BASE_PLATFORMS = [
   {
     id: 'csdn',
     name: 'CSDN',
@@ -67,8 +70,8 @@ const PLATFORMS = [
   },
 ]
 
-// 登录检测配置
-const LOGIN_CHECK_CONFIG = {
+// 基础登录检测配置
+const BASE_LOGIN_CONFIG = {
   csdn: {
     useCookie: true,
     cookieUrl: 'https://blog.csdn.net',
@@ -130,6 +133,18 @@ const LOGIN_CHECK_CONFIG = {
   },
 }
 
+// 合并平台配置
+const PLATFORMS = [
+  ...BASE_PLATFORMS,
+  OSChinaPlatform,
+]
+
+// 合并登录检测配置
+const LOGIN_CHECK_CONFIG = {
+  ...BASE_LOGIN_CONFIG,
+  [OSChinaPlatform.id]: OSChinaLoginConfig,
+}
+
 // 根据 hostname 获取平台填充函数
 function getPlatformFiller(hostname) {
   if (hostname.includes('csdn.net')) return 'csdn'
@@ -139,10 +154,9 @@ function getPlatformFiller(hostname) {
   if (hostname.includes('toutiao.com')) return 'toutiao'
   if (hostname.includes('segmentfault.com')) return 'segmentfault'
   if (hostname.includes('cnblogs.com')) return 'cnblogs'
+  if (hostname.includes('oschina.net')) return 'oschina'
   return 'generic'
 }
 
 // 导出
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { PLATFORMS, LOGIN_CHECK_CONFIG, getPlatformFiller }
-}
+export { PLATFORMS, LOGIN_CHECK_CONFIG, getPlatformFiller }

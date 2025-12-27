@@ -44,6 +44,7 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 - CSDN
 - 掘金
 - 思否
+- 开源中国
 
 更多想要添加的平台欢迎提 [Issue](https://github.com/doocs/cose/issues) ！
 

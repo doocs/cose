@@ -1,16 +1,10 @@
 // 平台配置
-const PLATFORMS = [
-  { id: 'csdn', name: 'CSDN', icon: 'https://g.csdnimg.cn/static/logo/favicon32.ico', url: 'https://blog.csdn.net', publishUrl: 'https://editor.csdn.net/md/' },
-  { id: 'juejin', name: 'Juejin', icon: 'https://lf-web-assets.juejin.cn/obj/juejin-web/xitu_juejin_web/static/favicons/favicon-32x32.png', url: 'https://juejin.cn', publishUrl: 'https://juejin.cn/editor/drafts/new' },
-  { id: 'wechat', name: 'WeChat', icon: 'https://res.wx.qq.com/a/wx_fed/assets/res/NTI4MWU5.ico', url: 'https://mp.weixin.qq.com', publishUrl: 'https://mp.weixin.qq.com/cgi-bin/appmsg?t=media/appmsg_edit_v2&action=edit&isNew=1&type=10' },
-  { id: 'zhihu', name: 'Zhihu', icon: 'https://static.zhihu.com/heifetz/favicon.ico', url: 'https://www.zhihu.com', publishUrl: 'https://zhuanlan.zhihu.com/write' },
-  { id: 'toutiao', name: 'Toutiao', icon: 'https://sf3-cdn-tos.toutiaostatic.com/obj/eden-cn/uhbfnupkbps/toutiao_favicon.ico', url: 'https://mp.toutiao.com', publishUrl: 'https://mp.toutiao.com/profile_v4/graphic/publish' },
-  { id: 'segmentfault', name: 'SegmentFault', icon: 'https://static.segmentfault.com/main_site_next/prod/favicon.ico', url: 'https://segmentfault.com', publishUrl: 'https://segmentfault.com/write' },
-  { id: 'cnblogs', name: 'Cnblogs', icon: 'https://www.cnblogs.com/favicon.ico', url: 'https://www.cnblogs.com', publishUrl: 'https://i.cnblogs.com/posts/edit' },
-]
+import { PLATFORMS, LOGIN_CHECK_CONFIG } from './platforms/index.js'
 
 // 当前同步任务的 Tab Group ID
 let currentSyncGroupId = null
+// 存储平台用户信息
+const PLATFORM_USER_INFO = {}
 
 // 获取或创建同步标签组
 async function getOrCreateSyncGroup(windowId) {
@@ -26,7 +20,7 @@ async function getOrCreateSyncGroup(windowId) {
       // Group 不存在，需要创建新的
     }
   }
-  
+
   // 创建新的标签组（先创建一个空组是不行的，需要先有 tab）
   currentSyncGroupId = null
   return null
@@ -56,69 +50,7 @@ async function addTabToSyncGroup(tabId, windowId) {
 }
 
 // 登录检测配置
-const LOGIN_CHECK_CONFIG = {
-  csdn: {
-    useCookie: true,
-    cookieUrl: 'https://blog.csdn.net',
-    cookieNames: ['UserName', 'UserNick'],
-    getUsernameFromCookie: true,
-    usernameCookie: 'UserNick',
-    usernameCookieForApi: 'UserName',
-    // 从用户页面抓取头像
-    fetchAvatarFromPage: true,
-  },
-  juejin: {
-    api: 'https://api.juejin.cn/user_api/v1/user/get',
-    method: 'GET',
-    checkLogin: (response) => response?.err_no === 0 && response?.data?.user_id,
-    getUserInfo: (response) => ({
-      username: response?.data?.user_name,
-      avatar: response?.data?.avatar_large,
-    }),
-  },
-  wechat: {
-    useCookie: true,
-    cookieUrl: 'https://mp.weixin.qq.com',
-    cookieNames: ['slave_user', 'slave_sid'],
-    // 获取用户信息需要从页面抓取
-    fetchUserInfoFromPage: true,
-    userInfoUrl: 'https://mp.weixin.qq.com/',
-  },
-  zhihu: {
-    api: 'https://www.zhihu.com/api/v4/me',
-    method: 'GET',
-    checkLogin: (response) => response?.id,
-    getUserInfo: (response) => ({
-      username: response?.name,
-      avatar: response?.avatar_url,
-    }),
-  },
-  toutiao: {
-    api: 'https://mp.toutiao.com/mp/agw/media/get_media_info',
-    method: 'GET',
-    checkLogin: (response) => response?.err_no === 0 && response?.data?.media?.display_name,
-    getUserInfo: (response) => ({
-      username: response?.data?.media?.display_name,
-      avatar: response?.data?.media?.https_avatar_url,
-    }),
-  },
-  segmentfault: {
-    useCookie: true,
-    cookieUrl: 'https://segmentfault.com',
-    cookieNames: ['PHPSESSID'],
-    fetchUserInfoFromPage: true,
-    userInfoUrl: 'https://segmentfault.com/write',
-  },
-  cnblogs: {
-    api: 'https://i.cnblogs.com/api/user',
-    method: 'GET',
-    checkLogin: (response) => response?.loginName,
-    getUserInfo: (response) => ({
-      username: response?.displayName || response?.loginName,
-      avatar: response?.avatarName ? `https:${response.avatarName}` : '',
-    }),
-  },
-}
+// 登录检测配置由 import 导入
 
 // 消息监听
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -229,24 +161,24 @@ async function checkLoginByCookie(platformId, config) {
         cookieMap[name] = cookie.value
       }
     }
-    
+
     console.log(`[COSE] ${platformId} 找到的cookies:`, Object.keys(cookieMap))
-    
+
     const hasLoginCookie = config.cookieNames.some(name => cookieMap[name])
-    
+
     if (!hasLoginCookie) {
       console.log(`[COSE] ${platformId} 未找到登录 cookie`)
       return { loggedIn: false }
     }
-    
+
     let username = ''
     let avatar = ''
-    
+
     // 如果配置了从 cookie 获取用户名
     if (config.getUsernameFromCookie && config.usernameCookie) {
       username = decodeURIComponent(cookieMap[config.usernameCookie] || '')
     }
-    
+
     // 从用户页面抓取头像 (CSDN)
     if (config.fetchAvatarFromPage && config.usernameCookieForApi) {
       const apiUsername = cookieMap[config.usernameCookieForApi]
@@ -270,7 +202,7 @@ async function checkLoginByCookie(platformId, config) {
         }
       }
     }
-    
+
     // 从页面抓取用户信息
     if (config.fetchUserInfoFromPage && config.userInfoUrl) {
       try {
@@ -279,19 +211,19 @@ async function checkLoginByCookie(platformId, config) {
           credentials: 'include'
         })
         const html = await response.text()
-        
+
         // 头条号用户信息提取
         if (platformId === 'toutiao') {
           // 尝试从页面中提取用户名
           const nameMatch = html.match(/\"name\"\s*:\s*\"([^"]+)\"/i) ||
-                            html.match(/screen_name[\"']?\s*[:=]\s*[\"']([^\"']+)[\"']/i) ||
-                            html.match(/<span[^>]*class="[^"]*name[^"]*"[^>]*>([^<]+)<\/span>/i)
+            html.match(/screen_name[\"']?\s*[:=]\s*[\"']([^\"']+)[\"']/i) ||
+            html.match(/<span[^>]*class="[^"]*name[^"]*"[^>]*>([^<]+)<\/span>/i)
           if (nameMatch) {
             username = nameMatch[1]
           }
           // 尝试从页面中提取头像
           const avatarMatch = html.match(/\"avatar_url\"\s*:\s*\"([^"]+)\"/i) ||
-                              html.match(/avatar[\"']?\s*[:=]\s*[\"']([^\"']+)[\"']/i)
+            html.match(/avatar[\"']?\s*[:=]\s*[\"']([^\"']+)[\"']/i)
           if (avatarMatch) {
             avatar = avatarMatch[1].replace(/\\/g, '')
           }
@@ -325,13 +257,13 @@ async function checkLoginByCookie(platformId, config) {
         else if (platformId === 'wechat') {
           // 从 HTML 中提取公众号名称
           const nameMatch = html.match(/nick_name\s*[:=]\s*["']([^"']+)["']/i) ||
-                            html.match(/<span[^>]*class="nickname"[^>]*>([^<]+)<\/span>/i)
+            html.match(/<span[^>]*class="nickname"[^>]*>([^<]+)<\/span>/i)
           if (nameMatch) {
             username = nameMatch[1]
           }
           // 从 HTML 中提取头像
           const avatarMatch = html.match(/head_img\s*[:=]\s*["']([^"']+)["']/i) ||
-                              html.match(/<img[^>]*class="avatar"[^>]*src="([^"]+)"/i)
+            html.match(/<img[^>]*class="avatar"[^>]*src="([^"]+)"/i)
           if (avatarMatch) {
             avatar = avatarMatch[1].replace(/\\x26amp;/g, '&').replace(/\\/g, '')
             if (!avatar.startsWith('http')) {
@@ -340,11 +272,71 @@ async function checkLoginByCookie(platformId, config) {
           }
           console.log(`[COSE] ${platformId} 用户信息:`, username, avatar ? '有头像' : '无头像')
         }
+        // OSChina 用户信息提取
+        else if (platformId === 'oschina') {
+          // 提取用户 ID（从个人空间链接）
+          const uidMatch = html.match(/href=["']https:\/\/my\.oschina\.net\/u\/(\d+)["']/i) ||
+            html.match(/space\.oschina\.net\/u\/(\d+)/i) ||
+            html.match(/data-user-id=["'](\d+)["']/i)
+
+          let userId = null
+          if (uidMatch) {
+            userId = uidMatch[1]
+            PLATFORM_USER_INFO['oschina'] = { userId }
+            console.log(`[COSE] ${platformId} 获取到 userId:`, userId)
+          }
+
+          // 从 HTML 中提取用户名
+          const nameMatch = html.match(/<a[^>]*class="[^"]*user-name[^"]*"[^>]*>([^<]+)<\/a>/i) ||
+            html.match(/<span[^>]*class="[^"]*nick[^"]*"[^>]*>([^<]+)<\/span>/i) ||
+            html.match(/title="([^"]+)"[^>]*class="[^"]*avatar/i) ||
+            html.match(/class="[^"]*avatar[^"]*"[^>]*title="([^"]+)"/i) ||
+            html.match(/alt="([^"]+)"[^>]*class="[^"]*avatar/i)
+
+          if (nameMatch) {
+            username = nameMatch[1].trim()
+          }
+
+          // 如果首页没提取到用户名，但有 userId，尝试从个人空间获取
+          if (!username && userId) {
+            try {
+              console.log(`[COSE] ${platformId} 尝试从个人空间获取用户名...`)
+              const userPageResp = await fetch(`https://my.oschina.net/u/${userId}`, {
+                method: 'GET',
+                credentials: 'include'
+              })
+              const userPageHtml = await userPageResp.text()
+              const userPageNameMatch = userPageHtml.match(/<h3[^>]*class="[^"]*header[^"]*"[^>]*>([^<]+)<\/h3>/i) ||
+                userPageHtml.match(/<div[^>]*class="[^"]*user-name[^"]*"[^>]*>([^<]+)<\/div>/i) ||
+                userPageHtml.match(/<title>([^<]+)的个人空间<\/title>/i)
+              if (userPageNameMatch) {
+                username = userPageNameMatch[1].trim()
+                console.log(`[COSE] ${platformId} 从个人空间获取用户名成功:`, username)
+              }
+            } catch (err) {
+              console.error(`[COSE] ${platformId} 获取个人空间失败:`, err)
+            }
+          }
+
+          // 如果还是没有用户名，但有 userId，使用 userId 作为兜底
+          if (!username && userId) {
+            username = userId
+          }
+
+          // 头像提取
+          const avatarMatch = html.match(/<img[^>]*src="([^"]+)"[^>]*class="[^"]*avatar/i) ||
+            html.match(/<img[^>]*class="[^"]*avatar[^"]*"[^>]*src="([^"]+)"/i)
+          if (avatarMatch) {
+            avatar = avatarMatch[1]
+          }
+
+          console.log(`[COSE] ${platformId} 用户信息:`, username, avatar ? '有头像' : '无头像')
+        }
       } catch (e) {
         console.log(`[COSE] ${platformId} 获取用户信息失败:`, e.message)
       }
     }
-    
+
     console.log(`[COSE] ${platformId} 登录用户:`, username, avatar ? '有头像' : '无头像')
     return { loggedIn: true, username, avatar }
   } catch (error) {
@@ -356,12 +348,12 @@ async function checkLoginByCookie(platformId, config) {
 // 使用 Debugger API 发送真实的 Ctrl+V 粘贴
 async function pasteWithDebugger(tabId) {
   const debuggee = { tabId }
-  
+
   try {
     // 附加调试器
     await chrome.debugger.attach(debuggee, '1.3')
     console.log('[COSE] Debugger attached')
-    
+
     // 发送 Ctrl/Cmd 按下
     await chrome.debugger.sendCommand(debuggee, 'Input.dispatchKeyEvent', {
       type: 'keyDown',
@@ -370,7 +362,7 @@ async function pasteWithDebugger(tabId) {
       code: 'ControlLeft',
       key: 'Control'
     })
-    
+
     // 发送 V 按下（带 Ctrl 修饰符）
     await chrome.debugger.sendCommand(debuggee, 'Input.dispatchKeyEvent', {
       type: 'keyDown',
@@ -379,7 +371,7 @@ async function pasteWithDebugger(tabId) {
       code: 'KeyV',
       key: 'v'
     })
-    
+
     // 发送 V 释放
     await chrome.debugger.sendCommand(debuggee, 'Input.dispatchKeyEvent', {
       type: 'keyUp',
@@ -388,7 +380,7 @@ async function pasteWithDebugger(tabId) {
       code: 'KeyV',
       key: 'v'
     })
-    
+
     // 发送 Ctrl 释放
     await chrome.debugger.sendCommand(debuggee, 'Input.dispatchKeyEvent', {
       type: 'keyUp',
@@ -397,12 +389,12 @@ async function pasteWithDebugger(tabId) {
       code: 'ControlLeft',
       key: 'Control'
     })
-    
+
     console.log('[COSE] Paste command sent via debugger')
-    
+
     // 等待粘贴完成
     await new Promise(resolve => setTimeout(resolve, 1000))
-    
+
   } catch (error) {
     console.error('[COSE] Debugger paste failed:', error)
   } finally {
@@ -425,14 +417,14 @@ async function syncToPlatform(platformId, content) {
 
   try {
     let tab
-    
+
     // 微信公众号需要特殊处理：先打开首页获取 token，再跳转到编辑器
     if (platformId === 'wechat') {
       // 先打开首页
       tab = await chrome.tabs.create({ url: 'https://mp.weixin.qq.com/', active: false })
       await addTabToSyncGroup(tab.id, tab.windowId)
       await waitForTab(tab.id)
-      
+
       // 从首页提取 token 并跳转到编辑器
       const [result] = await chrome.scripting.executeScript({
         target: { tabId: tab.id },
@@ -442,7 +434,7 @@ async function syncToPlatform(platformId, content) {
           return tokenMatch ? tokenMatch[1] : null
         },
       })
-      
+
       const token = result?.result
       if (token) {
         // 跳转到编辑器页面
@@ -457,10 +449,10 @@ async function syncToPlatform(platformId, content) {
       tab = await chrome.tabs.create({ url: platform.publishUrl, active: false })
       await addTabToSyncGroup(tab.id, tab.windowId)
       await waitForTab(tab.id)
-      
+
       // 等待页面完全加载
       await new Promise(resolve => setTimeout(resolve, 3000))
-      
+
       // 在页面中执行：点击导入文档并上传 md 文件
       await chrome.scripting.executeScript({
         target: { tabId: tab.id },
@@ -478,7 +470,7 @@ async function syncToPlatform(platformId, content) {
               check()
             })
           }
-          
+
           async function uploadMarkdown() {
             // 先填充标题
             const titleInput = await waitFor('textarea[placeholder*="标题"]')
@@ -488,30 +480,30 @@ async function syncToPlatform(platformId, content) {
               titleInput.dispatchEvent(new Event('input', { bubbles: true }))
               console.log('[COSE] 知乎标题填充成功')
             }
-            
+
             // 第一步：点击工具栏的"导入"按钮，打开子菜单
             // 注意：按钮文本可能包含零宽字符，使用 includes 匹配
             const importBtn = Array.from(document.querySelectorAll('button'))
               .find(el => el.innerText.includes('导入') && !el.innerText.includes('导入文档') && !el.innerText.includes('导入链接'))
-            
+
             if (importBtn) {
               importBtn.click()
               console.log('[COSE] 已点击导入按钮')
-              
+
               // 等待子菜单出现
               await new Promise(resolve => setTimeout(resolve, 500))
-              
+
               // 第二步：点击子菜单中的"导入文档"按钮
               const importDocBtn = Array.from(document.querySelectorAll('button'))
                 .find(el => el.innerText.includes('导入文档'))
-              
+
               if (importDocBtn) {
                 importDocBtn.click()
                 console.log('[COSE] 已点击导入文档按钮')
-                
+
                 // 等待上传对话框出现
                 await new Promise(resolve => setTimeout(resolve, 1000))
-                
+
                 // 查找接受 md 文件的输入框
                 const fileInput = document.querySelector('input[type="file"][accept*=".md"]')
                 if (fileInput) {
@@ -519,20 +511,20 @@ async function syncToPlatform(platformId, content) {
                   const mdContent = markdown || ''
                   const fileName = (title || 'article').replace(/[\\/:*?"<>|]/g, '_') + '.md'
                   const file = new File([mdContent], fileName, { type: 'text/plain' })
-                  
+
                   // 创建 DataTransfer 并设置文件
                   const dt = new DataTransfer()
                   dt.items.add(file)
                   fileInput.files = dt.files
-                  
+
                   // 触发 input 和 change 事件
                   fileInput.dispatchEvent(new Event('input', { bubbles: true }))
                   fileInput.dispatchEvent(new Event('change', { bubbles: true }))
                   console.log('[COSE] 已上传 md 文件:', fileName)
-                  
+
                   // 如果 change 不起作用，尝试拖放方式
                   await new Promise(resolve => setTimeout(resolve, 500))
-                  
+
                   // 查找上传按钮区域并触发拖放
                   const dropZone = document.querySelector('[class*="Modal"]') || document.body
                   const dropEvent = new DragEvent('drop', {
@@ -552,30 +544,44 @@ async function syncToPlatform(platformId, content) {
               console.log('[COSE] 未找到导入按钮')
             }
           }
-          
+
           uploadMarkdown().catch(console.error)
         },
         args: [content.title, content.markdown],
         world: 'MAIN',
       })
-      
+
       return { success: true, message: '已打开知乎并导入文档', tabId: tab.id }
     } else {
-      // 其他平台直接打开发布页面
-      tab = await chrome.tabs.create({ url: platform.publishUrl, active: false })
+      // 其他平台
+      let targetUrl = platform.publishUrl
+
+      // 开源中国：尝试使用动态用户 ID
+      if (platformId === 'oschina') {
+        const userId = PLATFORM_USER_INFO['oschina']?.userId
+        if (userId) {
+          targetUrl = `https://my.oschina.net/u/${userId}/blog/write`
+          console.log('[COSE] 使用 OSChina 动态 URL:', targetUrl)
+        } else {
+          console.warn('[COSE] 未找到 OSChina 用户 ID，使用默认 URL')
+        }
+      }
+
+      // 直接打开发布页面
+      tab = await chrome.tabs.create({ url: targetUrl, active: false })
       await addTabToSyncGroup(tab.id, tab.windowId)
       await waitForTab(tab.id)
     }
-    
+
     // 微信公众号：直接注入 HTML 到编辑器
     if (platformId === 'wechat') {
       // 等待页面完全加载
       await new Promise(resolve => setTimeout(resolve, 4000))
-      
+
       // 使用剪贴板 HTML（带完整样式）或降级到 body
       const htmlContent = content.wechatHtml || content.body
       console.log('[COSE] 微信 HTML 内容长度:', htmlContent?.length || 0)
-      
+
       // 直接注入内容到编辑器（同步函数，避免 async 问题）
       await chrome.scripting.executeScript({
         target: { tabId: tab.id },
@@ -588,28 +594,28 @@ async function syncToPlatform(platformId, content) {
             titleInput.dispatchEvent(new Event('input', { bubbles: true }))
             console.log('[COSE] 标题已填充')
           }
-          
+
           // 找到编辑器
           const editor = document.querySelector('.ProseMirror') || document.querySelector('[contenteditable="true"]')
           if (editor && htmlBody) {
             editor.focus()
-            
+
             // 清空现有占位符内容
             if (editor.textContent.includes('从这里开始写正文')) {
               editor.innerHTML = ''
             }
-            
+
             // 方法：创建 DataTransfer 并触发 paste 事件
             const dt = new DataTransfer()
             dt.setData('text/html', htmlBody)
             dt.setData('text/plain', htmlBody.replace(/<[^>]*>/g, ''))
-            
+
             const pasteEvent = new ClipboardEvent('paste', {
               bubbles: true,
               cancelable: true,
               clipboardData: dt
             })
-            
+
             editor.dispatchEvent(pasteEvent)
             console.log('[COSE] 内容已通过 paste 事件注入')
           }
@@ -617,7 +623,7 @@ async function syncToPlatform(platformId, content) {
         args: [content.title, htmlContent],
         world: 'MAIN',
       })
-      
+
       // 等待内容注入完成后，点击保存为草稿按钮
       await new Promise(resolve => setTimeout(resolve, 2000))
       await chrome.scripting.executeScript({
@@ -633,10 +639,10 @@ async function syncToPlatform(platformId, content) {
         },
         world: 'MAIN',
       })
-      
+
       return { success: true, message: '已同步并保存为草稿', tabId: tab.id }
     }
-    
+
     // 其他平台使用 scripting API 直接注入填充脚本
     // 使用 MAIN world 才能访问页面的 CodeMirror 实例
     await chrome.scripting.executeScript({
@@ -655,7 +661,7 @@ async function syncToPlatform(platformId, content) {
 // 在目标页面执行的填充函数
 function fillContentOnPage(content, platformId) {
   const { title, body, markdown } = content
-  
+
   // 等待元素出现的工具函数
   function waitFor(selector, timeout = 10000) {
     return new Promise((resolve) => {
@@ -694,13 +700,13 @@ function fillContentOnPage(content, platformId) {
       // 填充标题
       const titleInput = await waitFor('.article-bar__title input, input[placeholder*="标题"]')
       setInputValue(titleInput, title)
-      
+
       // 等待编辑器加载
       await new Promise(resolve => setTimeout(resolve, 1000))
-      
+
       // CSDN 使用 contenteditable 的 PRE 元素
       const editor = document.querySelector('.editor__inner[contenteditable="true"], [contenteditable="true"].markdown-highlighting')
-      
+
       if (editor) {
         editor.focus()
         // 清空现有内容
@@ -730,10 +736,10 @@ function fillContentOnPage(content, platformId) {
         titleInput.value = title
         titleInput.dispatchEvent(new Event('input', { bubbles: true }))
       }
-      
+
       // 等待编辑器加载
       await new Promise(resolve => setTimeout(resolve, 1000))
-      
+
       // 掘金使用 ByteMD 编辑器（基于 CodeMirror）
       const cmElement = document.querySelector('.CodeMirror')
       if (cmElement && cmElement.CodeMirror) {
@@ -776,10 +782,10 @@ function fillContentOnPage(content, platformId) {
       } else {
         console.log('[COSE] 头条未找到标题输入框')
       }
-      
+
       // 等待编辑器加载
       await new Promise(resolve => setTimeout(resolve, 500))
-      
+
       // 头条使用 ProseMirror 富文本编辑器
       const editor = document.querySelector('.ProseMirror')
       if (editor) {
@@ -804,10 +810,10 @@ function fillContentOnPage(content, platformId) {
       } else {
         console.log('[COSE] 思否未找到标题输入框')
       }
-      
+
       // 等待编辑器加载
       await new Promise(resolve => setTimeout(resolve, 1000))
-      
+
       // 思否使用 CodeMirror 编辑器
       const cmElement = document.querySelector('.CodeMirror')
       if (cmElement && cmElement.CodeMirror) {
@@ -826,11 +832,55 @@ function fillContentOnPage(content, platformId) {
         }
       }
     }
+    // 开源中国 OSChina
+    else if (host.includes('oschina.net')) {
+      // 填充标题
+      const titleInput = await waitFor('input[name="title"], .title input, input[placeholder*="标题"]')
+      if (titleInput) {
+        setInputValue(titleInput, title)
+        console.log('[COSE] OSChina 标题填充成功')
+      }
+
+      // 等待 CKEditor 加载
+      await new Promise(resolve => setTimeout(resolve, 1500))
+
+      // 尝试通过 CKEditor API 设置内容
+      const success = await new Promise(resolve => {
+        let count = 0
+        const check = () => {
+          if (window.CKEDITOR && window.CKEDITOR.instances) {
+            const keys = Object.keys(window.CKEDITOR.instances)
+            if (keys.length > 0) {
+              window.CKEDITOR.instances[keys[0]].setData(body || contentToFill)
+              resolve(true)
+              return
+            }
+          }
+          if (++count < 10) {
+            setTimeout(check, 500)
+          } else {
+            resolve(false)
+          }
+        }
+        check()
+      })
+
+      if (!success) {
+        // 降级：如果 CKEditor 没找到，尝试填充隐藏的 textarea
+        const textarea = document.querySelector('textarea[name="content"]') || document.querySelector('#blogContent')
+        if (textarea) {
+          setInputValue(textarea, body || contentToFill)
+          console.log('[COSE] OSChina textarea 填充成功')
+        } else {
+          console.log('[COSE] OSChina 未找到编辑器')
+        }
+      }
+    }
     // 博客园
     else if (host.includes('cnblogs.com')) {
       // 等待页面加载
       await new Promise(resolve => setTimeout(resolve, 1000))
-      
+
       // 填充标题 - 博客园标题输入框
       const titleInput = await waitFor('input[placeholder="标题"]') || document.querySelector('input')
       if (titleInput) {
@@ -842,10 +892,10 @@ function fillContentOnPage(content, platformId) {
       } else {
         console.log('[COSE] 博客园未找到标题输入框')
       }
-      
+
       // 等待编辑器加载
       await new Promise(resolve => setTimeout(resolve, 500))
-      
+
       // 博客园使用 id="md-editor" 的 textarea 作为 Markdown 编辑器
       const editor = document.querySelector('#md-editor') || document.querySelector('textarea.not-resizable')
       if (editor) {
@@ -865,7 +915,7 @@ function fillContentOnPage(content, platformId) {
         const el = document.querySelector(sel)
         if (el) { setInputValue(el, title); break }
       }
-      
+
       const contentSelectors = ['.CodeMirror', '.ProseMirror', '.ql-editor', '[contenteditable="true"]', 'textarea']
       for (const sel of contentSelectors) {
         const el = document.querySelector(sel)
@@ -879,7 +929,7 @@ function fillContentOnPage(content, platformId) {
         }
       }
     }
-    
+
     console.log('[COSE] 内容已填充，请检查并发布')
   }
 
@@ -887,7 +937,7 @@ function fillContentOnPage(content, platformId) {
 }
 
 // 等待标签页加载
-function waitForTab(tabId, timeout = 30000) {
+function waitForTab(tabId, timeout = 300000) {
   return new Promise((resolve, reject) => {
     const start = Date.now()
     const check = () => {
