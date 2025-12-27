@@ -1,7 +1,7 @@
 // 注入到页面主世界的脚本
 // 在 window 上暴露 $cose 对象供 Vue 组件使用
 
-;(function () {
+; (function () {
   'use strict'
 
   let requestId = 0
@@ -70,6 +70,7 @@
     { id: 'toutiao', name: 'Toutiao', icon: 'https://sf3-cdn-tos.toutiaostatic.com/obj/eden-cn/uhbfnupkbps/toutiao_favicon.ico', title: '今日头条', type: 'toutiao' },
     { id: 'segmentfault', name: 'SegmentFault', icon: 'https://youke2.picui.cn/s1/2025/12/21/6947b2935a41e.ico', title: '思否', type: 'segmentfault' },
     { id: 'cnblogs', name: 'Cnblogs', icon: 'https://www.cnblogs.com/favicon.ico', title: '博客园', type: 'cnblogs' },
+    { id: 'oschina', name: 'OSChina', icon: 'https://wsrv.nl/?url=static.oschina.net/new-osc/img/favicon.ico', title: '开源中国', type: 'oschina' },
   ]
 
   // 暴露 $cose 全局对象
@@ -94,7 +95,7 @@
         // 获取登录状态
         const result = await sendMessage('CHECK_PLATFORM_STATUS', { platforms: PLATFORMS })
         const status = result?.status || {}
-        
+
         const accounts = PLATFORMS.map(p => {
           const platformStatus = status[p.id] || {}
           const isLoggedIn = platformStatus.loggedIn || false
@@ -110,7 +111,7 @@
             loggedIn: isLoggedIn,
           }
         })
-        
+
         if (typeof callback === 'function') {
           callback(accounts)
         }
@@ -165,21 +166,21 @@
       const syncAll = async () => {
         // 开始新的同步批次，将所有 tab 放入一个 group
         await sendMessage('START_SYNC_BATCH', {})
-        
+
         // 检查是否需要同步到微信公众号
         const hasWechat = selectedAccounts.some(a => (a.uid || a.type) === 'wechat')
         let wechatHtmlContent = null
         if (hasWechat) {
           // 先点击复制按钮，将带样式的内容复制到剪贴板
-          const copyBtn = document.querySelector('.copy-btn') || 
-                          document.querySelector('button[class*="copy"]') ||
-                          document.querySelector('button:has(.lucide-copy)') ||
-                          Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('复制'))
+          const copyBtn = document.querySelector('.copy-btn') ||
+            document.querySelector('button[class*="copy"]') ||
+            document.querySelector('button:has(.lucide-copy)') ||
+            Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('复制'))
           if (copyBtn && typeof copyBtn.click === 'function') {
             copyBtn.click()
             // 等待复制完成
             await new Promise(resolve => setTimeout(resolve, 2000))
-            
+
             // 读取剪贴板中的 HTML 内容
             try {
               const clipboardItems = await navigator.clipboard.read()
@@ -196,7 +197,7 @@
             }
           }
         }
-        
+
         for (let i = 0; i < selectedAccounts.length; i++) {
           const account = selectedAccounts[i]
           status.accounts[i].status = 'uploading'

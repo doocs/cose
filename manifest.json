@@ -29,7 +29,8 @@
     "https://*.wordpress.com/*",
     "https://*.wordpress.org/*",
     "https://md.doocs.org/*",
-    "https://*.cnblogs.com/*"
+    "https://*.cnblogs.com/*",
+    "https://*.oschina.net/*"
   ],
   "action": {
     "default_icon": {
@@ -40,7 +41,8 @@
     "default_title": "COSE"
   },
   "background": {
-    "service_worker": "src/background.js"
+    "service_worker": "src/background.js",
+    "type": "module"
   },
   "content_scripts": [
     {
@@ -48,7 +50,9 @@
         "http://*/*",
         "https://*/*"
       ],
-      "js": ["src/content.js"],
+      "js": [
+        "src/content.js"
+      ],
       "run_at": "document_start"
     }
   ],
@@ -59,8 +63,13 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["src/inject.js", "src/platforms/*.js"],
-      "matches": ["<all_urls>"]
+      "resources": [
+        "src/inject.js",
+        "src/platforms/*.js"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ]
 }
