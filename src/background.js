@@ -332,6 +332,21 @@ async function checkLoginByCookie(platformId, config) {
 
           console.log(`[COSE] ${platformId} 用户信息:`, username, avatar ? '有头像' : '无头像')
         }
+        // 通用模块化解析逻辑 (支持 51CTO 等新平台)
+        else if (config.parseUserInfo) {
+          console.log(`[COSE] ${platformId} 使用通用解析逻辑`)
+          const info = config.parseUserInfo(html)
+          if (info) {
+            if (info.username) username = info.username
+            if (info.avatar) avatar = info.avatar
+            // 如果解析出了 userId，保存到全局存储
+            if (info.userId && typeof PLATFORM_USER_INFO !== 'undefined') {
+              PLATFORM_USER_INFO[platformId] = { userId: info.userId }
+              console.log(`[COSE] ${platformId} 获取到 userId:`, info.userId)
+            }
+          }
+          console.log(`[COSE] ${platformId} 用户信息:`, username, avatar ? '有头像' : '无头像')
+        }
       } catch (e) {
         console.log(`[COSE] ${platformId} 获取用户信息失败:`, e.message)
       }

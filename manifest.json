@@ -30,7 +30,8 @@
     "https://*.wordpress.org/*",
     "https://md.doocs.org/*",
     "https://*.cnblogs.com/*",
-    "https://*.oschina.net/*"
+    "https://*.oschina.net/*",
+    "https://*.51cto.com/*"
   ],
   "action": {
     "default_icon": {

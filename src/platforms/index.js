@@ -1,5 +1,6 @@
 // 平台配置汇总
 import { OSChinaPlatform, OSChinaLoginConfig } from './oschina.js'
+import { CTO51Platform, CTO51LoginConfig } from './cto51.js'
 // 这里可以继续导入其他平台的配置
 // import { CSDNPlatform, CSDNLoginConfig } from './csdn.js'
 
@@ -133,16 +134,19 @@ const BASE_LOGIN_CONFIG = {
   },
 }
 
+
 // 合并平台配置
 const PLATFORMS = [
   ...BASE_PLATFORMS,
   OSChinaPlatform,
+  CTO51Platform,
 ]
 
 // 合并登录检测配置
 const LOGIN_CHECK_CONFIG = {
   ...BASE_LOGIN_CONFIG,
   [OSChinaPlatform.id]: OSChinaLoginConfig,
+  [CTO51Platform.id]: CTO51LoginConfig,
 }
 
 // 根据 hostname 获取平台填充函数
@@ -155,6 +159,7 @@ function getPlatformFiller(hostname) {
   if (hostname.includes('segmentfault.com')) return 'segmentfault'
   if (hostname.includes('cnblogs.com')) return 'cnblogs'
   if (hostname.includes('oschina.net')) return 'oschina'
+  if (hostname.includes('51cto.com')) return 'cto51'
   return 'generic'
 }
 
