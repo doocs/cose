@@ -4,6 +4,7 @@ const CTO51Platform = {
     name: '51CTO',
     icon: 'https://www.google.com/s2/favicons?domain=51cto.com&sz=32',
     url: 'https://blog.51cto.com',
+    loginUrl: 'https://home.51cto.com/index/login',
     publishUrl: 'https://blog.51cto.com/blogger/publish',
     title: '51CTO',
     type: 'cto51',
@@ -13,7 +14,7 @@ const CTO51Platform = {
 const CTO51LoginConfig = {
     useCookie: true,
     cookieUrl: 'https://blog.51cto.com',
-    cookieNames: ['www51cto', 'uid', 'identity'], // 常见的 51CTO 登录 cookie
+    cookieNames: ['www51cto', 'identity'], // 移除 uid 避免误判
     fetchUserInfoFromPage: true,
     userInfoUrl: 'https://blog.51cto.com/',
 
@@ -21,29 +22,59 @@ const CTO51LoginConfig = {
     parseUserInfo: (html) => {
         let username = ''
         let avatar = ''
+        let loggedIn = true
 
-        // 尝试提取用户 ID (从头像的 data-uid 属性)
-        const uidMatch = html.match(/data-uid=["'](\d+)["']/i)
-        let userId = uidMatch ? uidMatch[1] : null
+        // 1. 优先检测明确的未登录信号
+        // 检测全局变量 isLogin = 0 (源码中通常是 var isLogin = 0; 或 window.isLogin = 0;)
+        if (html.match(/var\s+isLogin\s*=\s*0/) || html.match(/window\.isLogin\s*=\s*0/)) {
+            return { loggedIn: false }
+        }
+        
+        // 检测顶部导航栏的 "登录" 链接
+        // 匹配 <span class="fl">登录</span> 或单纯的 >登录<
+        if (html.match(/<span[^>]*class=["'][^"']*fl[^"']*["'][^>]*>\s*登录\s*<\/span>/) || 
+            html.match(/<a[^>]*href=["'][^"']*home\.51cto\.com\/index[^"']*["'][^>]*>[\s\S]*?登录[\s\S]*?<\/a>/)) {
+            return { loggedIn: false }
+        }
 
-        // 尝试提取用户名 (Header 区域 - 针对已登录用户 .user-base)
-        // 使用 [\s\S] 代替 . 并且优化对空白字符的处理
+        // 2. 尝试提取用户信息 (仅在未判定为未登录时执行)
+        
+        // 尝试提取用户名 (Header 区域 - 针对已登录用户)
+        // 登录后的下拉菜单通常包含 .user-base 或 .user-name
         const nameMatch = html.match(/class=["']user-base["'][^>]*>[\s\S]*?<span>\s*([^<]+?)\s*<\/span>/i) ||
-            html.match(/class=["']name["'][^>]*>([^<]+)</i) ||
             html.match(/class=["']user-name["'][^>]*>([^<]+)</i)
+
+        // 3. 尝试提取用户 ID
+        // 注意：页面内容中(如文章列表)会有大量 data-uid，必须确保是 header/user 区域的
+        // 登录后通常 header 区域的头像或链接会包含当前用户 ID
+        // 限制只在 nameMatch 成功（即找到用户名）的情况下，或者特定结构的 header 中查找 ID
+        let userId = null
+        if (nameMatch) {
+             const uidMatch = html.match(/data-uid=["'](\d+)["']/i) // 此时可以稍微放宽，因为已经匹配到用户名区域
+             userId = uidMatch ? uidMatch[1] : null
+        } else {
+            // 如果没找到明确的 header 用户名，但找到了 explicit 的 header 用户结构
+            const headerUserMatch = html.match(/class=["']header-user["'][\s\S]*?data-uid=["'](\d+)["']/i)
+            if (headerUserMatch) {
+                userId = headerUserMatch[1]
+            }
+        }
 
         if (nameMatch) {
             username = nameMatch[1].trim()
         } else if (userId) {
-            // 如果没找到用户名但找到了 ID，使用 ID 作为用户名
             username = `User_${userId}`
         }
 
-        // 尝试提取头像
-        // 匹配 .user-base 下的 img，或者直接匹配带有 user-avatar/avatar 类的 img
+        // 4. 双重确认
+        // 如果最终没找到用户名也没找到 ID，那肯定是未登录
+        if (!username && !userId) {
+            return { loggedIn: false }
+        }
+
+        // 提取头像
         const avatarMatch = html.match(/class=["']user-base["'][^>]*>[\s\S]*?<img[^>]+src=["']([^"']+)["']/i) ||
-            html.match(/class=["']nav-insite-bar-avator["'][^>]*src=["']([^"']+)["']/i) ||
-            html.match(/src=["']([^"']+)["'][^>]*class=["']nav-insite-bar-avator["']/i)
+            html.match(/class=["']nav-insite-bar-avator["'][^>]*src=["']([^"']+)["']/i)
 
         if (avatarMatch) {
             avatar = avatarMatch[1]
@@ -52,7 +83,7 @@ const CTO51LoginConfig = {
             }
         }
 
-        return { username, avatar }
+        return { username, avatar, loggedIn }
     }
 }
 

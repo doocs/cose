@@ -337,6 +337,11 @@ async function checkLoginByCookie(platformId, config) {
           console.log(`[COSE] ${platformId} 使用通用解析逻辑`)
           const info = config.parseUserInfo(html)
           if (info) {
+            // 允许解析函数显式返回未登录状态
+            if (info.loggedIn === false) {
+              console.log(`[COSE] ${platformId} 解析结果判定为未登录`)
+              return { loggedIn: false }
+            }
             if (info.username) username = info.username
             if (info.avatar) avatar = info.avatar
             // 如果解析出了 userId，保存到全局存储
