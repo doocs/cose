@@ -171,6 +171,14 @@ async function checkLoginByCookie(platformId, config) {
       return { loggedIn: false }
     }
 
+    // 自定义 cookie 值检测逻辑（如 InfoQ）
+    if (config.customCheck && config.checkCookieValue) {
+      console.log(`[COSE] ${platformId} 使用自定义 cookie 检测`)
+      const result = config.checkCookieValue(cookieMap)
+      console.log(`[COSE] ${platformId} 自定义检测结果:`, result)
+      return result
+    }
+
     let username = ''
     let avatar = ''
 
@@ -572,6 +580,36 @@ async function syncToPlatform(platformId, content) {
       })
 
       return { success: true, message: '已打开知乎并导入文档', tabId: tab.id }
+    } else if (platformId === 'infoq') {
+      // InfoQ：需要先调用 API 创建草稿获取 ID，不能直接访问 /draft/write
+      try {
+        // 调用创建草稿 API
+        const response = await fetch('https://xie.infoq.cn/api/v1/draft/create', {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          }
+        })
+        const data = await response.json()
+        
+        if (data.code === 0 && data.data?.id) {
+          const draftId = data.data.id
+          const targetUrl = `https://xie.infoq.cn/draft/${draftId}`
+          console.log('[COSE] InfoQ 创建草稿成功，ID:', draftId)
+          
+          tab = await chrome.tabs.create({ url: targetUrl, active: false })
+          await addTabToSyncGroup(tab.id, tab.windowId)
+          await waitForTab(tab.id)
+        } else {
+          console.error('[COSE] InfoQ 创建草稿失败:', data)
+          return { success: false, message: 'InfoQ 创建草稿失败，请确保已登录' }
+        }
+      } catch (e) {
+        console.error('[COSE] InfoQ API 调用失败:', e)
+        return { success: false, message: 'InfoQ API 调用失败: ' + e.message }
+      }
     } else {
       // 其他平台
       let targetUrl = platform.publishUrl
@@ -927,6 +965,88 @@ function fillContentOnPage(content, platformId) {
       } else {
         console.log('[COSE] 博客园未找到编辑器')
       }
+    }
+    // InfoQ
+    else if (host.includes('infoq.cn')) {
+      // 填充标题
+      const titleInput = await waitFor('input[placeholder*="标题"], .title-input input, input.article-title')
+      if (titleInput) {
+        setInputValue(titleInput, title)
+        console.log('[COSE] InfoQ 标题填充成功')
+      } else {
+        console.log('[COSE] InfoQ 未找到标题输入框')
+      }
+
+      // InfoQ 使用 Vue 编辑器，需要在主世界执行才能访问 __vue__
+      // 通过注入 script 标签的方式在主世界执行
+      // 使用 ProseMirror view + 剪贴板粘贴方式填充内容
+      const script = document.createElement('script')
+      script.textContent = `
+        (async function() {
+          const content = ${JSON.stringify(contentToFill)};
+          
+          // 等待编辑器完全初始化的函数
+          const waitForEditor = () => {
+            return new Promise((resolve) => {
+              let attempts = 0;
+              const maxAttempts = 30; // 最多等待 15 秒
+              
+              const check = () => {
+                attempts++;
+                const gkEditor = document.querySelector('.gk-editor');
+                if (gkEditor && gkEditor.__vue__) {
+                  const vm = gkEditor.__vue__;
+                  const api = vm.editorAPI;
+                  // 检查 ProseMirror view 是否就绪
+                  if (api && api.editor && api.editor.view) {
+                    resolve(api.editor.view);
+                    return;
+                  }
+                }
+                if (attempts < maxAttempts) {
+                  setTimeout(check, 500);
+                } else {
+                  resolve(null);
+                }
+              };
+              check();
+            });
+          };
+          
+          const view = await waitForEditor();
+          if (!view) {
+            console.log('[COSE] InfoQ 编辑器初始化超时');
+            return;
+          }
+          
+          try {
+            // 清空编辑器现有内容
+            const state = view.state;
+            const tr = state.tr.delete(0, state.doc.content.size);
+            view.dispatch(tr);
+            
+            // 聚焦编辑器
+            view.focus();
+            
+            // 使用剪贴板粘贴方式插入内容（会自动解析 Markdown）
+            const clipboardData = new DataTransfer();
+            clipboardData.setData('text/plain', content);
+            
+            const pasteEvent = new ClipboardEvent('paste', {
+              bubbles: true,
+              cancelable: true,
+              clipboardData: clipboardData
+            });
+            
+            view.dom.dispatchEvent(pasteEvent);
+            console.log('[COSE] InfoQ 内容填充成功');
+          } catch (e) {
+            console.log('[COSE] InfoQ 内容填充失败:', e.message);
+          }
+        })();
+      `
+      document.head.appendChild(script)
+      script.remove()
     }
     // 通用处理
     else {

@@ -31,7 +31,9 @@
     "https://md.doocs.org/*",
     "https://*.cnblogs.com/*",
     "https://*.oschina.net/*",
-    "https://*.51cto.com/*"
+    "https://*.51cto.com/*",
+    "https://*.infoq.cn/*",
+    "https://account.infoq.cn/*"
   ],
   "action": {
     "default_icon": {
