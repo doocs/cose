@@ -73,6 +73,7 @@
     { id: 'oschina', name: 'OSChina', icon: 'https://wsrv.nl/?url=static.oschina.net/new-osc/img/favicon.ico', title: '开源中国', type: 'oschina' },
     { id: 'cto51', name: '51CTO', icon: 'https://www.google.com/s2/favicons?domain=51cto.com&sz=32', title: '51CTO', type: 'cto51' },
     { id: 'infoq', name: 'InfoQ', icon: 'https://static001.infoq.cn/static/write/img/write-favicon.jpg', title: 'InfoQ', type: 'infoq' },
+    { id: 'jianshu', name: 'Jianshu', icon: 'https://www.jianshu.com/favicon.ico', title: '简书', type: 'jianshu' },
   ]
 
   // 暴露 $cose 全局对象
