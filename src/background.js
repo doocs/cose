@@ -610,6 +610,59 @@ async function syncToPlatform(platformId, content) {
         console.error('[COSE] InfoQ API 调用失败:', e)
         return { success: false, message: 'InfoQ API 调用失败: ' + e.message }
       }
+    } else if (platformId === 'jianshu') {
+      // 简书：需要先获取文集列表，然后创建新文章
+      try {
+        // 获取用户的文集列表
+        const notebooksResp = await fetch('https://www.jianshu.com/author/notebooks', {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Accept': 'application/json',
+          }
+        })
+        const notebooks = await notebooksResp.json()
+        
+        if (!notebooks || notebooks.length === 0) {
+          return { success: false, message: '简书未找到文集，请先创建一个文集' }
+        }
+        
+        // 使用第一个文集
+        const notebookId = notebooks[0].id
+        console.log('[COSE] 简书使用文集:', notebooks[0].name, 'ID:', notebookId)
+        
+        // 创建新文章
+        const createResp = await fetch('https://www.jianshu.com/author/notes', {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify({
+            notebook_id: String(notebookId),
+            title: content.title || '无标题',
+            at_bottom: false
+          })
+        })
+        const noteData = await createResp.json()
+        
+        if (noteData && noteData.id) {
+          const noteId = noteData.id
+          const targetUrl = `https://www.jianshu.com/writer#/notebooks/${notebookId}/notes/${noteId}`
+          console.log('[COSE] 简书创建文章成功，ID:', noteId)
+          
+          tab = await chrome.tabs.create({ url: targetUrl, active: false })
+          await addTabToSyncGroup(tab.id, tab.windowId)
+          await waitForTab(tab.id)
+        } else {
+          console.error('[COSE] 简书创建文章失败:', noteData)
+          return { success: false, message: '简书创建文章失败，请确保已登录' }
+        }
+      } catch (e) {
+        console.error('[COSE] 简书 API 调用失败:', e)
+        return { success: false, message: '简书 API 调用失败: ' + e.message }
+      }
     } else {
       // 其他平台
       let targetUrl = platform.publishUrl
@@ -1047,6 +1100,38 @@ function fillContentOnPage(content, platformId) {
       `
       document.head.appendChild(script)
       script.remove()
+    }
+    // 简书
+    else if (host.includes('jianshu.com')) {
+      // 填充标题 - 简书使用 input._24i7u，需要使用 native setter
+      const titleInput = await waitFor('input._24i7u, input[class*="title"]')
+      if (titleInput) {
+        titleInput.focus()
+        const inputSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set
+        inputSetter.call(titleInput, title)
+        titleInput.dispatchEvent(new InputEvent('input', { bubbles: true, data: title, inputType: 'insertText' }))
+        titleInput.dispatchEvent(new Event('change', { bubbles: true }))
+        titleInput.dispatchEvent(new Event('blur', { bubbles: true }))
+        console.log('[COSE] 简书标题填充成功')
+      } else {
+        console.log('[COSE] 简书未找到标题输入框')
+      }
+
+      // 等待编辑器加载
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      // 简书使用 textarea#arthur-editor 作为 Markdown 编辑器
+      const editor = document.querySelector('#arthur-editor') || document.querySelector('textarea._3swFR')
+      if (editor) {
+        editor.focus()
+        const textareaSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
+        textareaSetter.call(editor, contentToFill)
+        editor.dispatchEvent(new InputEvent('input', { bubbles: true, data: contentToFill, inputType: 'insertText' }))
+        editor.dispatchEvent(new Event('change', { bubbles: true }))
+        console.log('[COSE] 简书内容填充成功')
+      } else {
+        console.log('[COSE] 简书未找到编辑器')
+      }
     }
     // 通用处理
     else {

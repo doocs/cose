@@ -2,6 +2,7 @@
 import { OSChinaPlatform, OSChinaLoginConfig } from './oschina.js'
 import { CTO51Platform, CTO51LoginConfig } from './cto51.js'
 import { InfoQPlatform, InfoQLoginConfig } from './infoq.js'
+import { JianshuPlatform, JianshuLoginConfig } from './jianshu.js'
 // 这里可以继续导入其他平台的配置
 // import { CSDNPlatform, CSDNLoginConfig } from './csdn.js'
 
@@ -142,6 +143,7 @@ const PLATFORMS = [
   OSChinaPlatform,
   CTO51Platform,
   InfoQPlatform,
+  JianshuPlatform,
 ]
 
 // 合并登录检测配置
@@ -150,6 +152,7 @@ const LOGIN_CHECK_CONFIG = {
   [OSChinaPlatform.id]: OSChinaLoginConfig,
   [CTO51Platform.id]: CTO51LoginConfig,
   [InfoQPlatform.id]: InfoQLoginConfig,
+  [JianshuPlatform.id]: JianshuLoginConfig,
 }
 
 // 根据 hostname 获取平台填充函数
@@ -164,6 +167,7 @@ function getPlatformFiller(hostname) {
   if (hostname.includes('oschina.net')) return 'oschina'
   if (hostname.includes('51cto.com')) return 'cto51'
   if (hostname.includes('infoq.cn')) return 'infoq'
+  if (hostname.includes('jianshu.com')) return 'jianshu'
   return 'generic'
 }
 
