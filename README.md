@@ -41,6 +41,7 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 - 今日头条
 - 知乎
 - 博客园
+- 百家号
 - CSDN
 - 掘金
 - 思否

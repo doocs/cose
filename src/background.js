@@ -211,6 +211,39 @@ async function checkLoginByCookie(platformId, config) {
       }
     }
 
+    // 百家号特殊处理：通过 API 获取用户信息
+    if (platformId === 'baijiahao') {
+      try {
+        // 百家号的 API 需要从页面获取 token，这里直接请求一个不需要 token 的页面
+        // 然后从返回的 HTML 中提取用户信息
+        const response = await fetch('https://baijiahao.baidu.com/builder/app/appinfo', {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Accept': 'application/json',
+          }
+        })
+        const data = await response.json()
+        
+        if (data.errno === 0 && data.data?.user?.username) {
+          username = data.data.user.username || data.data.user.name
+          avatar = data.data.user.avatar || ''
+          if (avatar.startsWith('//')) {
+            avatar = 'https:' + avatar
+          }
+          console.log(`[COSE] ${platformId} 用户信息:`, username, avatar ? '有头像' : '无头像')
+          return { loggedIn: true, username, avatar }
+        } else {
+          console.log(`[COSE] ${platformId} API 返回未登录状态`)
+          return { loggedIn: false }
+        }
+      } catch (e) {
+        console.log(`[COSE] ${platformId} 获取用户信息失败:`, e.message)
+        // 如果 API 失败，但有 BDUSS cookie，仍然认为已登录
+        return { loggedIn: true, username: '', avatar: '' }
+      }
+    }
+
     // 从页面抓取用户信息
     if (config.fetchUserInfoFromPage && config.userInfoUrl) {
       try {
@@ -752,6 +785,71 @@ async function syncToPlatform(platformId, content) {
       })
 
       return { success: true, message: '已同步并保存为草稿', tabId: tab.id }
+    }
+
+    // 百家号：使用剪贴板 HTML 粘贴到编辑器
+    if (platformId === 'baijiahao') {
+      // 等待页面完全加载
+      await new Promise(resolve => setTimeout(resolve, 3000))
+
+      // 使用剪贴板 HTML（带完整样式）或降级到 body
+      const htmlContent = content.wechatHtml || content.body
+      console.log('[COSE] 百家号 HTML 内容长度:', htmlContent?.length || 0)
+
+      // 填充标题和内容
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: (title, htmlBody) => {
+          // 填充标题 - 百家号标题在 contenteditable div 中
+          const titleEditor = document.querySelector('.client_components_titleInput [contenteditable="true"]') ||
+            document.querySelector('.client_pages_edit_components_titleInput [contenteditable="true"]') ||
+            document.querySelector('[class*="titleInput"] [contenteditable="true"]')
+
+          if (titleEditor && title) {
+            titleEditor.focus()
+            titleEditor.innerHTML = ''
+            document.execCommand('insertText', false, title)
+            if (!titleEditor.textContent) {
+              titleEditor.innerHTML = `<p dir="auto">${title}</p>`
+            }
+            titleEditor.dispatchEvent(new Event('input', { bubbles: true }))
+            console.log('[COSE] 百家号标题已填充')
+          }
+
+          // 等待一下再填充内容
+          setTimeout(() => {
+            // 找到 iframe 中的编辑器
+            const iframe = document.querySelector('iframe')
+            if (iframe && iframe.contentDocument && htmlBody) {
+              const iframeBody = iframe.contentDocument.body
+              if (iframeBody) {
+                iframeBody.focus()
+
+                // 方法：创建 DataTransfer 并触发 paste 事件
+                const dt = new DataTransfer()
+                dt.setData('text/html', htmlBody)
+                dt.setData('text/plain', htmlBody.replace(/<[^>]*>/g, ''))
+
+                const pasteEvent = new ClipboardEvent('paste', {
+                  bubbles: true,
+                  cancelable: true,
+                  clipboardData: dt
+                })
+
+                iframeBody.dispatchEvent(pasteEvent)
+                console.log('[COSE] 百家号内容已通过 paste 事件注入')
+              }
+            }
+          }, 500)
+        },
+        args: [content.title, htmlContent],
+        world: 'MAIN',
+      })
+
+      // 等待内容注入完成
+      await new Promise(resolve => setTimeout(resolve, 2000))
+
+      return { success: true, message: '已同步到百家号', tabId: tab.id }
     }
 
     // 其他平台使用 scripting API 直接注入填充脚本

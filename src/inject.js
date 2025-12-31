@@ -74,6 +74,7 @@
     { id: 'cto51', name: '51CTO', icon: 'https://www.google.com/s2/favicons?domain=51cto.com&sz=32', title: '51CTO', type: 'cto51' },
     { id: 'infoq', name: 'InfoQ', icon: 'https://static001.infoq.cn/static/write/img/write-favicon.jpg', title: 'InfoQ', type: 'infoq' },
     { id: 'jianshu', name: 'Jianshu', icon: 'https://www.jianshu.com/favicon.ico', title: '简书', type: 'jianshu' },
+    { id: 'baijiahao', name: 'Baijiahao', icon: 'https://pic.rmb.bdstatic.com/10e1e2b43c35577e1315f0f6aad6ba24.vnd.microsoft.icon', title: '百家号', type: 'baijiahao' },
   ]
 
   // 暴露 $cose 全局对象
@@ -170,10 +171,11 @@
         // 开始新的同步批次，将所有 tab 放入一个 group
         await sendMessage('START_SYNC_BATCH', {})
 
-        // 检查是否需要同步到微信公众号
+        // 检查是否需要同步到微信公众号或百家号（需要使用剪贴板 HTML）
         const hasWechat = selectedAccounts.some(a => (a.uid || a.type) === 'wechat')
-        let wechatHtmlContent = null
-        if (hasWechat) {
+        const hasBaijiahao = selectedAccounts.some(a => (a.uid || a.type) === 'baijiahao')
+        let clipboardHtmlContent = null
+        if (hasWechat || hasBaijiahao) {
           // 先点击复制按钮，将带样式的内容复制到剪贴板
           const copyBtn = document.querySelector('.copy-btn') ||
             document.querySelector('button[class*="copy"]') ||
@@ -190,8 +192,8 @@
               for (const item of clipboardItems) {
                 if (item.types.includes('text/html')) {
                   const blob = await item.getType('text/html')
-                  wechatHtmlContent = await blob.text()
-                  console.log('[COSE] 已读取剪贴板 HTML 内容，长度:', wechatHtmlContent.length)
+                  clipboardHtmlContent = await blob.text()
+                  console.log('[COSE] 已读取剪贴板 HTML 内容，长度:', clipboardHtmlContent.length)
                   break
                 }
               }
@@ -217,8 +219,8 @@
                 markdown: post.markdown,
                 thumb: post.thumb,
                 desc: post.desc,
-                // 微信公众号使用剪贴板中带样式的 HTML
-                wechatHtml: platformId === 'wechat' ? wechatHtmlContent : null,
+                // 微信公众号和百家号使用剪贴板中带样式的 HTML
+                wechatHtml: (platformId === 'wechat' || platformId === 'baijiahao') ? clipboardHtmlContent : null,
               },
             })
 

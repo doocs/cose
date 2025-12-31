@@ -33,7 +33,9 @@
     "https://*.oschina.net/*",
     "https://*.51cto.com/*",
     "https://*.infoq.cn/*",
-    "https://account.infoq.cn/*"
+    "https://account.infoq.cn/*",
+    "https://*.baijiahao.baidu.com/*",
+    "https://baijiahao.baidu.com/*"
   ],
   "action": {
     "default_icon": {
