@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "COSE - 多平台文章同步",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "description": "Create Once, Sync Everywhere. 一键将文章同步到多个平台",
   "permissions": [
     "tabGroups",
