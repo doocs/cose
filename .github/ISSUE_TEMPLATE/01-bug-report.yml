@@ -42,13 +42,13 @@ body:
       required: true
   
   - type: textarea
-    id: actual-behavior
+    id: suggested-implementation
     attributes:
-      label: Actual Behavior / 实际行为
-      description: What actually happened / 实际发生了什么
-      placeholder: Describe what actually happened / 描述实际发生的情况
+      label: Suggested Implementation / 实现建议
+      description: Any suggestions on how to fix this issue (optional) / 对如何修复此问题的建议
+      placeholder: Describe your suggested implementation / 描述您建议的实现方式
     validations:
-      required: true
+      required: false
   
   - type: input
     id: platform
