@@ -68,7 +68,7 @@
     { id: 'wechat', name: 'WeChat', icon: 'https://res.wx.qq.com/a/wx_fed/assets/res/NTI4MWU5.ico', title: '微信公众号', type: 'wechat' },
     { id: 'zhihu', name: 'Zhihu', icon: 'https://static.zhihu.com/heifetz/favicon.ico', title: '知乎', type: 'zhihu' },
     { id: 'toutiao', name: 'Toutiao', icon: 'https://sf3-cdn-tos.toutiaostatic.com/obj/eden-cn/uhbfnupkbps/toutiao_favicon.ico', title: '今日头条', type: 'toutiao' },
-    { id: 'segmentfault', name: 'SegmentFault', icon: 'https://youke2.picui.cn/s1/2025/12/21/6947b2935a41e.ico', title: '思否', type: 'segmentfault' },
+    { id: 'segmentfault', name: 'SegmentFault', icon: 'https://www.google.com/s2/favicons?domain=segmentfault.com&sz=32', title: '思否', type: 'segmentfault' },
     { id: 'cnblogs', name: 'Cnblogs', icon: 'https://www.cnblogs.com/favicon.ico', title: '博客园', type: 'cnblogs' },
     { id: 'oschina', name: 'OSChina', icon: 'https://wsrv.nl/?url=static.oschina.net/new-osc/img/favicon.ico', title: '开源中国', type: 'oschina' },
     { id: 'cto51', name: '51CTO', icon: 'https://www.google.com/s2/favicons?domain=51cto.com&sz=32', title: '51CTO', type: 'cto51' },
