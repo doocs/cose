@@ -4,6 +4,7 @@ import { CTO51Platform, CTO51LoginConfig } from './cto51.js'
 import { InfoQPlatform, InfoQLoginConfig } from './infoq.js'
 import { JianshuPlatform, JianshuLoginConfig } from './jianshu.js'
 import { BaijiahaoPlatform, BaijiahaoLoginConfig } from './baijiahao.js'
+import { WangyihaoPlatform, WangyihaoLoginConfig } from './wangyihao.js'
 // 这里可以继续导入其他平台的配置
 // import { CSDNPlatform, CSDNLoginConfig } from './csdn.js'
 
@@ -146,6 +147,7 @@ const PLATFORMS = [
   InfoQPlatform,
   JianshuPlatform,
   BaijiahaoPlatform,
+  WangyihaoPlatform,
 ]
 
 // 合并登录检测配置
@@ -156,6 +158,7 @@ const LOGIN_CHECK_CONFIG = {
   [InfoQPlatform.id]: InfoQLoginConfig,
   [JianshuPlatform.id]: JianshuLoginConfig,
   [BaijiahaoPlatform.id]: BaijiahaoLoginConfig,
+  [WangyihaoPlatform.id]: WangyihaoLoginConfig,
 }
 
 // 根据 hostname 获取平台填充函数
@@ -172,6 +175,7 @@ function getPlatformFiller(hostname) {
   if (hostname.includes('infoq.cn')) return 'infoq'
   if (hostname.includes('jianshu.com')) return 'jianshu'
   if (hostname.includes('baijiahao.baidu.com')) return 'baijiahao'
+  if (hostname.includes('mp.163.com')) return 'wangyihao'
   return 'generic'
 }
 

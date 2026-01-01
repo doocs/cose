@@ -75,6 +75,7 @@
     { id: 'infoq', name: 'InfoQ', icon: 'https://static001.infoq.cn/static/write/img/write-favicon.jpg', title: 'InfoQ', type: 'infoq' },
     { id: 'jianshu', name: 'Jianshu', icon: 'https://www.jianshu.com/favicon.ico', title: '简书', type: 'jianshu' },
     { id: 'baijiahao', name: 'Baijiahao', icon: 'https://pic.rmb.bdstatic.com/10e1e2b43c35577e1315f0f6aad6ba24.vnd.microsoft.icon', title: '百家号', type: 'baijiahao' },
+    { id: 'wangyihao', name: 'Wangyihao', icon: 'https://static.ws.126.net/163/f2e/news/yxybd_pc/resource/static/share-icon.png', title: '网易号', type: 'wangyihao' },
   ]
 
   // 暴露 $cose 全局对象
@@ -171,11 +172,12 @@
         // 开始新的同步批次，将所有 tab 放入一个 group
         await sendMessage('START_SYNC_BATCH', {})
 
-        // 检查是否需要同步到微信公众号或百家号（需要使用剪贴板 HTML）
+        // 检查是否需要同步到微信公众号或百家号或网易号（需要使用剪贴板 HTML）
         const hasWechat = selectedAccounts.some(a => (a.uid || a.type) === 'wechat')
         const hasBaijiahao = selectedAccounts.some(a => (a.uid || a.type) === 'baijiahao')
+        const hasWangyihao = selectedAccounts.some(a => (a.uid || a.type) === 'wangyihao')
         let clipboardHtmlContent = null
-        if (hasWechat || hasBaijiahao) {
+        if (hasWechat || hasBaijiahao || hasWangyihao) {
           // 先点击复制按钮，将带样式的内容复制到剪贴板
           const copyBtn = document.querySelector('.copy-btn') ||
             document.querySelector('button[class*="copy"]') ||
@@ -219,8 +221,8 @@
                 markdown: post.markdown,
                 thumb: post.thumb,
                 desc: post.desc,
-                // 微信公众号和百家号使用剪贴板中带样式的 HTML
-                wechatHtml: (platformId === 'wechat' || platformId === 'baijiahao') ? clipboardHtmlContent : null,
+                // 微信公众号、百家号和网易号使用剪贴板中带样式的 HTML
+                wechatHtml: (platformId === 'wechat' || platformId === 'baijiahao' || platformId === 'wangyihao') ? clipboardHtmlContent : null,
               },
             })
 

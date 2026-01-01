@@ -35,7 +35,9 @@
     "https://*.infoq.cn/*",
     "https://account.infoq.cn/*",
     "https://*.baijiahao.baidu.com/*",
-    "https://baijiahao.baidu.com/*"
+    "https://baijiahao.baidu.com/*",
+    "https://*.163.com/*",
+    "https://mp.163.com/*"
   ],
   "action": {
     "default_icon": {

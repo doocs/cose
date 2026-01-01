@@ -244,6 +244,35 @@ async function checkLoginByCookie(platformId, config) {
       }
     }
 
+    // 网易号特殊处理：通过 navinfo.do API 获取用户信息
+    if (platformId === 'wangyihao') {
+      try {
+        const timestamp = Date.now()
+        const response = await fetch(`https://mp.163.com/wemedia/navinfo.do?_=${timestamp}`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Accept': 'application/json',
+          }
+        })
+        const data = await response.json()
+        
+        if (data.code === 1 && data.data?.tname) {
+          username = data.data.tname
+          avatar = data.data.icon || ''
+          console.log(`[COSE] ${platformId} 用户信息:`, username, avatar ? '有头像' : '无头像')
+          return { loggedIn: true, username, avatar }
+        } else {
+          console.log(`[COSE] ${platformId} API 返回未登录状态`)
+          return { loggedIn: false }
+        }
+      } catch (e) {
+        console.log(`[COSE] ${platformId} 获取用户信息失败:`, e.message)
+        // 如果 API 失败，但有登录 cookie，仍然认为已登录
+        return { loggedIn: true, username: '', avatar: '' }
+      }
+    }
+
     // 从页面抓取用户信息
     if (config.fetchUserInfoFromPage && config.userInfoUrl) {
       try {
@@ -850,6 +879,80 @@ async function syncToPlatform(platformId, content) {
       await new Promise(resolve => setTimeout(resolve, 2000))
 
       return { success: true, message: '已同步到百家号', tabId: tab.id }
+    }
+
+    // 网易号：使用剪贴板 HTML 粘贴到编辑器
+    if (platformId === 'wangyihao') {
+      // 等待页面完全加载
+      await new Promise(resolve => setTimeout(resolve, 3000))
+
+      // 使用剪贴板 HTML（带完整样式）或降级到 body
+      const htmlContent = content.wechatHtml || content.body
+      console.log('[COSE] 网易号 HTML 内容长度:', htmlContent?.length || 0)
+
+      // 填充标题和内容
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: (title, htmlBody) => {
+          // 填充标题 - 网易号使用 textarea.netease-textarea
+          // 需要使用 native setter 来绕过 React 的受控组件
+          const titleInput = document.querySelector('textarea.netease-textarea') ||
+            document.querySelector('textarea[placeholder*="标题"]')
+
+          if (titleInput && title) {
+            titleInput.focus()
+            // 使用 native setter 来绕过 React 的受控组件
+            const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
+            nativeSetter.call(titleInput, title)
+            // 触发 React 能识别的事件
+            titleInput.dispatchEvent(new InputEvent('input', { bubbles: true, data: title, inputType: 'insertText' }))
+            titleInput.dispatchEvent(new Event('change', { bubbles: true }))
+            titleInput.dispatchEvent(new Event('blur', { bubbles: true }))
+            console.log('[COSE] 网易号标题已填充')
+          }
+
+          // 等待一下再填充内容
+          setTimeout(() => {
+            // 找到 Draft.js 编辑器
+            const editor = document.querySelector('.public-DraftEditor-content') ||
+              document.querySelector('[contenteditable="true"]')
+
+            if (editor && htmlBody) {
+              editor.focus()
+
+              // 清空现有内容
+              if (editor.textContent.trim() === '' || editor.querySelector('[data-text="true"]')) {
+                // Draft.js 编辑器可能有占位符
+                const placeholder = editor.querySelector('[data-text="true"]')
+                if (placeholder && placeholder.textContent.includes('请输入正文')) {
+                  editor.innerHTML = ''
+                }
+              }
+
+              // 方法：创建 DataTransfer 并触发 paste 事件
+              const dt = new DataTransfer()
+              dt.setData('text/html', htmlBody)
+              dt.setData('text/plain', htmlBody.replace(/<[^>]*>/g, ''))
+
+              const pasteEvent = new ClipboardEvent('paste', {
+                bubbles: true,
+                cancelable: true,
+                clipboardData: dt
+              })
+
+              editor.dispatchEvent(pasteEvent)
+              console.log('[COSE] 网易号内容已通过 paste 事件注入')
+            }
+          }, 500)
+        },
+        args: [content.title, htmlContent],
+        world: 'MAIN',
+      })
+
+      // 等待内容注入完成
+      await new Promise(resolve => setTimeout(resolve, 2000))
+
+      return { success: true, message: '已同步到网易号', tabId: tab.id }
     }
 
     // 其他平台使用 scripting API 直接注入填充脚本
