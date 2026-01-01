@@ -35,5 +35,7 @@ body:
     attributes:
       label: Implementation / 实现意愿
       options:
-        - label: I'm willing to submit a PR / 我愿意提交 PR
+        - label: I'm willing to submit a PR / 我愿意实现并提交 PR
+          required: false
+        - label: I'd prefer to wait for community implementation / 我希望等待社区的实现
           required: false
