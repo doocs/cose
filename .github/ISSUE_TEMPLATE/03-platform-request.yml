@@ -34,8 +34,9 @@ body:
     id: willingness
     attributes:
       label: Implementation / 实现意愿
+      description: Would you be willing to help implement this feature? / 您是否愿意帮助实现此功能？
       options:
-        - label: I'm willing to submit a PR / 我愿意实现并提交 PR
+        - label: I'm willing to submit a PR for this feature / 我愿意为此功能提交 PR
           required: false
         - label: I'd prefer to wait for community implementation / 我希望等待社区的实现
           required: false

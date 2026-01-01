@@ -69,3 +69,5 @@ body:
       options:
         - label: I'm willing to submit a PR for this feature / 我愿意为此功能提交 PR
           required: false
+        - label: I'd prefer to wait for community implementation / 我希望等待社区的实现
+          required: false
