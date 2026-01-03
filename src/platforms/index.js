@@ -5,6 +5,7 @@ import { InfoQPlatform, InfoQLoginConfig } from './infoq.js'
 import { JianshuPlatform, JianshuLoginConfig } from './jianshu.js'
 import { BaijiahaoPlatform, BaijiahaoLoginConfig } from './baijiahao.js'
 import { WangyihaoPlatform, WangyihaoLoginConfig } from './wangyihao.js'
+import { TencentCloudPlatform, TencentCloudLoginConfig } from './tencentcloud.js'
 // 这里可以继续导入其他平台的配置
 // import { CSDNPlatform, CSDNLoginConfig } from './csdn.js'
 
@@ -148,6 +149,7 @@ const PLATFORMS = [
   JianshuPlatform,
   BaijiahaoPlatform,
   WangyihaoPlatform,
+  TencentCloudPlatform,
 ]
 
 // 合并登录检测配置
@@ -159,6 +161,7 @@ const LOGIN_CHECK_CONFIG = {
   [JianshuPlatform.id]: JianshuLoginConfig,
   [BaijiahaoPlatform.id]: BaijiahaoLoginConfig,
   [WangyihaoPlatform.id]: WangyihaoLoginConfig,
+  [TencentCloudPlatform.id]: TencentCloudLoginConfig,
 }
 
 // 根据 hostname 获取平台填充函数
@@ -176,6 +179,7 @@ function getPlatformFiller(hostname) {
   if (hostname.includes('jianshu.com')) return 'jianshu'
   if (hostname.includes('baijiahao.baidu.com')) return 'baijiahao'
   if (hostname.includes('mp.163.com')) return 'wangyihao'
+  if (hostname.includes('cloud.tencent.com')) return 'tencentcloud'
   return 'generic'
 }
 

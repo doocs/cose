@@ -37,7 +37,9 @@
     "https://*.baijiahao.baidu.com/*",
     "https://baijiahao.baidu.com/*",
     "https://*.163.com/*",
-    "https://mp.163.com/*"
+    "https://mp.163.com/*",
+    "https://*.cloud.tencent.com/*",
+    "https://cloud.tencent.com/*"
   ],
   "action": {
     "default_icon": {

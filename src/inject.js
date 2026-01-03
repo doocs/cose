@@ -76,6 +76,7 @@
     { id: 'jianshu', name: 'Jianshu', icon: 'https://www.jianshu.com/favicon.ico', title: '简书', type: 'jianshu' },
     { id: 'baijiahao', name: 'Baijiahao', icon: 'https://pic.rmb.bdstatic.com/10e1e2b43c35577e1315f0f6aad6ba24.vnd.microsoft.icon', title: '百家号', type: 'baijiahao' },
     { id: 'wangyihao', name: 'Wangyihao', icon: 'https://static.ws.126.net/163/f2e/news/yxybd_pc/resource/static/share-icon.png', title: '网易号', type: 'wangyihao' },
+    { id: 'tencentcloud', name: 'TencentCloud', icon: 'https://cloudcache.tencent-cloud.com/qcloud/favicon.ico', title: '腾讯云开发者社区', type: 'tencentcloud' },
   ]
 
   // 暴露 $cose 全局对象
