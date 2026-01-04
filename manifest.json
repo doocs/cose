@@ -39,7 +39,9 @@
     "https://*.163.com/*",
     "https://mp.163.com/*",
     "https://*.cloud.tencent.com/*",
-    "https://cloud.tencent.com/*"
+    "https://cloud.tencent.com/*",
+    "https://*.medium.com/*",
+    "https://medium.com/*"
   ],
   "action": {
     "default_icon": {
