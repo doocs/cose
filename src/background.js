@@ -281,21 +281,46 @@ async function checkLoginByCookie(platformId, config) {
           credentials: 'include',
         })
         const html = await response.text()
+        const finalUrl = response.url
         
-        // 从页面中提取用户信息
-        const uidMatch = html.match(/\/developer\/user\/(\d+)/)
-        const nicknameMatch = html.match(/"nickname"\s*:\s*"([^"]+)"/) || 
-                              html.match(/"nickName"\s*:\s*"([^"]+)"/)
-        const avatarMatch = html.match(/"avatarUrl"\s*:\s*"([^"]+)"/) ||
-                            html.match(/"avatar"\s*:\s*"([^"]+)"/)
+        // 检查是否被重定向到首页（未登录时会重定向）
+        if (!finalUrl.includes('/creator')) {
+          console.log(`[COSE] ${platformId} 未登录：被重定向到 ${finalUrl}`)
+          return { loggedIn: false }
+        }
         
-        // 如果能提取到 uid 和 nickname，说明已登录
-        if (uidMatch && nicknameMatch) {
+        // 检查页面是否包含登录按钮（未登录标志）
+        if (html.includes('登录/注册') || html.includes('"isLogin":false') || html.includes('"login":false')) {
+          console.log(`[COSE] ${platformId} 未登录：页面包含登录按钮`)
+          return { loggedIn: false }
+        }
+        
+        // 从创作中心页面提取当前用户信息（通常在页面的用户信息区域）
+        // 匹配 "userInfo" 或 "creatorInfo" 等包含当前用户信息的 JSON 对象
+        const userInfoMatch = html.match(/"userInfo"\s*:\s*\{[^}]*"nickname"\s*:\s*"([^"]+)"[^}]*\}/) ||
+                              html.match(/"creatorInfo"\s*:\s*\{[^}]*"nickname"\s*:\s*"([^"]+)"[^}]*\}/) ||
+                              html.match(/"currentUser"\s*:\s*\{[^}]*"nickname"\s*:\s*"([^"]+)"[^}]*\}/)
+        
+        // 备用方案：匹配创作中心特有的用户信息结构
+        const creatorNicknameMatch = html.match(/class="creator-info[^"]*"[^>]*>[\s\S]*?<[^>]*class="[^"]*name[^"]*"[^>]*>([^<]+)</) ||
+                                     html.match(/"isCreator"\s*:\s*true[\s\S]*?"nickname"\s*:\s*"([^"]+)"/)
+        
+        const nicknameMatch = userInfoMatch || creatorNicknameMatch
+        const avatarMatch = html.match(/"userInfo"[\s\S]*?"avatarUrl"\s*:\s*"([^"]+)"/) ||
+                            html.match(/"avatar"\s*:\s*"(https?:\/\/[^"]+)"/)
+        
+        if (nicknameMatch && nicknameMatch[1]) {
           username = nicknameMatch[1]
           avatar = avatarMatch ? avatarMatch[1] : ''
           console.log(`[COSE] ${platformId} 用户信息:`, username, avatar ? '有头像' : '无头像')
           return { loggedIn: true, username, avatar }
         } else {
+          // 如果在创作中心页面但无法提取用户信息，可能是页面结构变化
+          // 检查是否有创作中心特有的元素来确认登录状态
+          if (html.includes('创作中心') || html.includes('我的文章') || html.includes('发布文章')) {
+            console.log(`[COSE] ${platformId} 已登录但无法提取用户名`)
+            return { loggedIn: true, username: '', avatar: '' }
+          }
           console.log(`[COSE] ${platformId} 未检测到登录状态`)
           return { loggedIn: false }
         }
