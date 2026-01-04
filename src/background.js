@@ -330,6 +330,75 @@ async function checkLoginByCookie(platformId, config) {
       }
     }
 
+    // Medium 特殊处理：先检查 cookies，再获取用户信息
+    if (platformId === 'medium') {
+      try {
+        // Medium 使用 sid 和 uid cookies 来标识登录状态
+        const sidCookie = await chrome.cookies.get({
+          url: 'https://medium.com',
+          name: 'sid'
+        })
+        const uidCookie = await chrome.cookies.get({
+          url: 'https://medium.com',
+          name: 'uid'
+        })
+        
+        // 如果没有 sid 或 uid cookie，说明未登录
+        if (!sidCookie && !uidCookie) {
+          console.log(`[COSE] ${platformId} 未找到登录 cookie`)
+          return { loggedIn: false }
+        }
+        
+        console.log(`[COSE] ${platformId} 找到登录 cookie: sid=${!!sidCookie}, uid=${!!uidCookie}`)
+        
+        // 尝试获取用户信息
+        const response = await fetch('https://medium.com/me/stats', {
+          method: 'GET',
+          credentials: 'include',
+        })
+        const html = await response.text()
+        const finalUrl = response.url
+        
+        // 检查是否被重定向到登录页（未登录标志）
+        if (finalUrl.includes('/m/signin') || finalUrl.includes('?signIn') || finalUrl.includes('/m/callback')) {
+          console.log(`[COSE] ${platformId} 未登录：被重定向到登录页`)
+          return { loggedIn: false }
+        }
+        
+        // 从页面提取用户名 - 优先使用 JSON 格式
+        const profileMatch = html.match(/"username"\s*:\s*"([^"]+)"/) ||
+                             html.match(/href="https:\/\/medium\.com\/@([^"?\/]+)"/) ||
+                             html.match(/medium\.com\/@([a-zA-Z0-9_]+)/)
+        
+        if (profileMatch && profileMatch[1] && profileMatch[1] !== 'gmail' && profileMatch[1] !== 'medium') {
+          username = profileMatch[1]
+          
+          // 从页面提取头像 - 查找导航栏用户头像
+          // Medium 的用户头像 img 标签的 alt 属性是用户名的简称（如 "fwen"）
+          // 格式: <img alt="fwen" src="https://miro.medium.com/v2/resize:fill:64:64/...">
+          const shortName = username.replace(/\d+$/, '') // 移除末尾数字，如 fwen925 -> fwen
+          const avatarPattern = new RegExp(`<img[^>]*alt="${shortName}"[^>]*src="([^"]+)"`)
+          const avatarMatch = html.match(avatarPattern)
+          
+          // 备用: src 在 alt 之前
+          const avatarPattern2 = new RegExp(`<img[^>]*src="([^"]+)"[^>]*alt="${shortName}"`)
+          const avatarMatch2 = html.match(avatarPattern2)
+          
+          avatar = (avatarMatch && avatarMatch[1]) || (avatarMatch2 && avatarMatch2[1]) || ''
+          
+          console.log(`[COSE] ${platformId} 用户信息:`, username, avatar ? '有头像' : '无头像')
+          return { loggedIn: true, username, avatar }
+        } else {
+          // 有 cookie 但无法提取用户名，仍然认为已登录
+          console.log(`[COSE] ${platformId} 已登录但无法提取用户名`)
+          return { loggedIn: true, username: '', avatar: '' }
+        }
+      } catch (e) {
+        console.log(`[COSE] ${platformId} 获取用户信息失败:`, e.message)
+        return { loggedIn: false }
+      }
+    }
+
     // 从页面抓取用户信息
     if (config.fetchUserInfoFromPage && config.userInfoUrl) {
       try {
@@ -1029,7 +1098,7 @@ async function syncToPlatform(platformId, content) {
 
 // 在目标页面执行的填充函数
 function fillContentOnPage(content, platformId) {
-  const { title, body, markdown } = content
+  const { title, body, markdown, wechatHtml } = content
 
   // 等待元素出现的工具函数
   function waitFor(selector, timeout = 10000) {
@@ -1464,6 +1533,51 @@ function fillContentOnPage(content, platformId) {
        */
       codeMirror.setValue(contentToFill)
       console.log('[COSE] TencentCloud 内容填充成功')
+    }
+    // Medium
+    else if (host.includes('medium.com')) {
+      console.log('[COSE] Medium 开始同步...')
+      
+      // 等待编辑器加载
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      
+      /**
+       * 第一步：填充标题
+       * Medium 的标题在 h3.graf--title 元素中
+       */
+      const titleEl = document.querySelector('h3.graf--title')
+      if (titleEl && title) {
+        titleEl.focus()
+        titleEl.textContent = title
+        titleEl.dispatchEvent(new Event('input', { bubbles: true }))
+        console.log('[COSE] Medium 标题填充成功')
+      }
+      
+      /**
+       * 第二步：填充内容
+       * Medium 使用 contenteditable 编辑器，通过 paste 事件注入 HTML 内容
+       * 使用剪贴板 HTML（带完整样式）或降级到 body
+       */
+      const htmlContent = wechatHtml || body || ''
+      const contentEl = document.querySelector('p.graf--p')
+      
+      if (contentEl && htmlContent) {
+        contentEl.focus()
+        
+        // 创建 DataTransfer 并设置 HTML 内容
+        const dt = new DataTransfer()
+        dt.setData('text/html', htmlContent)
+        dt.setData('text/plain', htmlContent.replace(/<[^>]*>/g, ''))
+        
+        const pasteEvent = new ClipboardEvent('paste', {
+          bubbles: true,
+          cancelable: true,
+          clipboardData: dt
+        })
+        
+        contentEl.dispatchEvent(pasteEvent)
+        console.log('[COSE] Medium 内容填充成功')
+      }
     }
     // 通用处理
     else {

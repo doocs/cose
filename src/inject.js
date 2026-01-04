@@ -63,20 +63,21 @@
 
   // 平台配置（与 background.js 保持一致）
   const PLATFORMS = [
-    { id: 'csdn', name: 'CSDN', icon: 'https://g.csdnimg.cn/static/logo/favicon32.ico', title: 'CSDN', type: 'csdn' },
-    { id: 'juejin', name: 'Juejin', icon: 'https://lf-web-assets.juejin.cn/obj/juejin-web/xitu_juejin_web/static/favicons/favicon-32x32.png', title: '掘金', type: 'juejin' },
-    { id: 'wechat', name: 'WeChat', icon: 'https://res.wx.qq.com/a/wx_fed/assets/res/NTI4MWU5.ico', title: '微信公众号', type: 'wechat' },
-    { id: 'zhihu', name: 'Zhihu', icon: 'https://static.zhihu.com/heifetz/favicon.ico', title: '知乎', type: 'zhihu' },
-    { id: 'toutiao', name: 'Toutiao', icon: 'https://sf3-cdn-tos.toutiaostatic.com/obj/eden-cn/uhbfnupkbps/toutiao_favicon.ico', title: '今日头条', type: 'toutiao' },
-    { id: 'segmentfault', name: 'SegmentFault', icon: 'https://www.google.com/s2/favicons?domain=segmentfault.com&sz=32', title: '思否', type: 'segmentfault' },
-    { id: 'cnblogs', name: 'Cnblogs', icon: 'https://www.cnblogs.com/favicon.ico', title: '博客园', type: 'cnblogs' },
-    { id: 'oschina', name: 'OSChina', icon: 'https://wsrv.nl/?url=static.oschina.net/new-osc/img/favicon.ico', title: '开源中国', type: 'oschina' },
-    { id: 'cto51', name: '51CTO', icon: 'https://www.google.com/s2/favicons?domain=51cto.com&sz=32', title: '51CTO', type: 'cto51' },
-    { id: 'infoq', name: 'InfoQ', icon: 'https://static001.infoq.cn/static/write/img/write-favicon.jpg', title: 'InfoQ', type: 'infoq' },
-    { id: 'jianshu', name: 'Jianshu', icon: 'https://www.jianshu.com/favicon.ico', title: '简书', type: 'jianshu' },
-    { id: 'baijiahao', name: 'Baijiahao', icon: 'https://pic.rmb.bdstatic.com/10e1e2b43c35577e1315f0f6aad6ba24.vnd.microsoft.icon', title: '百家号', type: 'baijiahao' },
-    { id: 'wangyihao', name: 'Wangyihao', icon: 'https://static.ws.126.net/163/f2e/news/yxybd_pc/resource/static/share-icon.png', title: '网易号', type: 'wangyihao' },
-    { id: 'tencentcloud', name: 'TencentCloud', icon: 'https://cloudcache.tencent-cloud.com/qcloud/favicon.ico', title: '腾讯云开发者社区', type: 'tencentcloud' },
+    { id: 'csdn', name: 'CSDN', icon: 'https://g.csdnimg.cn/static/logo/favicon32.ico', title: 'CSDN', type: 'csdn', url: 'https://blog.csdn.net/' },
+    { id: 'juejin', name: 'Juejin', icon: 'https://lf-web-assets.juejin.cn/obj/juejin-web/xitu_juejin_web/static/favicons/favicon-32x32.png', title: '掘金', type: 'juejin', url: 'https://juejin.cn/' },
+    { id: 'wechat', name: 'WeChat', icon: 'https://res.wx.qq.com/a/wx_fed/assets/res/NTI4MWU5.ico', title: '微信公众号', type: 'wechat', url: 'https://mp.weixin.qq.com/' },
+    { id: 'zhihu', name: 'Zhihu', icon: 'https://static.zhihu.com/heifetz/favicon.ico', title: '知乎', type: 'zhihu', url: 'https://www.zhihu.com/signin' },
+    { id: 'toutiao', name: 'Toutiao', icon: 'https://sf3-cdn-tos.toutiaostatic.com/obj/eden-cn/uhbfnupkbps/toutiao_favicon.ico', title: '今日头条', type: 'toutiao', url: 'https://mp.toutiao.com/' },
+    { id: 'segmentfault', name: 'SegmentFault', icon: 'https://www.google.com/s2/favicons?domain=segmentfault.com&sz=32', title: '思否', type: 'segmentfault', url: 'https://segmentfault.com/user/login' },
+    { id: 'cnblogs', name: 'Cnblogs', icon: 'https://www.cnblogs.com/favicon.ico', title: '博客园', type: 'cnblogs', url: 'https://account.cnblogs.com/signin' },
+    { id: 'oschina', name: 'OSChina', icon: 'https://wsrv.nl/?url=static.oschina.net/new-osc/img/favicon.ico', title: '开源中国', type: 'oschina', url: 'https://www.oschina.net/home/login' },
+    { id: 'cto51', name: '51CTO', icon: 'https://www.google.com/s2/favicons?domain=51cto.com&sz=32', title: '51CTO', type: 'cto51', url: 'https://home.51cto.com/index' },
+    { id: 'infoq', name: 'InfoQ', icon: 'https://static001.infoq.cn/static/write/img/write-favicon.jpg', title: 'InfoQ', type: 'infoq', url: 'https://xie.infoq.cn/' },
+    { id: 'jianshu', name: 'Jianshu', icon: 'https://www.jianshu.com/favicon.ico', title: '简书', type: 'jianshu', url: 'https://www.jianshu.com/sign_in' },
+    { id: 'baijiahao', name: 'Baijiahao', icon: 'https://pic.rmb.bdstatic.com/10e1e2b43c35577e1315f0f6aad6ba24.vnd.microsoft.icon', title: '百家号', type: 'baijiahao', url: 'https://baijiahao.baidu.com/' },
+    { id: 'wangyihao', name: 'Wangyihao', icon: 'https://static.ws.126.net/163/f2e/news/yxybd_pc/resource/static/share-icon.png', title: '网易号', type: 'wangyihao', url: 'https://mp.163.com/' },
+    { id: 'tencentcloud', name: 'TencentCloud', icon: 'https://cloudcache.tencent-cloud.com/qcloud/favicon.ico', title: '腾讯云开发者社区', type: 'tencentcloud', url: 'https://cloud.tencent.com/developer' },
+    { id: 'medium', name: 'Medium', icon: 'https://miro.medium.com/v2/resize:fill:32:32/1*sHhtYhaCe2Uc3IU0IgKwIQ.png', title: 'Medium', type: 'medium', url: 'https://medium.com' },
   ]
 
   // 暴露 $cose 全局对象
@@ -112,7 +113,7 @@
             displayName: isLoggedIn ? (platformStatus.username || p.title) : p.title,
             icon: p.icon,
             avatar: platformStatus.avatar,
-            home: '',
+            home: p.url || '',
             checked: false,
             loggedIn: isLoggedIn,
           }
@@ -134,7 +135,7 @@
           title: p.title,
           displayName: p.title,
           icon: p.icon,
-          home: '',
+          home: p.url || '',
           checked: false,
           loggedIn: false,
         }))
@@ -173,12 +174,13 @@
         // 开始新的同步批次，将所有 tab 放入一个 group
         await sendMessage('START_SYNC_BATCH', {})
 
-        // 检查是否需要同步到微信公众号或百家号或网易号（需要使用剪贴板 HTML）
+        // 检查是否需要同步到微信公众号或百家号或网易号或 Medium（需要使用剪贴板 HTML）
         const hasWechat = selectedAccounts.some(a => (a.uid || a.type) === 'wechat')
         const hasBaijiahao = selectedAccounts.some(a => (a.uid || a.type) === 'baijiahao')
         const hasWangyihao = selectedAccounts.some(a => (a.uid || a.type) === 'wangyihao')
+        const hasMedium = selectedAccounts.some(a => (a.uid || a.type) === 'medium')
         let clipboardHtmlContent = null
-        if (hasWechat || hasBaijiahao || hasWangyihao) {
+        if (hasWechat || hasBaijiahao || hasWangyihao || hasMedium) {
           // 先点击复制按钮，将带样式的内容复制到剪贴板
           const copyBtn = document.querySelector('.copy-btn') ||
             document.querySelector('button[class*="copy"]') ||
@@ -222,8 +224,8 @@
                 markdown: post.markdown,
                 thumb: post.thumb,
                 desc: post.desc,
-                // 微信公众号、百家号和网易号使用剪贴板中带样式的 HTML
-                wechatHtml: (platformId === 'wechat' || platformId === 'baijiahao' || platformId === 'wangyihao') ? clipboardHtmlContent : null,
+                // 微信公众号、百家号、网易号和 Medium 使用剪贴板中带样式的 HTML
+                wechatHtml: (platformId === 'wechat' || platformId === 'baijiahao' || platformId === 'wangyihao' || platformId === 'medium') ? clipboardHtmlContent : null,
               },
             })
 
