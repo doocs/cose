@@ -7,6 +7,7 @@ import { BaijiahaoPlatform, BaijiahaoLoginConfig } from './baijiahao.js'
 import { WangyihaoPlatform, WangyihaoLoginConfig } from './wangyihao.js'
 import { TencentCloudPlatform, TencentCloudLoginConfig } from './tencentcloud.js'
 import { MediumPlatform, MediumLoginConfig } from './medium.js'
+import { SspaiPlatform, SspaiLoginConfig } from './sspai.js'
 // 这里可以继续导入其他平台的配置
 // import { CSDNPlatform, CSDNLoginConfig } from './csdn.js'
 
@@ -152,6 +153,7 @@ const PLATFORMS = [
   WangyihaoPlatform,
   TencentCloudPlatform,
   MediumPlatform,
+  SspaiPlatform,
 ]
 
 // 合并登录检测配置
@@ -165,6 +167,7 @@ const LOGIN_CHECK_CONFIG = {
   [WangyihaoPlatform.id]: WangyihaoLoginConfig,
   [TencentCloudPlatform.id]: TencentCloudLoginConfig,
   [MediumPlatform.id]: MediumLoginConfig,
+  [SspaiPlatform.id]: SspaiLoginConfig,
 }
 
 // 根据 hostname 获取平台填充函数
@@ -184,6 +187,7 @@ function getPlatformFiller(hostname) {
   if (hostname.includes('mp.163.com')) return 'wangyihao'
   if (hostname.includes('cloud.tencent.com')) return 'tencentcloud'
   if (hostname.includes('medium.com')) return 'medium'
+  if (hostname.includes('sspai.com')) return 'sspai'
   return 'generic'
 }
 

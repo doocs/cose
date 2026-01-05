@@ -273,6 +273,48 @@ async function checkLoginByCookie(platformId, config) {
       }
     }
 
+    // 少数派特殊处理：通过 /api/v1/user/info/get API 获取用户信息
+    // 需要从 cookie 中读取 JWT token 并添加到 Authorization header
+    if (platformId === 'sspai') {
+      try {
+        // 先获取 JWT token
+        const jwtCookie = await chrome.cookies.get({
+          url: 'https://sspai.com',
+          name: 'sspai_jwt_token'
+        })
+        
+        if (!jwtCookie || !jwtCookie.value) {
+          console.log(`[COSE] ${platformId} 未找到 JWT token`)
+          return { loggedIn: false }
+        }
+        
+        const token = jwtCookie.value
+        const response = await fetch('https://sspai.com/api/v1/user/info/get', {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          }
+        })
+        const data = await response.json()
+        
+        if (data.error === 0 && data.data?.nickname) {
+          username = data.data.nickname
+          // 少数派 CDN 没有跨域限制，直接使用原始头像 URL
+          avatar = data.data.avatar || ''
+          console.log(`[COSE] ${platformId} 用户信息:`, username, avatar ? '有头像' : '无头像')
+          return { loggedIn: true, username, avatar }
+        } else {
+          console.log(`[COSE] ${platformId} API 返回未登录状态:`, data.msg || data.error)
+          return { loggedIn: false }
+        }
+      } catch (e) {
+        console.log(`[COSE] ${platformId} 获取用户信息失败:`, e.message)
+        return { loggedIn: false }
+      }
+    }
+
     // 腾讯云开发者社区特殊处理：通过创作中心页面获取用户信息
     if (platformId === 'tencentcloud') {
       try {
@@ -1079,6 +1121,71 @@ async function syncToPlatform(platformId, content) {
       await new Promise(resolve => setTimeout(resolve, 2000))
 
       return { success: true, message: '已同步到网易号', tabId: tab.id }
+    }
+
+    // 少数派：使用剪贴板 HTML 粘贴到编辑器
+    if (platformId === 'sspai') {
+      // 等待页面完全加载
+      await new Promise(resolve => setTimeout(resolve, 3000))
+
+      // 使用剪贴板 HTML（带完整样式）或降级到 body
+      const htmlContent = content.wechatHtml || content.body
+      console.log('[COSE] 少数派 HTML 内容长度:', htmlContent?.length || 0)
+
+      // 填充标题和内容
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: (title, htmlBody) => {
+          // 填充标题 - 少数派使用 textarea
+          const titleInput = document.querySelector('textarea[placeholder*="标题"]') ||
+            document.querySelector('input[placeholder*="标题"]')
+
+          if (titleInput && title) {
+            titleInput.focus()
+            // 使用 native setter 来绕过 Vue/React 的受控组件
+            const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set ||
+              Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set
+            nativeSetter.call(titleInput, title)
+            // 触发事件
+            titleInput.dispatchEvent(new InputEvent('input', { bubbles: true, data: title, inputType: 'insertText' }))
+            titleInput.dispatchEvent(new Event('change', { bubbles: true }))
+            titleInput.dispatchEvent(new Event('blur', { bubbles: true }))
+            console.log('[COSE] 少数派标题已填充')
+          }
+
+          // 等待一下再填充内容
+          setTimeout(() => {
+            // 找到 ProseMirror 编辑器
+            const editor = document.querySelector('.ProseMirror') ||
+              document.querySelector('[contenteditable="true"]')
+
+            if (editor && htmlBody) {
+              editor.focus()
+
+              // 方法：创建 DataTransfer 并触发 paste 事件
+              const dt = new DataTransfer()
+              dt.setData('text/html', htmlBody)
+              dt.setData('text/plain', htmlBody.replace(/<[^>]*>/g, ''))
+
+              const pasteEvent = new ClipboardEvent('paste', {
+                bubbles: true,
+                cancelable: true,
+                clipboardData: dt
+              })
+
+              editor.dispatchEvent(pasteEvent)
+              console.log('[COSE] 少数派内容已通过 paste 事件注入')
+            }
+          }, 500)
+        },
+        args: [content.title, htmlContent],
+        world: 'MAIN',
+      })
+
+      // 等待内容注入完成
+      await new Promise(resolve => setTimeout(resolve, 2000))
+
+      return { success: true, message: '已同步到少数派', tabId: tab.id }
     }
 
     // 其他平台使用 scripting API 直接注入填充脚本

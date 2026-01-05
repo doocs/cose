@@ -78,6 +78,7 @@
     { id: 'wangyihao', name: 'Wangyihao', icon: 'https://static.ws.126.net/163/f2e/news/yxybd_pc/resource/static/share-icon.png', title: '网易号', type: 'wangyihao', url: 'https://mp.163.com/' },
     { id: 'tencentcloud', name: 'TencentCloud', icon: 'https://cloudcache.tencent-cloud.com/qcloud/favicon.ico', title: '腾讯云开发者社区', type: 'tencentcloud', url: 'https://cloud.tencent.com/developer' },
     { id: 'medium', name: 'Medium', icon: 'https://miro.medium.com/v2/resize:fill:32:32/1*sHhtYhaCe2Uc3IU0IgKwIQ.png', title: 'Medium', type: 'medium', url: 'https://medium.com' },
+    { id: 'sspai', name: 'Sspai', icon: 'https://cdn-static.sspai.com/favicon/sspai.ico', title: '少数派', type: 'sspai', url: 'https://sspai.com' },
   ]
 
   // 暴露 $cose 全局对象
@@ -174,13 +175,14 @@
         // 开始新的同步批次，将所有 tab 放入一个 group
         await sendMessage('START_SYNC_BATCH', {})
 
-        // 检查是否需要同步到微信公众号或百家号或网易号或 Medium（需要使用剪贴板 HTML）
+        // 检查是否需要同步到微信公众号或百家号或网易号或 Medium 或少数派（需要使用剪贴板 HTML）
         const hasWechat = selectedAccounts.some(a => (a.uid || a.type) === 'wechat')
         const hasBaijiahao = selectedAccounts.some(a => (a.uid || a.type) === 'baijiahao')
         const hasWangyihao = selectedAccounts.some(a => (a.uid || a.type) === 'wangyihao')
         const hasMedium = selectedAccounts.some(a => (a.uid || a.type) === 'medium')
+        const hasSspai = selectedAccounts.some(a => (a.uid || a.type) === 'sspai')
         let clipboardHtmlContent = null
-        if (hasWechat || hasBaijiahao || hasWangyihao || hasMedium) {
+        if (hasWechat || hasBaijiahao || hasWangyihao || hasMedium || hasSspai) {
           // 先点击复制按钮，将带样式的内容复制到剪贴板
           const copyBtn = document.querySelector('.copy-btn') ||
             document.querySelector('button[class*="copy"]') ||
@@ -224,8 +226,8 @@
                 markdown: post.markdown,
                 thumb: post.thumb,
                 desc: post.desc,
-                // 微信公众号、百家号、网易号和 Medium 使用剪贴板中带样式的 HTML
-                wechatHtml: (platformId === 'wechat' || platformId === 'baijiahao' || platformId === 'wangyihao' || platformId === 'medium') ? clipboardHtmlContent : null,
+                // 微信公众号、百家号、网易号、Medium 和少数派使用剪贴板中带样式的 HTML
+                wechatHtml: (platformId === 'wechat' || platformId === 'baijiahao' || platformId === 'wangyihao' || platformId === 'medium' || platformId === 'sspai') ? clipboardHtmlContent : null,
               },
             })
 
