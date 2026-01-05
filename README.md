@@ -52,6 +52,7 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 - 简书
 - 腾讯云
 - Medium
+- 少数派
 
 更多想要添加的平台欢迎提 [Issue](https://github.com/doocs/cose/issues) ！
 
