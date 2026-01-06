@@ -58,6 +58,4 @@ async function fillCSDNContent(content, waitFor, setInputValue) {
 }
 
 // 导出
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { CSDNPlatform, CSDNLoginConfig, fillCSDNContent }
-}
+export { CSDNPlatform, CSDNLoginConfig, fillCSDNContent }

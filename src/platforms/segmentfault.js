@@ -56,6 +56,4 @@ async function fillSegmentFaultContent(content, waitFor, setInputValue) {
 }
 
 // 导出
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { SegmentFaultPlatform, SegmentFaultLoginConfig, fillSegmentFaultContent }
-}
+export { SegmentFaultPlatform, SegmentFaultLoginConfig, fillSegmentFaultContent }

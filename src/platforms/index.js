@@ -1,4 +1,11 @@
-// 平台配置汇总
+// 平台配置汇总 - 统一通过导入方式引入
+import { CSDNPlatform, CSDNLoginConfig } from './csdn.js'
+import { JuejinPlatform, JuejinLoginConfig } from './juejin.js'
+import { WechatPlatform, WechatLoginConfig } from './wechat.js'
+import { ZhihuPlatform, ZhihuLoginConfig } from './zhihu.js'
+import { ToutiaoPlatform, ToutiaoLoginConfig } from './toutiao.js'
+import { SegmentFaultPlatform, SegmentFaultLoginConfig } from './segmentfault.js'
+import { CnblogsPlatform, CnblogsLoginConfig } from './cnblogs.js'
 import { OSChinaPlatform, OSChinaLoginConfig } from './oschina.js'
 import { CTO51Platform, CTO51LoginConfig } from './cto51.js'
 import { InfoQPlatform, InfoQLoginConfig } from './infoq.js'
@@ -8,143 +15,16 @@ import { WangyihaoPlatform, WangyihaoLoginConfig } from './wangyihao.js'
 import { TencentCloudPlatform, TencentCloudLoginConfig } from './tencentcloud.js'
 import { MediumPlatform, MediumLoginConfig } from './medium.js'
 import { SspaiPlatform, SspaiLoginConfig } from './sspai.js'
-// 这里可以继续导入其他平台的配置
-// import { CSDNPlatform, CSDNLoginConfig } from './csdn.js'
-
-// 基础平台配置（未来可以逐步拆分到各独立文件）
-const BASE_PLATFORMS = [
-  {
-    id: 'csdn',
-    name: 'CSDN',
-    icon: 'https://g.csdnimg.cn/static/logo/favicon32.ico',
-    url: 'https://blog.csdn.net',
-    publishUrl: 'https://editor.csdn.net/md/',
-    title: 'CSDN',
-    type: 'csdn',
-  },
-  {
-    id: 'juejin',
-    name: 'Juejin',
-    icon: 'https://lf-web-assets.juejin.cn/obj/juejin-web/xitu_juejin_web/static/favicons/favicon-32x32.png',
-    url: 'https://juejin.cn',
-    publishUrl: 'https://juejin.cn/editor/drafts/new',
-    title: '掘金',
-    type: 'juejin',
-  },
-  {
-    id: 'wechat',
-    name: 'WeChat',
-    icon: 'https://res.wx.qq.com/a/wx_fed/assets/res/NTI4MWU5.ico',
-    url: 'https://mp.weixin.qq.com',
-    publishUrl: 'https://mp.weixin.qq.com/cgi-bin/appmsg?t=media/appmsg_edit_v2&action=edit&isNew=1&type=10',
-    title: '微信公众号',
-    type: 'wechat',
-  },
-  {
-    id: 'zhihu',
-    name: 'Zhihu',
-    icon: 'https://static.zhihu.com/heifetz/favicon.ico',
-    url: 'https://www.zhihu.com',
-    publishUrl: 'https://zhuanlan.zhihu.com/write',
-    title: '知乎',
-    type: 'zhihu',
-  },
-  {
-    id: 'toutiao',
-    name: 'Toutiao',
-    icon: 'https://sf3-cdn-tos.toutiaostatic.com/obj/eden-cn/uhbfnupkbps/toutiao_favicon.ico',
-    url: 'https://mp.toutiao.com',
-    publishUrl: 'https://mp.toutiao.com/profile_v4/graphic/publish',
-    title: '今日头条',
-    type: 'toutiao',
-  },
-  {
-    id: 'segmentfault',
-    name: 'SegmentFault',
-    icon: 'https://www.google.com/s2/favicons?domain=segmentfault.com&sz=32',
-    url: 'https://segmentfault.com',
-    publishUrl: 'https://segmentfault.com/write',
-    title: '思否',
-    type: 'segmentfault',
-  },
-  {
-    id: 'cnblogs',
-    name: 'Cnblogs',
-    icon: 'https://www.cnblogs.com/favicon.ico',
-    url: 'https://www.cnblogs.com',
-    publishUrl: 'https://i.cnblogs.com/posts/edit',
-    title: '博客园',
-    type: 'cnblogs',
-  },
-]
-
-// 基础登录检测配置
-const BASE_LOGIN_CONFIG = {
-  csdn: {
-    useCookie: true,
-    cookieUrl: 'https://blog.csdn.net',
-    cookieNames: ['UserName', 'UserNick'],
-    getUsernameFromCookie: true,
-    usernameCookie: 'UserNick',
-    usernameCookieForApi: 'UserName',
-    fetchAvatarFromPage: true,
-  },
-  juejin: {
-    api: 'https://api.juejin.cn/user_api/v1/user/get',
-    method: 'GET',
-    checkLogin: (response) => response?.err_no === 0 && response?.data?.user_id,
-    getUserInfo: (response) => ({
-      username: response?.data?.user_name,
-      avatar: response?.data?.avatar_large,
-    }),
-  },
-  wechat: {
-    useCookie: true,
-    cookieUrl: 'https://mp.weixin.qq.com',
-    cookieNames: ['slave_user', 'slave_sid'],
-    fetchUserInfoFromPage: true,
-    userInfoUrl: 'https://mp.weixin.qq.com/',
-  },
-  zhihu: {
-    api: 'https://www.zhihu.com/api/v4/me',
-    method: 'GET',
-    checkLogin: (response) => response?.id,
-    getUserInfo: (response) => ({
-      username: response?.name,
-      avatar: response?.avatar_url,
-    }),
-  },
-  toutiao: {
-    api: 'https://mp.toutiao.com/mp/agw/media/get_media_info',
-    method: 'GET',
-    checkLogin: (response) => response?.err_no === 0 && response?.data?.media?.display_name,
-    getUserInfo: (response) => ({
-      username: response?.data?.media?.display_name,
-      avatar: response?.data?.media?.https_avatar_url,
-    }),
-  },
-  segmentfault: {
-    useCookie: true,
-    cookieUrl: 'https://segmentfault.com',
-    cookieNames: ['PHPSESSID'],
-    fetchUserInfoFromPage: true,
-    userInfoUrl: 'https://segmentfault.com/write',
-  },
-  cnblogs: {
-    api: 'https://i.cnblogs.com/api/user',
-    method: 'GET',
-    checkLogin: (response) => response?.loginName,
-    getUserInfo: (response) => ({
-      username: response?.displayName || response?.loginName,
-      avatar: response?.avatarName ? `https:${response.avatarName}` : '',
-    }),
-  },
-}
-
 
 // 合并平台配置
 const PLATFORMS = [
-  ...BASE_PLATFORMS,
+  CSDNPlatform,
+  JuejinPlatform,
+  WechatPlatform,
+  ZhihuPlatform,
+  ToutiaoPlatform,
+  SegmentFaultPlatform,
+  CnblogsPlatform,
   OSChinaPlatform,
   CTO51Platform,
   InfoQPlatform,
@@ -158,7 +38,13 @@ const PLATFORMS = [
 
 // 合并登录检测配置
 const LOGIN_CHECK_CONFIG = {
-  ...BASE_LOGIN_CONFIG,
+  [CSDNPlatform.id]: CSDNLoginConfig,
+  [JuejinPlatform.id]: JuejinLoginConfig,
+  [WechatPlatform.id]: WechatLoginConfig,
+  [ZhihuPlatform.id]: ZhihuLoginConfig,
+  [ToutiaoPlatform.id]: ToutiaoLoginConfig,
+  [SegmentFaultPlatform.id]: SegmentFaultLoginConfig,
+  [CnblogsPlatform.id]: CnblogsLoginConfig,
   [OSChinaPlatform.id]: OSChinaLoginConfig,
   [CTO51Platform.id]: CTO51LoginConfig,
   [InfoQPlatform.id]: InfoQLoginConfig,

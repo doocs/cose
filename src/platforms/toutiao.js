@@ -56,6 +56,4 @@ async function fillToutiaoContent(content, waitFor, setInputValue) {
 }
 
 // 导出
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { ToutiaoPlatform, ToutiaoLoginConfig, fillToutiaoContent }
-}
+export { ToutiaoPlatform, ToutiaoLoginConfig, fillToutiaoContent }

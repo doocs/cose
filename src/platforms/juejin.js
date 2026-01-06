@@ -56,6 +56,4 @@ async function fillJuejinContent(content, waitFor, setInputValue) {
 }
 
 // 导出
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { JuejinPlatform, JuejinLoginConfig, fillJuejinContent }
-}
+export { JuejinPlatform, JuejinLoginConfig, fillJuejinContent }

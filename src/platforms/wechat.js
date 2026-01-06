@@ -27,6 +27,4 @@ async function fillWechatContent(content, waitFor, setInputValue) {
 }
 
 // 导出
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { WechatPlatform, WechatLoginConfig, fillWechatContent }
-}
+export { WechatPlatform, WechatLoginConfig, fillWechatContent }
