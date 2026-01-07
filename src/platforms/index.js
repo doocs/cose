@@ -15,6 +15,7 @@ import { WangyihaoPlatform, WangyihaoLoginConfig } from './wangyihao.js'
 import { TencentCloudPlatform, TencentCloudLoginConfig } from './tencentcloud.js'
 import { MediumPlatform, MediumLoginConfig } from './medium.js'
 import { SspaiPlatform, SspaiLoginConfig } from './sspai.js'
+import { SohuPlatform, SohuLoginConfig } from './sohu.js'
 
 // 合并平台配置
 const PLATFORMS = [
@@ -34,6 +35,7 @@ const PLATFORMS = [
   TencentCloudPlatform,
   MediumPlatform,
   SspaiPlatform,
+  SohuPlatform,
 ]
 
 // 合并登录检测配置
@@ -54,6 +56,7 @@ const LOGIN_CHECK_CONFIG = {
   [TencentCloudPlatform.id]: TencentCloudLoginConfig,
   [MediumPlatform.id]: MediumLoginConfig,
   [SspaiPlatform.id]: SspaiLoginConfig,
+  [SohuPlatform.id]: SohuLoginConfig,
 }
 
 // 根据 hostname 获取平台填充函数
@@ -74,6 +77,7 @@ function getPlatformFiller(hostname) {
   if (hostname.includes('cloud.tencent.com')) return 'tencentcloud'
   if (hostname.includes('medium.com')) return 'medium'
   if (hostname.includes('sspai.com')) return 'sspai'
+  if (hostname.includes('mp.sohu.com')) return 'sohu'
   return 'generic'
 }
 

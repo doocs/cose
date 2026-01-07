@@ -41,7 +41,9 @@
     "https://*.cloud.tencent.com/*",
     "https://cloud.tencent.com/*",
     "https://*.medium.com/*",
-    "https://medium.com/*"
+    "https://medium.com/*",
+    "https://*.sohu.com/*",
+    "https://mp.sohu.com/*"
   ],
   "action": {
     "default_icon": {

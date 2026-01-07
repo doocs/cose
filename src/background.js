@@ -273,6 +273,136 @@ async function checkLoginByCookie(platformId, config) {
       }
     }
 
+    // 搜狐号特殊处理：通过 API 获取用户信息
+    if (platformId === 'sohu') {
+      try {
+        // 检查 ppinf cookie 判断是否登录
+        const ppinfCookie = await chrome.cookies.get({
+          url: 'https://mp.sohu.com',
+          name: 'ppinf'
+        })
+        
+        if (!ppinfCookie || !ppinfCookie.value) {
+          console.log(`[COSE] ${platformId} 未找到 ppinf cookie，未登录`)
+          return { loggedIn: false }
+        }
+        
+        // 使用 chrome.scripting.executeScript 在页面上下文中获取用户信息
+        // 搜狐号将用户信息存储在 localStorage 中
+        try {
+          // 查找已打开的搜狐号页面
+          const existingTabs = await chrome.tabs.query({ url: 'https://mp.sohu.com/*' })
+          let tab = existingTabs[0]
+          let needCloseTab = false
+          
+          if (!tab) {
+            // 没有已打开的页面，创建一个隐藏的 tab
+            tab = await chrome.tabs.create({ 
+              url: 'https://mp.sohu.com/mpfe/v4/contentManagement/first/page', 
+              active: false 
+            })
+            needCloseTab = true
+            
+            // 等待页面加载
+            await new Promise(resolve => {
+              const listener = (tabId, info) => {
+                if (tabId === tab.id && info.status === 'complete') {
+                  chrome.tabs.onUpdated.removeListener(listener)
+                  resolve()
+                }
+              }
+              chrome.tabs.onUpdated.addListener(listener)
+              // 超时保护
+              setTimeout(() => {
+                chrome.tabs.onUpdated.removeListener(listener)
+                resolve()
+              }, 15000)
+            })
+            
+            // 额外等待确保 localStorage 数据已写入
+            await new Promise(resolve => setTimeout(resolve, 3000))
+          }
+          
+          console.log(`[COSE] ${platformId} 开始从 localStorage 获取用户信息, tabId:`, tab.id)
+          
+          // 在页面上下文中从 localStorage 读取用户信息
+          const results = await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            func: () => {
+              try {
+                // 优先从 localStorage 的 currentAccount 读取
+                const currentAccount = localStorage.getItem('currentAccount')
+                if (currentAccount) {
+                  const data = JSON.parse(currentAccount)
+                  if (data.nickName) {
+                    let avatar = data.avatar || ''
+                    if (avatar.startsWith('//')) {
+                      avatar = 'https:' + avatar
+                    }
+                    return { 
+                      success: true, 
+                      username: data.nickName, 
+                      avatar,
+                      source: 'currentAccount'
+                    }
+                  }
+                }
+                
+                // 备用：从 vuex 读取
+                const vuex = localStorage.getItem('vuex')
+                if (vuex) {
+                  const vuexData = JSON.parse(vuex)
+                  const userInfo = vuexData?.app?.userInfo
+                  if (userInfo?.nickName) {
+                    let avatar = userInfo.avatar || ''
+                    if (avatar.startsWith('//')) {
+                      avatar = 'https:' + avatar
+                    }
+                    return { 
+                      success: true, 
+                      username: userInfo.nickName, 
+                      avatar,
+                      source: 'vuex'
+                    }
+                  }
+                }
+                
+                return { success: false, error: 'No user info in localStorage' }
+              } catch (e) {
+                return { success: false, error: e.message }
+              }
+            }
+          })
+          
+          console.log(`[COSE] ${platformId} executeScript 结果:`, JSON.stringify(results))
+          
+          // 如果是临时创建的 tab，关闭它
+          if (needCloseTab) {
+            await chrome.tabs.remove(tab.id)
+          }
+          
+          const result = results?.[0]
+          if (result?.result?.success) {
+            console.log(`[COSE] ${platformId} 用户信息 (from ${result.result.source}):`, result.result.username, result.result.avatar ? '有头像' : '无头像')
+            return { 
+              loggedIn: true, 
+              username: result.result.username, 
+              avatar: result.result.avatar 
+            }
+          } else {
+            console.log(`[COSE] ${platformId} 获取用户信息失败:`, result?.result?.error || '未知错误')
+            return { loggedIn: true, username: '', avatar: '' }
+          }
+        } catch (e) {
+          console.log(`[COSE] ${platformId} executeScript 失败:`, e.message)
+          return { loggedIn: true, username: '', avatar: '' }
+        }
+      } catch (e) {
+        console.log(`[COSE] ${platformId} 获取用户信息失败:`, e.message)
+        return { loggedIn: false }
+      }
+    }
+
     // 少数派特殊处理：通过 /api/v1/user/info/get API 获取用户信息
     // 需要从 cookie 中读取 JWT token 并添加到 Authorization header
     if (platformId === 'sspai') {
@@ -984,6 +1114,65 @@ async function syncToPlatform(platformId, content) {
       return { success: true, message: '已同步并保存为草稿', tabId: tab.id }
     }
 
+    // 搜狐号：使用剪贴板 HTML 粘贴到编辑器（类似微信公众号）
+    if (platformId === 'sohu') {
+      // 等待页面完全加载
+      await new Promise(resolve => setTimeout(resolve, 3000))
+
+      // 使用剪贴板 HTML（带完整样式）或降级到 body
+      const htmlContent = content.wechatHtml || content.body
+      console.log('[COSE] 搜狐号 HTML 内容长度:', htmlContent?.length || 0)
+
+      // 填充标题和内容
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: (title, htmlBody) => {
+          // 填充标题
+          const titleInput = document.querySelector('input[placeholder*="标题"]')
+          if (titleInput && title) {
+            titleInput.focus()
+            const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set
+            nativeSetter.call(titleInput, title)
+            titleInput.dispatchEvent(new Event('input', { bubbles: true }))
+            titleInput.dispatchEvent(new Event('change', { bubbles: true }))
+            console.log('[COSE] 搜狐号标题填充成功')
+          }
+
+          // 找到 Quill 编辑器
+          const editor = document.querySelector('.ql-editor')
+          if (editor && htmlBody) {
+            editor.focus()
+
+            // 清空现有内容
+            editor.innerHTML = ''
+
+            // 使用 DataTransfer 触发 paste 事件
+            const dt = new DataTransfer()
+            dt.setData('text/html', htmlBody)
+            dt.setData('text/plain', htmlBody.replace(/<[^>]*>/g, ''))
+
+            const pasteEvent = new ClipboardEvent('paste', {
+              bubbles: true,
+              cancelable: true,
+              clipboardData: dt
+            })
+
+            editor.dispatchEvent(pasteEvent)
+            console.log('[COSE] 搜狐号内容已通过 paste 事件注入')
+          } else {
+            console.log('[COSE] 搜狐号未找到编辑器')
+          }
+        },
+        args: [content.title, htmlContent],
+        world: 'MAIN',
+      })
+
+      // 等待内容注入完成
+      await new Promise(resolve => setTimeout(resolve, 2000))
+
+      return { success: true, message: '已同步到搜狐号', tabId: tab.id }
+    }
+
     // 百家号：使用剪贴板 HTML 粘贴到编辑器
     if (platformId === 'baijiahao') {
       // 等待页面完全加载
@@ -1685,6 +1874,10 @@ function fillContentOnPage(content, platformId) {
         contentEl.dispatchEvent(pasteEvent)
         console.log('[COSE] Medium 内容填充成功')
       }
+    }
+    // 搜狐号 - 由 syncToPlatform 单独处理，这里跳过
+    else if (host.includes('mp.sohu.com')) {
+      console.log('[COSE] 搜狐号由 syncToPlatform 处理')
     }
     // 通用处理
     else {

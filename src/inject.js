@@ -79,6 +79,7 @@
     { id: 'tencentcloud', name: 'TencentCloud', icon: 'https://cloudcache.tencent-cloud.com/qcloud/favicon.ico', title: '腾讯云开发者社区', type: 'tencentcloud', url: 'https://cloud.tencent.com/developer' },
     { id: 'medium', name: 'Medium', icon: 'https://miro.medium.com/v2/resize:fill:32:32/1*sHhtYhaCe2Uc3IU0IgKwIQ.png', title: 'Medium', type: 'medium', url: 'https://medium.com' },
     { id: 'sspai', name: 'Sspai', icon: 'https://cdn-static.sspai.com/favicon/sspai.ico', title: '少数派', type: 'sspai', url: 'https://sspai.com' },
+    { id: 'sohu', name: 'Sohu', icon: 'https://www.google.com/s2/favicons?domain=sohu.com&sz=32', title: '搜狐号', type: 'sohu', url: 'https://mp.sohu.com' },
   ]
 
   // 暴露 $cose 全局对象
