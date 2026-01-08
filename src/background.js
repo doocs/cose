@@ -1175,17 +1175,50 @@ async function syncToPlatform(platformId, content) {
 
     // B站专栏：使用 UEditor execCommand 插入 HTML
     if (platformId === 'bilibili') {
-      // 等待页面完全加载
-      await new Promise(resolve => setTimeout(resolve, 4000))
-
       // 使用剪贴板 HTML（带完整样式）或降级到 body
       const htmlContent = content.wechatHtml || content.body
       console.log('[COSE] B站专栏 HTML 内容长度:', htmlContent?.length || 0)
 
-      // 填充标题
-      await chrome.scripting.executeScript({
+      // 等待 UEditor 就绪
+      const waitForEditor = await chrome.scripting.executeScript({
         target: { tabId: tab.id },
-        func: (title) => {
+        func: () => {
+          return new Promise((resolve) => {
+            const startTime = Date.now()
+            const maxWait = 10000
+            
+            const check = () => {
+              const UE = window.UE
+              if (UE && UE.instants && UE.instants['ueditorInstant0']) {
+                const editor = UE.instants['ueditorInstant0']
+                if (editor.isReady) {
+                  console.log('[COSE] UEditor 已就绪，耗时:', Date.now() - startTime, 'ms')
+                  resolve({ ready: true, time: Date.now() - startTime })
+                  return
+                }
+              }
+              
+              if (Date.now() - startTime > maxWait) {
+                console.log('[COSE] UEditor 等待超时')
+                resolve({ ready: false, timeout: true })
+                return
+              }
+              
+              setTimeout(check, 100)
+            }
+            check()
+          })
+        },
+        world: 'MAIN',
+      })
+
+      console.log('[COSE] B站专栏编辑器状态:', waitForEditor)
+
+      // 填充标题和内容（一次性完成）
+      const fillResult = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: (title, htmlBody) => {
+          // 填充标题
           const titleInput = document.querySelector('textarea')
           if (titleInput && title) {
             titleInput.focus()
@@ -1194,17 +1227,8 @@ async function syncToPlatform(platformId, content) {
             titleInput.dispatchEvent(new Event('change', { bubbles: true }))
             console.log('[COSE] B站专栏标题填充成功')
           }
-        },
-        args: [content.title],
-        world: 'MAIN',
-      })
 
-      await new Promise(resolve => setTimeout(resolve, 500))
-
-      // 使用 UEditor execCommand 插入 HTML 内容
-      const fillResult = await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        func: (htmlBody) => {
+          // 填充内容
           const UE = window.UE
           if (!UE || !UE.instants) {
             return { success: false, error: 'UEditor not found' }
@@ -1215,51 +1239,42 @@ async function syncToPlatform(platformId, content) {
             return { success: false, error: 'UEditor instance not found' }
           }
           
-          // 先清空编辑器内容
+          // 清空并插入内容
           editor.setContent('')
-          
-          // 使用 execCommand 插入 HTML（这是最有效的方法）
           editor.execCommand('inserthtml', htmlBody)
-          
-          // 触发 contentchange 事件以更新字数统计
           editor.fireEvent('contentchange')
           
-          console.log('[COSE] B站专栏内容已通过 execCommand 插入')
+          console.log('[COSE] B站专栏内容已填充')
           return { 
             success: true, 
             contentLength: editor.getContentLength()
           }
         },
-        args: [htmlContent],
+        args: [content.title, htmlContent],
         world: 'MAIN',
       })
 
       console.log('[COSE] B站专栏填充结果:', fillResult)
 
-      // 等待内容注入完成
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      // 短暂等待后点击存草稿
+      await new Promise(resolve => setTimeout(resolve, 300))
 
-      // 点击存草稿按钮确保保存
-      const saveResult = await chrome.scripting.executeScript({
+      // 点击存草稿按钮
+      await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: () => {
           const saveDraftBtn = Array.from(document.querySelectorAll('button'))
             .find(b => b.textContent && b.textContent.includes('存草稿'))
           if (saveDraftBtn) {
-            console.log('[COSE] 找到存草稿按钮，准备点击')
             saveDraftBtn.click()
             console.log('[COSE] B站专栏已点击存草稿')
-            return { clicked: true }
           }
-          return { clicked: false }
         },
         world: 'MAIN',
       })
 
-      console.log('[COSE] B站专栏保存结果:', saveResult)
-
       // 等待保存完成
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      await new Promise(resolve => setTimeout(resolve, 500))
 
       return { success: true, message: '已同步并保存草稿到B站专栏', tabId: tab.id }
     }
