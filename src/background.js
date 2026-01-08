@@ -1173,6 +1173,97 @@ async function syncToPlatform(platformId, content) {
       return { success: true, message: '已同步到搜狐号', tabId: tab.id }
     }
 
+    // B站专栏：使用 UEditor execCommand 插入 HTML
+    if (platformId === 'bilibili') {
+      // 等待页面完全加载
+      await new Promise(resolve => setTimeout(resolve, 4000))
+
+      // 使用剪贴板 HTML（带完整样式）或降级到 body
+      const htmlContent = content.wechatHtml || content.body
+      console.log('[COSE] B站专栏 HTML 内容长度:', htmlContent?.length || 0)
+
+      // 填充标题
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: (title) => {
+          const titleInput = document.querySelector('textarea')
+          if (titleInput && title) {
+            titleInput.focus()
+            titleInput.value = title
+            titleInput.dispatchEvent(new Event('input', { bubbles: true }))
+            titleInput.dispatchEvent(new Event('change', { bubbles: true }))
+            console.log('[COSE] B站专栏标题填充成功')
+          }
+        },
+        args: [content.title],
+        world: 'MAIN',
+      })
+
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      // 使用 UEditor execCommand 插入 HTML 内容
+      const fillResult = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: (htmlBody) => {
+          const UE = window.UE
+          if (!UE || !UE.instants) {
+            return { success: false, error: 'UEditor not found' }
+          }
+          
+          const editor = UE.instants['ueditorInstant0']
+          if (!editor) {
+            return { success: false, error: 'UEditor instance not found' }
+          }
+          
+          // 先清空编辑器内容
+          editor.setContent('')
+          
+          // 使用 execCommand 插入 HTML（这是最有效的方法）
+          editor.execCommand('inserthtml', htmlBody)
+          
+          // 触发 contentchange 事件以更新字数统计
+          editor.fireEvent('contentchange')
+          
+          console.log('[COSE] B站专栏内容已通过 execCommand 插入')
+          return { 
+            success: true, 
+            contentLength: editor.getContentLength()
+          }
+        },
+        args: [htmlContent],
+        world: 'MAIN',
+      })
+
+      console.log('[COSE] B站专栏填充结果:', fillResult)
+
+      // 等待内容注入完成
+      await new Promise(resolve => setTimeout(resolve, 2000))
+
+      // 点击存草稿按钮确保保存
+      const saveResult = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => {
+          const saveDraftBtn = Array.from(document.querySelectorAll('button'))
+            .find(b => b.textContent && b.textContent.includes('存草稿'))
+          if (saveDraftBtn) {
+            console.log('[COSE] 找到存草稿按钮，准备点击')
+            saveDraftBtn.click()
+            console.log('[COSE] B站专栏已点击存草稿')
+            return { clicked: true }
+          }
+          return { clicked: false }
+        },
+        world: 'MAIN',
+      })
+
+      console.log('[COSE] B站专栏保存结果:', saveResult)
+
+      // 等待保存完成
+      await new Promise(resolve => setTimeout(resolve, 2000))
+
+      return { success: true, message: '已同步并保存草稿到B站专栏', tabId: tab.id }
+    }
+
     // 百家号：使用剪贴板 HTML 粘贴到编辑器
     if (platformId === 'baijiahao') {
       // 等待页面完全加载
