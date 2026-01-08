@@ -287,114 +287,36 @@ async function checkLoginByCookie(platformId, config) {
           return { loggedIn: false }
         }
         
-        // 使用 chrome.scripting.executeScript 在页面上下文中获取用户信息
-        // 搜狐号将用户信息存储在 localStorage 中
+        // 直接调用 API 获取用户信息
         try {
-          // 查找已打开的搜狐号页面
-          const existingTabs = await chrome.tabs.query({ url: 'https://mp.sohu.com/*' })
-          let tab = existingTabs[0]
-          let needCloseTab = false
-          
-          if (!tab) {
-            // 没有已打开的页面，创建一个隐藏的 tab
-            tab = await chrome.tabs.create({ 
-              url: 'https://mp.sohu.com/mpfe/v4/contentManagement/first/page', 
-              active: false 
-            })
-            needCloseTab = true
-            
-            // 等待页面加载
-            await new Promise(resolve => {
-              const listener = (tabId, info) => {
-                if (tabId === tab.id && info.status === 'complete') {
-                  chrome.tabs.onUpdated.removeListener(listener)
-                  resolve()
-                }
-              }
-              chrome.tabs.onUpdated.addListener(listener)
-              // 超时保护
-              setTimeout(() => {
-                chrome.tabs.onUpdated.removeListener(listener)
-                resolve()
-              }, 15000)
-            })
-            
-            // 额外等待确保 localStorage 数据已写入
-            await new Promise(resolve => setTimeout(resolve, 3000))
-          }
-          
-          console.log(`[COSE] ${platformId} 开始从 localStorage 获取用户信息, tabId:`, tab.id)
-          
-          // 在页面上下文中从 localStorage 读取用户信息
-          const results = await chrome.scripting.executeScript({
-            target: { tabId: tab.id },
-            func: () => {
-              try {
-                // 优先从 localStorage 的 currentAccount 读取
-                const currentAccount = localStorage.getItem('currentAccount')
-                if (currentAccount) {
-                  const data = JSON.parse(currentAccount)
-                  if (data.nickName) {
-                    let avatar = data.avatar || ''
-                    if (avatar.startsWith('//')) {
-                      avatar = 'https:' + avatar
-                    }
-                    return { 
-                      success: true, 
-                      username: data.nickName, 
-                      avatar,
-                      source: 'currentAccount'
-                    }
-                  }
-                }
-                
-                // 备用：从 vuex 读取
-                const vuex = localStorage.getItem('vuex')
-                if (vuex) {
-                  const vuexData = JSON.parse(vuex)
-                  const userInfo = vuexData?.app?.userInfo
-                  if (userInfo?.nickName) {
-                    let avatar = userInfo.avatar || ''
-                    if (avatar.startsWith('//')) {
-                      avatar = 'https:' + avatar
-                    }
-                    return { 
-                      success: true, 
-                      username: userInfo.nickName, 
-                      avatar,
-                      source: 'vuex'
-                    }
-                  }
-                }
-                
-                return { success: false, error: 'No user info in localStorage' }
-              } catch (e) {
-                return { success: false, error: e.message }
-              }
+          const response = await fetch('https://mp.sohu.com/mpbp/bp/account/list', {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+              'Accept': 'application/json',
             }
           })
+          const data = await response.json()
           
-          console.log(`[COSE] ${platformId} executeScript 结果:`, JSON.stringify(results))
-          
-          // 如果是临时创建的 tab，关闭它
-          if (needCloseTab) {
-            await chrome.tabs.remove(tab.id)
-          }
-          
-          const result = results?.[0]
-          if (result?.result?.success) {
-            console.log(`[COSE] ${platformId} 用户信息 (from ${result.result.source}):`, result.result.username, result.result.avatar ? '有头像' : '无头像')
+          if (data.success && data.data?.data?.[0]?.accounts?.[0]) {
+            const account = data.data.data[0].accounts[0]
+            let avatar = account.avatar || ''
+            if (avatar.startsWith('//')) {
+              avatar = 'https:' + avatar
+            }
+            console.log(`[COSE] ${platformId} 用户信息:`, account.nickName, avatar ? '有头像' : '无头像')
             return { 
               loggedIn: true, 
-              username: result.result.username, 
-              avatar: result.result.avatar 
+              username: account.nickName, 
+              avatar 
             }
           } else {
-            console.log(`[COSE] ${platformId} 获取用户信息失败:`, result?.result?.error || '未知错误')
+            console.log(`[COSE] ${platformId} API 返回无用户数据`)
             return { loggedIn: true, username: '', avatar: '' }
           }
         } catch (e) {
-          console.log(`[COSE] ${platformId} executeScript 失败:`, e.message)
+          console.log(`[COSE] ${platformId} API 调用失败:`, e.message)
+          // API 失败但有 cookie，仍然认为已登录
           return { loggedIn: true, username: '', avatar: '' }
         }
       } catch (e) {
