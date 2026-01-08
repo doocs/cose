@@ -19,7 +19,6 @@
     "https://*.toutiao.com/*",
     "https://*.douban.com/*",
     "https://*.bilibili.com/*",
-    "https://*.51cto.com/*",
     "https://*.weibo.com/*",
     "https://mp.weixin.qq.com/*",
     "https://*.zhihu.com/*",
@@ -33,17 +32,11 @@
     "https://*.oschina.net/*",
     "https://*.51cto.com/*",
     "https://*.infoq.cn/*",
-    "https://account.infoq.cn/*",
     "https://*.baijiahao.baidu.com/*",
-    "https://baijiahao.baidu.com/*",
     "https://*.163.com/*",
-    "https://mp.163.com/*",
     "https://*.cloud.tencent.com/*",
-    "https://cloud.tencent.com/*",
     "https://*.medium.com/*",
-    "https://medium.com/*",
-    "https://*.sohu.com/*",
-    "https://mp.sohu.com/*"
+    "https://*.sohu.com/*"
   ],
   "action": {
     "default_icon": {
