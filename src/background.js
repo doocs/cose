@@ -184,6 +184,12 @@ async function checkPlatformLogin(platform) {
         console.log(`[COSE] weibo 获取用户详情失败:`, e.message)
       }
       
+      // 如果没有获取到用户名，说明实际上未登录或登录已过期
+      if (!username) {
+        console.log(`[COSE] weibo 未获取到用户名，视为未登录`)
+        return { loggedIn: false }
+      }
+      
       return { loggedIn: true, username, avatar }
     } catch (e) {
       console.log(`[COSE] weibo 检测失败:`, e.message)
