@@ -17,6 +17,7 @@ import { MediumPlatform, MediumLoginConfig } from './medium.js'
 import { SspaiPlatform, SspaiLoginConfig } from './sspai.js'
 import { SohuPlatform, SohuLoginConfig } from './sohu.js'
 import { BilibiliPlatform, BilibiliLoginConfig } from './bilibili.js'
+import { WeiboPlatform, WeiboLoginConfig } from './weibo.js'
 
 // 合并平台配置
 const PLATFORMS = [
@@ -38,6 +39,7 @@ const PLATFORMS = [
   SspaiPlatform,
   SohuPlatform,
   BilibiliPlatform,
+  WeiboPlatform,
 ]
 
 // 合并登录检测配置
@@ -60,6 +62,7 @@ const LOGIN_CHECK_CONFIG = {
   [SspaiPlatform.id]: SspaiLoginConfig,
   [SohuPlatform.id]: SohuLoginConfig,
   [BilibiliPlatform.id]: BilibiliLoginConfig,
+  [WeiboPlatform.id]: WeiboLoginConfig,
 }
 
 // 根据 hostname 获取平台填充函数
@@ -82,6 +85,7 @@ function getPlatformFiller(hostname) {
   if (hostname.includes('sspai.com')) return 'sspai'
   if (hostname.includes('mp.sohu.com')) return 'sohu'
   if (hostname.includes('member.bilibili.com')) return 'bilibili'
+  if (hostname.includes('card.weibo.com')) return 'weibo'
   return 'generic'
 }
 
