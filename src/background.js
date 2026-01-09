@@ -115,6 +115,82 @@ async function checkPlatformLogin(platform) {
     return { loggedIn: false, error: '未配置检测' }
   }
 
+  // 微博特殊处理：通过 cookie 检测登录，通过 fetch HTML 获取用户信息
+  if (platform.id === 'weibo') {
+    try {
+      // 检查 card.weibo.com 的 SUBP cookie
+      const subpCookie = await chrome.cookies.get({
+        url: 'https://card.weibo.com',
+        name: 'SUBP'
+      })
+      
+      // 也检查 ALF cookie
+      const alfCookie = await chrome.cookies.get({
+        url: 'https://card.weibo.com',
+        name: 'ALF'
+      })
+      
+      console.log(`[COSE] weibo cookies: SUBP=${!!subpCookie}, ALF=${!!alfCookie}`)
+      
+      if (!subpCookie && !alfCookie) {
+        console.log(`[COSE] weibo 未找到登录 cookie，未登录`)
+        return { loggedIn: false }
+      }
+      
+      // 有 cookie，通过 fetch HTML 获取用户信息
+      let username = ''
+      let avatar = ''
+      
+      try {
+        // 获取所有相关 cookies 并手动添加到请求
+        const weiboCookies = await chrome.cookies.getAll({ domain: '.weibo.com' })
+        const cardCookies = await chrome.cookies.getAll({ domain: 'card.weibo.com' })
+        const sinaCookies = await chrome.cookies.getAll({ domain: '.sina.com.cn' })
+        const allCookies = [...weiboCookies, ...cardCookies, ...sinaCookies]
+        const cookieString = allCookies.map(c => `${c.name}=${c.value}`).join('; ')
+        
+        console.log(`[COSE] weibo 获取到 ${allCookies.length} 个 cookies`)
+        
+        const response = await fetch('https://card.weibo.com/article/v5/editor', {
+          method: 'GET',
+          headers: {
+            'Cookie': cookieString,
+          },
+          credentials: 'include',
+        })
+        const html = await response.text()
+        
+        console.log(`[COSE] weibo HTML 长度:`, html.length)
+        
+        // 从 HTML 中提取用户名
+        const nickMatch = html.match(/"nick"\s*:\s*"([^"]+)"/)
+        if (nickMatch) {
+          username = nickMatch[1]
+        }
+        
+        // 从 HTML 中提取头像
+        const avatarMatch = html.match(/"avatar_large"\s*:\s*"([^"]+)"/)
+        if (avatarMatch) {
+          // 处理转义的 URL 并去掉签名参数
+          let rawAvatar = avatarMatch[1].replace(/\\\//g, '/')
+          // 去掉 URL 中的查询参数（签名参数有时效性，去掉后仍可访问）
+          if (rawAvatar.includes('sinaimg.cn')) {
+            avatar = rawAvatar.split('?')[0]
+          }
+        }
+        
+        console.log(`[COSE] weibo 用户信息:`, username, avatar ? '有头像' : '无头像')
+      } catch (e) {
+        console.log(`[COSE] weibo 获取用户详情失败:`, e.message)
+      }
+      
+      return { loggedIn: true, username, avatar }
+    } catch (e) {
+      console.log(`[COSE] weibo 检测失败:`, e.message)
+      return { loggedIn: false }
+    }
+  }
+
   if (config.useCookie) {
     return await checkLoginByCookie(platform.id, config)
   }
@@ -1199,6 +1275,69 @@ async function syncToPlatform(platformId, content) {
       await new Promise(resolve => setTimeout(resolve, 500))
 
       return { success: true, message: '已同步并保存草稿到B站专栏', tabId: tab.id }
+    }
+
+    // 微博头条：使用 ProseMirror 编辑器
+    if (platformId === 'weibo') {
+      // 等待页面完全加载
+      await new Promise(resolve => setTimeout(resolve, 3000))
+
+      // 使用剪贴板 HTML（带完整样式）或降级到 body
+      const htmlContent = content.wechatHtml || content.body
+      console.log('[COSE] 微博头条 HTML 内容长度:', htmlContent?.length || 0)
+
+      // 填充标题和内容
+      const fillResult = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: (title, htmlBody) => {
+          // 填充标题
+          const titleInput = document.querySelector('textarea[placeholder*="标题"]')
+          if (titleInput && title) {
+            titleInput.focus()
+            titleInput.value = title
+            titleInput.dispatchEvent(new Event('input', { bubbles: true }))
+            titleInput.dispatchEvent(new Event('change', { bubbles: true }))
+            console.log('[COSE] 微博头条标题填充成功')
+          }
+
+          // 填充内容 - 微博使用 ProseMirror/TipTap 编辑器
+          const editor = document.querySelector('.ProseMirror')
+          if (editor && htmlBody) {
+            editor.innerHTML = htmlBody
+            editor.dispatchEvent(new Event('input', { bubbles: true }))
+            console.log('[COSE] 微博头条内容填充成功')
+            return { success: true }
+          }
+          
+          return { success: false, error: 'Editor not found' }
+        },
+        args: [content.title, htmlContent],
+        world: 'MAIN',
+      })
+
+      console.log('[COSE] 微博头条填充结果:', fillResult)
+
+      // 等待内容注入完成
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      // 点击保存草稿按钮
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => {
+          const saveBtn = Array.from(document.querySelectorAll('button'))
+            .find(b => b.textContent && b.textContent.includes('保存草稿'))
+          if (saveBtn) {
+            saveBtn.click()
+            console.log('[COSE] 微博头条已点击保存草稿')
+          }
+        },
+        world: 'MAIN',
+      })
+
+      // 等待保存完成
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      return { success: true, message: '已同步到微博头条', tabId: tab.id }
     }
 
     // 百家号：使用剪贴板 HTML 粘贴到编辑器

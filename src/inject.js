@@ -81,6 +81,7 @@
     { id: 'sspai', name: 'Sspai', icon: 'https://cdn-static.sspai.com/favicon/sspai.ico', title: '少数派', type: 'sspai', url: 'https://sspai.com' },
     { id: 'sohu', name: 'Sohu', icon: 'https://www.google.com/s2/favicons?domain=sohu.com&sz=32', title: '搜狐号', type: 'sohu', url: 'https://mp.sohu.com' },
     { id: 'bilibili', name: 'Bilibili', icon: 'https://www.bilibili.com/favicon.ico', title: 'B站专栏', type: 'bilibili', url: 'https://member.bilibili.com/article-text/home?newEditor=-1' },
+    { id: 'weibo', name: 'Weibo', icon: 'https://weibo.com/favicon.ico', title: '微博头条', type: 'weibo', url: 'https://card.weibo.com/article/v5/editor#/draft' },
   ]
 
   // 暴露 $cose 全局对象
@@ -177,15 +178,16 @@
         // 开始新的同步批次，将所有 tab 放入一个 group
         await sendMessage('START_SYNC_BATCH', {})
 
-        // 检查是否需要同步到微信公众号或百家号或网易号或 Medium 或少数派或B站专栏（需要使用剪贴板 HTML）
+        // 检查是否需要同步到微信公众号或百家号或网易号或 Medium 或少数派或B站专栏或微博头条（需要使用剪贴板 HTML）
         const hasWechat = selectedAccounts.some(a => (a.uid || a.type) === 'wechat')
         const hasBaijiahao = selectedAccounts.some(a => (a.uid || a.type) === 'baijiahao')
         const hasWangyihao = selectedAccounts.some(a => (a.uid || a.type) === 'wangyihao')
         const hasMedium = selectedAccounts.some(a => (a.uid || a.type) === 'medium')
         const hasSspai = selectedAccounts.some(a => (a.uid || a.type) === 'sspai')
         const hasBilibili = selectedAccounts.some(a => (a.uid || a.type) === 'bilibili')
+        const hasWeibo = selectedAccounts.some(a => (a.uid || a.type) === 'weibo')
         let clipboardHtmlContent = null
-        if (hasWechat || hasBaijiahao || hasWangyihao || hasMedium || hasSspai || hasBilibili) {
+        if (hasWechat || hasBaijiahao || hasWangyihao || hasMedium || hasSspai || hasBilibili || hasWeibo) {
           // 先点击复制按钮，将带样式的内容复制到剪贴板
           const copyBtn = document.querySelector('.copy-btn') ||
             document.querySelector('button[class*="copy"]') ||
@@ -229,8 +231,8 @@
                 markdown: post.markdown,
                 thumb: post.thumb,
                 desc: post.desc,
-                // 微信公众号、百家号、网易号、Medium、少数派和B站专栏使用剪贴板中带样式的 HTML
-                wechatHtml: (platformId === 'wechat' || platformId === 'baijiahao' || platformId === 'wangyihao' || platformId === 'medium' || platformId === 'sspai' || platformId === 'bilibili') ? clipboardHtmlContent : null,
+                // 微信公众号、百家号、网易号、Medium、少数派、B站专栏和微博头条使用剪贴板中带样式的 HTML
+                wechatHtml: (platformId === 'wechat' || platformId === 'baijiahao' || platformId === 'wangyihao' || platformId === 'medium' || platformId === 'sspai' || platformId === 'bilibili' || platformId === 'weibo') ? clipboardHtmlContent : null,
               },
             })
 
