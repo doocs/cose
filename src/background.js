@@ -446,6 +446,74 @@ async function checkLoginByCookie(platformId, config) {
       }
     }
 
+    // 华为云开发者博客特殊处理
+    if (platformId === 'huaweicloud') {
+      try {
+        // 查找华为云相关页面（优先 bbs，其次其他华为云页面）
+        let tabs = await chrome.tabs.query({ url: 'https://bbs.huaweicloud.com/*' })
+        
+        if (tabs.length === 0) {
+          tabs = await chrome.tabs.query({ url: 'https://*.huaweicloud.com/*' })
+        }
+        
+        if (tabs.length === 0) {
+          console.log(`[COSE] ${platformId} 没有打开的华为云页面`)
+          return { loggedIn: false }
+        }
+        
+        console.log(`[COSE] ${platformId} 使用页面:`, tabs[0].url)
+        
+        // 在页面上下文中调用 API（使用同步包装）
+        try {
+          const results = await chrome.scripting.executeScript({
+            target: { tabId: tabs[0].id },
+            func: () => {
+              return new Promise((resolve) => {
+                const csrf = document.cookie.match(/csrf=([^;]+)/)?.[1] || ''
+                fetch('https://devdata.huaweicloud.com/rest/developer/fwdu/rest/developer/user/hdcommunityservice/v1/member/get-personal-info', {
+                  method: 'GET',
+                  credentials: 'include',
+                  headers: { 'Accept': 'application/json', 'csrf': csrf }
+                })
+                .then(response => response.ok ? response.json() : null)
+                .then(data => {
+                  if (data && data.memName) {
+                    resolve({ memName: data.memName, memAlias: data.memAlias, memPhoto: data.memPhoto })
+                  } else {
+                    resolve(null)
+                  }
+                })
+                .catch(() => resolve(null))
+              })
+            }
+          })
+          
+          // executeScript 返回的 result 可能是 Promise，需要 await
+          let data = results?.[0]?.result
+          if (data && typeof data.then === 'function') {
+            data = await data
+          }
+          
+          if (data && data.memName) {
+            console.log(`[COSE] ${platformId} 已登录:`, data.memName)
+            return { 
+              loggedIn: true, 
+              username: data.memAlias || data.memName, 
+              avatar: data.memPhoto || '' 
+            }
+          }
+          console.log(`[COSE] ${platformId} API 返回:`, data)
+        } catch (e) {
+          console.log(`[COSE] ${platformId} scripting 失败:`, e.message)
+        }
+        
+        return { loggedIn: false }
+      } catch (e) {
+        console.log(`[COSE] ${platformId} 检测失败:`, e.message)
+        return { loggedIn: false }
+      }
+    }
+
     // 少数派特殊处理：通过 /api/v1/user/info/get API 获取用户信息
     // 需要从 cookie 中读取 JWT token 并添加到 Authorization header
     if (platformId === 'sspai') {
@@ -1438,6 +1506,122 @@ async function syncToPlatform(platformId, content) {
       await new Promise(resolve => setTimeout(resolve, 1000))
 
       return { success: true, message: '已同步到阿里云开发者社区', tabId: tab.id }
+    }
+
+    // 华为云开发者博客：使用 Markdown 编辑器（在 iframe 中）
+    if (platformId === 'huaweicloud') {
+      // 等待页面完全加载
+      await new Promise(resolve => setTimeout(resolve, 3000))
+
+      // 华为云使用 Markdown 编辑器
+      const markdownContent = content.markdown || content.body || ''
+      console.log('[COSE] 华为云开发者博客 Markdown 内容长度:', markdownContent?.length || 0)
+
+      // 检查当前编辑器类型，如果不是 Markdown 则切换
+      const switchResult = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => {
+          // 检查当前是否已经是 Markdown 编辑器
+          if (window.tinymceModal?.currentEditorType === 'markdown') {
+            console.log('[COSE] 华为云已经是 Markdown 编辑器')
+            return { alreadyMarkdown: true }
+          }
+          
+          // 查找 "Markdown格式编辑" 标签并点击
+          const allElements = document.querySelectorAll('*')
+          for (const el of allElements) {
+            if (el.textContent === 'Markdown格式编辑' && el.children.length === 0) {
+              el.click()
+              console.log('[COSE] 华为云已点击 Markdown 编辑器标签')
+              return { clicked: true }
+            }
+          }
+          return { clicked: false }
+        },
+        world: 'MAIN',
+      })
+
+      // 如果点击了切换按钮，需要等待确认对话框并点击确定
+      if (switchResult[0]?.result?.clicked) {
+        // 等待确认对话框出现
+        await new Promise(resolve => setTimeout(resolve, 500))
+
+        // 点击确认对话框的"确定"按钮
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: () => {
+            // 查找确认对话框中的"确定"按钮
+            const allElements = document.querySelectorAll('*')
+            for (const el of allElements) {
+              if (el.textContent === '确定' && el.children.length === 0) {
+                el.click()
+                console.log('[COSE] 华为云已点击确定按钮')
+                return { confirmed: true }
+              }
+            }
+            return { confirmed: false }
+          },
+          world: 'MAIN',
+        })
+
+        // 等待编辑器切换完成
+        await new Promise(resolve => setTimeout(resolve, 3000))
+      }
+
+      // 填充标题和内容
+      const fillResult = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: (title, markdown) => {
+          // 填充标题
+          const titleInput = document.querySelector('input[placeholder*="标题"]')
+          if (titleInput && title) {
+            titleInput.focus()
+            titleInput.value = title
+            titleInput.dispatchEvent(new Event('input', { bubbles: true }))
+            titleInput.dispatchEvent(new Event('change', { bubbles: true }))
+            console.log('[COSE] 华为云开发者博客标题填充成功')
+          }
+
+          // 使用 tinymceModal.currentEditor.setContent() 填充 Markdown 内容
+          const editor = window.tinymceModal?.currentEditor
+          if (editor && typeof editor.setContent === 'function') {
+            editor.setContent(markdown)
+            console.log('[COSE] 华为云开发者博客内容填充成功，长度:', markdown.length)
+            return { success: true, method: 'tinymceModal', length: markdown.length }
+          }
+          
+          return { success: false, error: 'tinymceModal.currentEditor not found' }
+        },
+        args: [content.title, markdownContent],
+        world: 'MAIN',
+      })
+
+      console.log('[COSE] 华为云开发者博客填充结果:', fillResult)
+
+      // 等待内容注入完成
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      // 点击保存草稿按钮
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => {
+          const allLinks = document.querySelectorAll('a')
+          for (const link of allLinks) {
+            if (link.textContent && link.textContent.includes('保存草稿')) {
+              link.click()
+              console.log('[COSE] 华为云开发者博客已点击保存草稿')
+              return { clicked: true }
+            }
+          }
+          return { clicked: false }
+        },
+        world: 'MAIN',
+      })
+
+      // 等待保存完成
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      return { success: true, message: '已同步到华为云开发者博客', tabId: tab.id }
     }
 
     // 百家号：使用剪贴板 HTML 粘贴到编辑器
