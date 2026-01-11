@@ -83,6 +83,7 @@
     { id: 'bilibili', name: 'Bilibili', icon: 'https://www.bilibili.com/favicon.ico', title: 'B站专栏', type: 'bilibili', url: 'https://member.bilibili.com/article-text/home?newEditor=-1' },
     { id: 'weibo', name: 'Weibo', icon: 'https://weibo.com/favicon.ico', title: '微博头条', type: 'weibo', url: 'https://card.weibo.com/article/v5/editor#/draft' },
     { id: 'aliyun', name: 'Aliyun', icon: 'https://img.alicdn.com/tfs/TB1_ZXuNcfpK1RjSZFOXXa6nFXa-32-32.ico', title: '阿里云开发者社区', type: 'aliyun', url: 'https://developer.aliyun.com/article/new#/' },
+    { id: 'huaweicloud', name: 'HuaweiCloud', icon: 'https://www.huaweicloud.com/favicon.ico', title: '华为云开发者博客', type: 'huaweicloud', url: 'https://bbs.huaweicloud.com/blogs/article' },
   ]
 
   // 暴露 $cose 全局对象

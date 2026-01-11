@@ -37,7 +37,8 @@
     "https://*.cloud.tencent.com/*",
     "https://*.medium.com/*",
     "https://*.sohu.com/*",
-    "https://*.aliyun.com/*"
+    "https://*.aliyun.com/*",
+    "https://*.huaweicloud.com/*"
   ],
   "action": {
     "default_icon": {
