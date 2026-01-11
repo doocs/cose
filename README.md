@@ -56,6 +56,7 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 - 搜狐号
 - B站专栏
 - 微博文章
+- 阿里云社区
 
 更多想要添加的平台欢迎提 [Issue](https://github.com/doocs/cose/issues) ！
 

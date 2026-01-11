@@ -36,7 +36,8 @@
     "https://*.163.com/*",
     "https://*.cloud.tencent.com/*",
     "https://*.medium.com/*",
-    "https://*.sohu.com/*"
+    "https://*.sohu.com/*",
+    "https://*.aliyun.com/*"
   ],
   "action": {
     "default_icon": {

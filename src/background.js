@@ -407,6 +407,45 @@ async function checkLoginByCookie(platformId, config) {
       }
     }
 
+    // 阿里云开发者社区特殊处理：通过 API 获取用户信息
+    if (platformId === 'aliyun') {
+      try {
+        // 检查 login_aliyunid_ticket cookie 判断是否登录
+        const ticketCookie = await chrome.cookies.get({
+          url: 'https://developer.aliyun.com',
+          name: 'login_aliyunid_ticket'
+        })
+        
+        if (!ticketCookie || !ticketCookie.value) {
+          console.log(`[COSE] ${platformId} 未找到 login_aliyunid_ticket cookie，未登录`)
+          return { loggedIn: false }
+        }
+        
+        // 调用 API 获取用户信息
+        const response = await fetch('https://developer.aliyun.com/developer/api/my/user/getUser', {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Accept': 'application/json',
+          }
+        })
+        const data = await response.json()
+        
+        if (data.success && data.data?.nickname) {
+          const username = data.data.nickname
+          const avatar = data.data.avatar || ''
+          console.log(`[COSE] ${platformId} 用户信息:`, username, avatar ? '有头像' : '无头像')
+          return { loggedIn: true, username, avatar }
+        } else {
+          console.log(`[COSE] ${platformId} API 返回未登录状态`)
+          return { loggedIn: false }
+        }
+      } catch (e) {
+        console.log(`[COSE] ${platformId} 获取用户信息失败:`, e.message)
+        return { loggedIn: false }
+      }
+    }
+
     // 少数派特殊处理：通过 /api/v1/user/info/get API 获取用户信息
     // 需要从 cookie 中读取 JWT token 并添加到 Authorization header
     if (platformId === 'sspai') {
@@ -1344,6 +1383,61 @@ async function syncToPlatform(platformId, content) {
       await new Promise(resolve => setTimeout(resolve, 1000))
 
       return { success: true, message: '已同步到微博头条', tabId: tab.id }
+    }
+
+    // 阿里云开发者社区：使用 Markdown 编辑器
+    if (platformId === 'aliyun') {
+      // 等待页面完全加载
+      await new Promise(resolve => setTimeout(resolve, 3000))
+
+      // 阿里云使用 Markdown 编辑器
+      const markdownContent = content.markdown || content.body || ''
+      console.log('[COSE] 阿里云开发者社区 Markdown 内容长度:', markdownContent?.length || 0)
+
+      // 填充标题和内容
+      const fillResult = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: (title, markdown) => {
+          // 填充标题
+          const titleInput = document.querySelector('input[placeholder*="标题"]')
+          if (titleInput && title) {
+            titleInput.focus()
+            // 使用 native setter 来绕过 React 的受控组件
+            const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set
+            nativeSetter.call(titleInput, title)
+            titleInput.dispatchEvent(new Event('input', { bubbles: true }))
+            titleInput.dispatchEvent(new Event('change', { bubbles: true }))
+            console.log('[COSE] 阿里云开发者社区标题填充成功')
+          }
+
+          // 填充内容 - 阿里云使用 textarea 作为 Markdown 编辑器
+          const contentTextarea = document.querySelector('textarea[class*="editor"]') ||
+            document.querySelector('.markdown-editor textarea') ||
+            document.querySelector('textarea:not([placeholder*="标题"])')
+          
+          if (contentTextarea && markdown) {
+            contentTextarea.focus()
+            // 使用 native setter 来绕过 React 的受控组件
+            const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
+            nativeSetter.call(contentTextarea, markdown)
+            contentTextarea.dispatchEvent(new Event('input', { bubbles: true }))
+            contentTextarea.dispatchEvent(new Event('change', { bubbles: true }))
+            console.log('[COSE] 阿里云开发者社区内容填充成功')
+            return { success: true }
+          }
+          
+          return { success: false, error: 'Editor not found' }
+        },
+        args: [content.title, markdownContent],
+        world: 'MAIN',
+      })
+
+      console.log('[COSE] 阿里云开发者社区填充结果:', fillResult)
+
+      // 等待内容注入完成
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      return { success: true, message: '已同步到阿里云开发者社区', tabId: tab.id }
     }
 
     // 百家号：使用剪贴板 HTML 粘贴到编辑器

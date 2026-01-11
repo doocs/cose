@@ -18,6 +18,7 @@ import { SspaiPlatform, SspaiLoginConfig } from './sspai.js'
 import { SohuPlatform, SohuLoginConfig } from './sohu.js'
 import { BilibiliPlatform, BilibiliLoginConfig } from './bilibili.js'
 import { WeiboPlatform, WeiboLoginConfig } from './weibo.js'
+import { AliyunPlatform, AliyunLoginConfig } from './aliyun.js'
 
 // 合并平台配置
 const PLATFORMS = [
@@ -40,6 +41,7 @@ const PLATFORMS = [
   SohuPlatform,
   BilibiliPlatform,
   WeiboPlatform,
+  AliyunPlatform,
 ]
 
 // 合并登录检测配置
@@ -63,6 +65,7 @@ const LOGIN_CHECK_CONFIG = {
   [SohuPlatform.id]: SohuLoginConfig,
   [BilibiliPlatform.id]: BilibiliLoginConfig,
   [WeiboPlatform.id]: WeiboLoginConfig,
+  [AliyunPlatform.id]: AliyunLoginConfig,
 }
 
 // 根据 hostname 获取平台填充函数
@@ -86,6 +89,7 @@ function getPlatformFiller(hostname) {
   if (hostname.includes('mp.sohu.com')) return 'sohu'
   if (hostname.includes('member.bilibili.com')) return 'bilibili'
   if (hostname.includes('card.weibo.com')) return 'weibo'
+  if (hostname.includes('developer.aliyun.com')) return 'aliyun'
   return 'generic'
 }
 
