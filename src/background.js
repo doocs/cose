@@ -514,6 +514,91 @@ async function checkLoginByCookie(platformId, config) {
       }
     }
 
+    // 华为开发者文章特殊处理
+    if (platformId === 'huaweidev') {
+      try {
+        // 检查 developer_userinfo cookie
+        const userInfoCookie = await chrome.cookies.get({
+          url: 'https://developer.huawei.com',
+          name: 'developer_userinfo'
+        })
+        
+        if (!userInfoCookie || !userInfoCookie.value) {
+          console.log(`[COSE] ${platformId} 未找到 developer_userinfo cookie，未登录`)
+          return { loggedIn: false }
+        }
+        
+        console.log(`[COSE] ${platformId} 找到 developer_userinfo cookie`)
+        
+        // 尝试从页面获取用户名和头像
+        let username = ''
+        let avatar = ''
+        
+        // 查找华为开发者相关页面
+        let tabs = await chrome.tabs.query({ url: 'https://developer.huawei.com/*' })
+        
+        if (tabs.length > 0) {
+          try {
+            const results = await chrome.scripting.executeScript({
+              target: { tabId: tabs[0].id },
+              func: () => {
+                // 查找用户名元素
+                const userNameEl = document.querySelector('.user_name, [class*="user_name"], [class*="nickname"]')
+                // 查找头像图片 - 在个人中心页面或导航栏
+                const avatarImg = document.querySelector('img[alt*="头像"], img[src*="upfile-drcn.platform.hicloud.com"], img[src*="avatar"]')
+                
+                return {
+                  username: userNameEl?.textContent?.trim() || '',
+                  avatar: avatarImg?.src || ''
+                }
+              }
+            })
+            
+            if (results?.[0]?.result) {
+              username = results[0].result.username || ''
+              avatar = results[0].result.avatar || ''
+            }
+          } catch (e) {
+            console.log(`[COSE] ${platformId} 获取用户信息失败:`, e.message)
+          }
+        }
+        
+        // 如果没有获取到头像，尝试通过 fetch 个人中心页面获取
+        if (!avatar) {
+          try {
+            const response = await fetch('https://developer.huawei.com/consumer/cn/personalcenter/overview', {
+              method: 'GET',
+              credentials: 'include',
+            })
+            const html = await response.text()
+            
+            // 从 HTML 中提取头像 URL
+            const avatarMatch = html.match(/img[^>]*src="(https:\/\/upfile-drcn\.platform\.hicloud\.com[^"]+)"/)
+            if (avatarMatch) {
+              avatar = avatarMatch[1]
+              console.log(`[COSE] ${platformId} 从个人中心获取到头像`)
+            }
+            
+            // 如果没有用户名，也尝试从页面提取
+            if (!username) {
+              const nameMatch = html.match(/<[^>]*class="[^"]*user[_-]?name[^"]*"[^>]*>([^<]+)</)
+              if (nameMatch) {
+                username = nameMatch[1].trim()
+              }
+            }
+          } catch (e) {
+            console.log(`[COSE] ${platformId} fetch 个人中心失败:`, e.message)
+          }
+        }
+        
+        console.log(`[COSE] ${platformId} 已登录:`, username || '(未获取用户名)', avatar ? '有头像' : '无头像')
+        return { loggedIn: true, username, avatar }
+      } catch (e) {
+        console.log(`[COSE] ${platformId} 检测失败:`, e.message)
+        return { loggedIn: false }
+      }
+    }
+
     // 少数派特殊处理：通过 /api/v1/user/info/get API 获取用户信息
     // 需要从 cookie 中读取 JWT token 并添加到 Authorization header
     if (platformId === 'sspai') {
@@ -1622,6 +1707,249 @@ async function syncToPlatform(platformId, content) {
       await new Promise(resolve => setTimeout(resolve, 1000))
 
       return { success: true, message: '已同步到华为云开发者博客', tabId: tab.id }
+    }
+
+    // 华为开发者文章：使用 ACE Editor (Markdown 编辑器)
+    if (platformId === 'huaweidev') {
+      // 华为开发者文章使用 Markdown 编辑器
+      const markdownContent = content.markdown || content.body || ''
+      console.log('[COSE] 华为开发者文章 Markdown 内容长度:', markdownContent?.length || 0)
+
+      // 注入异步弹窗监听器，并执行主流程
+      const result = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: async (title, markdown) => {
+          // ========== 弹窗处理函数 ==========
+          const handleDialog = () => {
+            // 方法1: 查找 Ant Design Modal 中的按钮
+            const modalBtns = document.querySelector('.ant-modal-confirm-btns')
+            if (modalBtns) {
+              const buttons = modalBtns.querySelectorAll('button')
+              const modalText = document.querySelector('.ant-modal-confirm-content')?.textContent || ''
+              
+              console.log('[COSE] 检测到 Ant Modal:', modalText.substring(0, 50))
+              
+              // 处理"温馨提示"弹窗 - 点击"取消"
+              if (modalText.includes('温馨提示') || modalText.includes('未保存')) {
+                for (const btn of buttons) {
+                  if (btn.textContent?.trim() === '取消') {
+                    console.log('[COSE] 点击温馨提示弹窗的取消按钮')
+                    btn.click()
+                    return true
+                  }
+                }
+              }
+              
+              // 处理 MD 编辑器切换确认对话框 - 点击"确认"
+              if (modalText.includes('Markdown') || modalText.includes('切换')) {
+                for (const btn of buttons) {
+                  if (btn.textContent?.trim() === '确认') {
+                    console.log('[COSE] 点击 MD 切换确认按钮')
+                    btn.click()
+                    return true
+                  }
+                }
+              }
+            }
+            
+            // 方法2: 查找 HTML5 dialog 元素（备用）
+            const dialog = document.querySelector('dialog[open]')
+            if (dialog) {
+              const dialogText = dialog.textContent || ''
+              const buttons = dialog.querySelectorAll('button')
+              
+              console.log('[COSE] 检测到 dialog:', dialogText.substring(0, 50))
+              
+              if (dialogText.includes('温馨提示') || dialogText.includes('未保存')) {
+                for (const btn of buttons) {
+                  if (btn.textContent?.trim() === '取消') {
+                    btn.click()
+                    return true
+                  }
+                }
+              }
+              
+              if (dialogText.includes('Markdown') || dialogText.includes('切换')) {
+                for (const btn of buttons) {
+                  if (btn.textContent?.trim() === '确认') {
+                    btn.click()
+                    return true
+                  }
+                }
+              }
+            }
+            
+            return false
+          }
+          
+          // ========== 工具函数 ==========
+          const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
+          
+          // 轮询检查弹窗（比 MutationObserver 更可靠）
+          let dialogCheckInterval = null
+          const startDialogChecker = () => {
+            // 先检查已存在的弹窗
+            handleDialog()
+            
+            // 定时检查新弹窗
+            dialogCheckInterval = setInterval(() => {
+              handleDialog()
+            }, 200)
+            
+            console.log('[COSE] 华为开发者文章弹窗检查器已启动')
+          }
+          
+          const stopDialogChecker = () => {
+            if (dialogCheckInterval) {
+              clearInterval(dialogCheckInterval)
+              dialogCheckInterval = null
+              console.log('[COSE] 华为开发者文章弹窗检查器已停止')
+            }
+          }
+          
+          const waitForElement = async (selector, timeout = 5000) => {
+            const start = Date.now()
+            while (Date.now() - start < timeout) {
+              const el = document.querySelector(selector)
+              if (el) return el
+              await sleep(100)
+            }
+            return null
+          }
+          
+          // 等待按钮出现（支持 button 和 a 标签）
+          const waitForMdButton = async (timeout = 15000) => {
+            const start = Date.now()
+            while (Date.now() - start < timeout) {
+              // 方法1: 通过 CKEditor 的 class 选择器（最精确）
+              let btn = document.querySelector('a.cke_button__cktomd')
+              if (btn) return btn
+              
+              // 方法2: 查找包含 "MD编辑器" 文本的 <a> 标签
+              const allLinks = document.querySelectorAll('a')
+              for (const link of allLinks) {
+                if (link.textContent?.trim() === 'MD编辑器') {
+                  return link
+                }
+              }
+              
+              // 方法3: 查找包含 "MD编辑器" 文本的 <button> 标签（备用）
+              const allButtons = document.querySelectorAll('button')
+              for (const b of allButtons) {
+                if (b.textContent?.trim() === 'MD编辑器') {
+                  return b
+                }
+              }
+              
+              await sleep(300)
+            }
+            return null
+          }
+          
+          // 等待富文本编辑器按钮出现
+          const waitForRichTextButton = async (timeout = 2000) => {
+            const start = Date.now()
+            while (Date.now() - start < timeout) {
+              // 查找 "富文本编辑器" 按钮（可能是 <a> 或 <button>）
+              const allElements = document.querySelectorAll('a, button')
+              for (const el of allElements) {
+                if (el.textContent?.trim() === '富文本编辑器') {
+                  return el
+                }
+              }
+              await sleep(200)
+            }
+            return null
+          }
+          
+          // ========== 主流程 ==========
+          try {
+            // 启动弹窗检查器
+            startDialogChecker()
+            
+            // 等待 DOM 完全加载
+            if (document.readyState !== 'complete') {
+              console.log('[COSE] 等待 DOM 加载完成...')
+              await new Promise(resolve => {
+                if (document.readyState === 'complete') {
+                  resolve()
+                } else {
+                  window.addEventListener('load', resolve, { once: true })
+                }
+              })
+            }
+            
+            // 等待页面加载完成（等待 MD编辑器 或 富文本编辑器 按钮出现）
+            // 华为开发者页面的编辑器工具栏是异步加载的，需要较长时间
+            console.log('[COSE] 等待编辑器工具栏加载...')
+            let mdButton = await waitForMdButton(15000)
+            let richTextButton = await waitForRichTextButton(2000)
+            
+            // 检查是否已经是 Markdown 编辑器
+            let aceEditor = document.querySelector('.ace_editor')
+            
+            // 如果有富文本编辑器按钮，说明当前已经是 Markdown 编辑器
+            if (richTextButton || aceEditor) {
+              console.log('[COSE] 已经是 Markdown 编辑器')
+              aceEditor = aceEditor || document.querySelector('.ace_editor')
+            } else if (!aceEditor) {
+              // 需要切换到 Markdown 编辑器
+              if (mdButton) {
+                console.log('[COSE] 点击 MD编辑器 按钮')
+                mdButton.click()
+                
+                // 等待 ACE Editor 出现（弹窗会被检查器自动处理）
+                aceEditor = await waitForElement('.ace_editor', 10000)
+                
+                if (!aceEditor) {
+                  console.error('[COSE] 等待 ACE Editor 超时')
+                  return { success: false, error: 'ACE Editor not found after timeout' }
+                }
+              } else {
+                console.error('[COSE] 未找到 MD编辑器 按钮')
+                return { success: false, error: 'MD Editor button not found' }
+              }
+            }
+            
+            console.log('[COSE] 华为开发者文章已进入 Markdown 编辑器')
+            
+            // 等待编辑器完全初始化
+            await sleep(500)
+            
+            // 填充标题
+            const titleInput = document.querySelector('input[placeholder*="标题"]')
+            if (titleInput && title) {
+              titleInput.focus()
+              const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set
+              nativeSetter.call(titleInput, title)
+              titleInput.dispatchEvent(new Event('input', { bubbles: true }))
+              titleInput.dispatchEvent(new Event('change', { bubbles: true }))
+              console.log('[COSE] 华为开发者文章标题填充成功')
+            }
+            
+            // 填充 Markdown 内容
+            if (typeof ace !== 'undefined') {
+              const editor = ace.edit(aceEditor)
+              if (editor) {
+                editor.session.setValue(markdown)
+                console.log('[COSE] 华为开发者文章内容填充成功，长度:', markdown.length)
+              }
+            }
+            
+            return { success: true, method: 'ace', length: markdown.length }
+            
+          } finally {
+            // 清理检查器
+            stopDialogChecker()
+          }
+        },
+        args: [content.title, markdownContent],
+        world: 'MAIN',
+      })
+
+      console.log('[COSE] 华为开发者文章填充结果:', result[0]?.result)
+
+      return { success: true, message: '已同步到华为开发者文章', tabId: tab.id }
     }
 
     // 百家号：使用剪贴板 HTML 粘贴到编辑器

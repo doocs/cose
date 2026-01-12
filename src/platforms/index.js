@@ -20,6 +20,7 @@ import { BilibiliPlatform, BilibiliLoginConfig } from './bilibili.js'
 import { WeiboPlatform, WeiboLoginConfig } from './weibo.js'
 import { AliyunPlatform, AliyunLoginConfig } from './aliyun.js'
 import { HuaweiCloudPlatform, HuaweiCloudLoginConfig } from './huaweicloud.js'
+import { HuaweiDevPlatform, HuaweiDevLoginConfig } from './huaweidev.js'
 
 // 合并平台配置
 const PLATFORMS = [
@@ -44,6 +45,7 @@ const PLATFORMS = [
   WeiboPlatform,
   AliyunPlatform,
   HuaweiCloudPlatform,
+  HuaweiDevPlatform,
 ]
 
 // 合并登录检测配置
@@ -69,6 +71,7 @@ const LOGIN_CHECK_CONFIG = {
   [WeiboPlatform.id]: WeiboLoginConfig,
   [AliyunPlatform.id]: AliyunLoginConfig,
   [HuaweiCloudPlatform.id]: HuaweiCloudLoginConfig,
+  [HuaweiDevPlatform.id]: HuaweiDevLoginConfig,
 }
 
 // 根据 hostname 获取平台填充函数
@@ -94,6 +97,7 @@ function getPlatformFiller(hostname) {
   if (hostname.includes('card.weibo.com')) return 'weibo'
   if (hostname.includes('developer.aliyun.com')) return 'aliyun'
   if (hostname.includes('bbs.huaweicloud.com')) return 'huaweicloud'
+  if (hostname.includes('developer.huawei.com')) return 'huaweidev'
   return 'generic'
 }
 

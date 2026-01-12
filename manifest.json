@@ -38,7 +38,8 @@
     "https://*.medium.com/*",
     "https://*.sohu.com/*",
     "https://*.aliyun.com/*",
-    "https://*.huaweicloud.com/*"
+    "https://*.huaweicloud.com/*",
+    "https://developer.huawei.com/*"
   ],
   "action": {
     "default_icon": {
