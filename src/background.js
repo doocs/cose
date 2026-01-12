@@ -530,69 +530,65 @@ async function checkLoginByCookie(platformId, config) {
         
         console.log(`[COSE] ${platformId} 找到 developer_userinfo cookie`)
         
-        // 尝试从页面获取用户名和头像
-        let username = ''
-        let avatar = ''
-        
-        // 查找华为开发者相关页面
-        let tabs = await chrome.tabs.query({ url: 'https://developer.huawei.com/*' })
-        
-        if (tabs.length > 0) {
-          try {
-            const results = await chrome.scripting.executeScript({
-              target: { tabId: tabs[0].id },
-              func: () => {
-                // 查找用户名元素
-                const userNameEl = document.querySelector('.user_name, [class*="user_name"], [class*="nickname"]')
-                // 查找头像图片 - 在个人中心页面或导航栏
-                const avatarImg = document.querySelector('img[alt*="头像"], img[src*="upfile-drcn.platform.hicloud.com"], img[src*="avatar"]')
-                
-                return {
-                  username: userNameEl?.textContent?.trim() || '',
-                  avatar: avatarImg?.src || ''
-                }
-              }
-            })
-            
-            if (results?.[0]?.result) {
-              username = results[0].result.username || ''
-              avatar = results[0].result.avatar || ''
-            }
-          } catch (e) {
-            console.log(`[COSE] ${platformId} 获取用户信息失败:`, e.message)
-          }
+        // 解析 cookie 获取 csrfToken
+        let csrfToken = ''
+        try {
+          const userInfoData = JSON.parse(decodeURIComponent(userInfoCookie.value))
+          csrfToken = userInfoData.csrftoken || ''
+        } catch (e) {
+          console.log(`[COSE] ${platformId} 解析 cookie 失败:`, e.message)
         }
         
-        // 如果没有获取到头像，尝试通过 fetch 个人中心页面获取
-        if (!avatar) {
-          try {
-            const response = await fetch('https://developer.huawei.com/consumer/cn/personalcenter/overview', {
-              method: 'GET',
-              credentials: 'include',
-            })
-            const html = await response.text()
-            
-            // 从 HTML 中提取头像 URL
-            const avatarMatch = html.match(/img[^>]*src="(https:\/\/upfile-drcn\.platform\.hicloud\.com[^"]+)"/)
-            if (avatarMatch) {
-              avatar = avatarMatch[1]
-              console.log(`[COSE] ${platformId} 从个人中心获取到头像`)
-            }
-            
-            // 如果没有用户名，也尝试从页面提取
-            if (!username) {
-              const nameMatch = html.match(/<[^>]*class="[^"]*user[_-]?name[^"]*"[^>]*>([^<]+)</)
-              if (nameMatch) {
-                username = nameMatch[1].trim()
-              }
-            }
-          } catch (e) {
-            console.log(`[COSE] ${platformId} fetch 个人中心失败:`, e.message)
-          }
+        // 如果没有 csrfToken，尝试从单独的 cookie 获取
+        if (!csrfToken) {
+          const csrfCookie = await chrome.cookies.get({
+            url: 'https://developer.huawei.com',
+            name: 'csrfToken'
+          })
+          csrfToken = csrfCookie?.value || ''
         }
         
-        console.log(`[COSE] ${platformId} 已登录:`, username || '(未获取用户名)', avatar ? '有头像' : '无头像')
-        return { loggedIn: true, username, avatar }
+        if (!csrfToken) {
+          console.log(`[COSE] ${platformId} 未找到 csrfToken，返回已登录但无用户信息`)
+          return { loggedIn: true, username: '', avatar: '' }
+        }
+        
+        // 通过 API 获取用户信息
+        const now = new Date()
+        const hdDate = now.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
+        const serialNo = Math.floor(Math.random() * 10000000).toString()
+        
+        const response = await fetch('https://svc-drcn.developer.huawei.com/codeserver/Common/v1/delegate', {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Accept': 'application/json, text/plain, */*',
+            'Content-Type': 'application/json;charset=UTF-8',
+            'x-hd-csrf': csrfToken,
+            'x-hd-date': hdDate,
+            'x-hd-serialno': serialNo,
+            'Origin': 'https://developer.huawei.com',
+            'Referer': 'https://developer.huawei.com/'
+          },
+          body: JSON.stringify({
+            svc: 'GOpen.User.getInfo',
+            reqType: 0,
+            reqJson: JSON.stringify({ getNickName: '1' })
+          })
+        })
+        
+        const data = await response.json()
+        
+        if (data.returnCode === '0' && data.resJson) {
+          const userInfo = JSON.parse(data.resJson)
+          const username = userInfo.displayName || userInfo.loginID || ''
+          const avatar = userInfo.headPictureURL || ''
+          console.log(`[COSE] ${platformId} 用户信息:`, username, avatar ? '有头像' : '无头像')
+          return { loggedIn: true, username, avatar }
+        } else {
+          console.log(`[COSE] ${platformId} API 返回错误:`, data.returnCode, data.description)
+          return { loggedIn: true, username: '', avatar: '' }
+        }
       } catch (e) {
         console.log(`[COSE] ${platformId} 检测失败:`, e.message)
         return { loggedIn: false }
