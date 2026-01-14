@@ -60,6 +60,7 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 - 华为云博客
 - 华为开发者文章
 - X(Formerly Twitter) Articles
+- 百度云千帆
 
 更多想要添加的平台欢迎提 [Issue](https://github.com/doocs/cose/issues) ！
 

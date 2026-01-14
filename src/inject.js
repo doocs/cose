@@ -86,6 +86,7 @@
     { id: 'huaweicloud', name: 'HuaweiCloud', icon: 'https://www.huaweicloud.com/favicon.ico', title: '华为云开发者博客', type: 'huaweicloud', url: 'https://bbs.huaweicloud.com/blogs/article' },
     { id: 'huaweidev', name: 'HuaweiDev', icon: 'https://developer.huawei.com/favicon.ico', title: '华为开发者文章', type: 'huaweidev', url: 'https://developer.huawei.com/consumer/cn/blog/create' },
     { id: 'twitter', name: 'Twitter', icon: 'https://abs.twimg.com/favicons/twitter.3.ico', title: 'Twitter Articles', type: 'twitter', url: 'https://x.com/compose/articles/edit/' },
+    { id: 'qianfan', name: 'Qianfan', icon: 'https://bce.bdstatic.com/img/favicon.ico', title: '百度千帆社区', type: 'qianfan', url: 'https://qianfan.cloud.baidu.com/qianfandev/topic/create' },
   ]
 
   // 暴露 $cose 全局对象
