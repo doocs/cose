@@ -7,7 +7,7 @@ const QianfanPlatform = {
   icon: 'https://bce.bdstatic.com/img/favicon.ico',
   url: 'https://qianfan.cloud.baidu.com/qianfandev',
   publishUrl: 'https://qianfan.cloud.baidu.com/qianfandev/topic/create',
-  title: '百度千帆社区',
+  title: '百度云千帆',
   type: 'qianfan',
 }
 

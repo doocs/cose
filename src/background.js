@@ -833,7 +833,7 @@ async function checkLoginByCookie(platformId, config) {
       }
     }
 
-    // 百度千帆社区特殊处理：通过 API 获取用户信息
+    // 百度云千帆特殊处理：通过 API 获取用户信息
     if (platformId === 'qianfan') {
       try {
         // 调用千帆社区用户信息 API
@@ -1760,7 +1760,7 @@ async function syncToPlatform(platformId, content) {
       // 等待内容处理完成
       await new Promise(resolve => setTimeout(resolve, 2000))
 
-      return { success: true, message: '已同步到百度千帆社区', tabId: tab.id }
+      return { success: true, message: '已同步到百度云千帆', tabId: tab.id }
     } else {
       // 其他平台
       let targetUrl = platform.publishUrl
