@@ -41,7 +41,8 @@
     "https://*.huaweicloud.com/*",
     "https://developer.huawei.com/*",
     "https://*.x.com/*",
-    "https://*.twitter.com/*"
+    "https://*.twitter.com/*",
+    "https://qianfan.cloud.baidu.com/*"
   ],
   "action": {
     "default_icon": {

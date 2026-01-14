@@ -87,8 +87,10 @@ async function handleMessage(request, sender) {
 async function checkAllPlatforms(platforms) {
   const status = {}
   try {
+    // 过滤掉无效的平台配置
+    const validPlatforms = (platforms || []).filter(p => p && p.id)
     const results = await Promise.allSettled(
-      platforms.map(async (platform) => {
+      validPlatforms.map(async (platform) => {
         try {
           const result = await checkPlatformLogin(platform)
           return { id: platform.id, result }
@@ -110,6 +112,9 @@ async function checkAllPlatforms(platforms) {
 
 // 检查单个平台登录状态
 async function checkPlatformLogin(platform) {
+  if (!platform || !platform.id) {
+    return { loggedIn: false, error: '无效的平台配置' }
+  }
   const config = LOGIN_CHECK_CONFIG[platform.id]
   if (!config) {
     return { loggedIn: false, error: '未配置检测' }
@@ -828,6 +833,43 @@ async function checkLoginByCookie(platformId, config) {
       }
     }
 
+    // 百度千帆社区特殊处理：通过 API 获取用户信息
+    if (platformId === 'qianfan') {
+      try {
+        // 调用千帆社区用户信息 API
+        const response = await fetch('https://qianfan.cloud.baidu.com/api/community/user/current', {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Accept': 'application/json',
+          }
+        })
+        
+        if (!response.ok) {
+          console.log(`[COSE] ${platformId} API 请求失败: ${response.status}`)
+          return { loggedIn: false }
+        }
+        
+        const data = await response.json()
+        console.log(`[COSE] ${platformId} API 响应:`, data)
+        
+        // 检查 API 返回是否成功且有用户信息
+        if (data.success && data.result) {
+          const username = data.result.displayName || data.result.nickname || ''
+          const avatar = data.result.avatar || ''
+          
+          console.log(`[COSE] ${platformId} 用户信息: ${username}, ${avatar ? '有头像' : '无头像'}`)
+          return { loggedIn: true, username, avatar }
+        } else {
+          console.log(`[COSE] ${platformId} 未登录或无用户信息`)
+          return { loggedIn: false }
+        }
+      } catch (e) {
+        console.log(`[COSE] ${platformId} 检测失败:`, e.message)
+        return { loggedIn: false }
+      }
+    }
+
     // 从页面抓取用户信息
     if (config.fetchUserInfoFromPage && config.userInfoUrl) {
       try {
@@ -1055,7 +1097,7 @@ async function pasteWithDebugger(tabId) {
 
 // 同步到平台
 async function syncToPlatform(platformId, content) {
-  const platform = PLATFORMS.find(p => p.id === platformId)
+  const platform = PLATFORMS.find(p => p && p.id === platformId)
   if (!platform || !platform.publishUrl) {
     return { success: false, message: '暂不支持该平台' }
   }
@@ -1610,6 +1652,115 @@ async function syncToPlatform(platformId, content) {
       await new Promise(resolve => setTimeout(resolve, 1000))
 
       return { success: true, message: '已同步到 Twitter Articles', tabId: tab.id }
+    }
+
+    // 百度千帆开发者社区：注入 Markdown 并确认转换
+    if (platformId === 'qianfan') {
+      // 先打开发布页面
+      tab = await chrome.tabs.create({ url: platform.publishUrl, active: false })
+      await addTabToSyncGroup(tab.id, tab.windowId)
+      await waitForTab(tab.id)
+
+      // 等待页面加载（缩短为1秒，后续用 waitForElement 确保元素就绪）
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      const markdownContent = content.markdown || content.body || ''
+      console.log('[COSE] 百度千帆 Markdown 内容长度:', markdownContent?.length || 0)
+
+      // 填充标题和内容
+      const fillResult = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: async (title, markdown) => {
+          const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
+
+          // 等待元素出现（带超时）
+          const waitForElement = (selector, timeout = 5000) => {
+            return new Promise((resolve) => {
+              const el = document.querySelector(selector)
+              if (el) return resolve(el)
+              
+              const observer = new MutationObserver(() => {
+                const el = document.querySelector(selector)
+                if (el) {
+                  observer.disconnect()
+                  resolve(el)
+                }
+              })
+              observer.observe(document.body, { childList: true, subtree: true })
+              setTimeout(() => {
+                observer.disconnect()
+                resolve(null)
+              }, timeout)
+            })
+          }
+
+          try {
+            // 填充标题
+            const titleInput = await waitForElement('textarea[placeholder="请输入文章标题"]')
+            if (titleInput && title) {
+              titleInput.focus()
+              const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
+              nativeSetter.call(titleInput, title)
+              titleInput.dispatchEvent(new Event('input', { bubbles: true }))
+              console.log('[COSE] 百度千帆标题填充成功')
+            }
+
+            await sleep(200)
+
+            // 填充内容 - 使用 paste 事件注入
+            const contentEditor = await waitForElement('.mp-editor-container[contenteditable="true"]')
+            if (contentEditor && markdown) {
+              contentEditor.focus()
+              await sleep(100)
+
+              // 使用 ClipboardEvent 模拟粘贴
+              const dt = new DataTransfer()
+              dt.setData('text/plain', markdown)
+              
+              const pasteEvent = new ClipboardEvent('paste', {
+                bubbles: true,
+                cancelable: true,
+                clipboardData: dt
+              })
+              
+              contentEditor.dispatchEvent(pasteEvent)
+              console.log('[COSE] 百度千帆内容填充成功')
+
+              // 等待并点击确认按钮（轮询检测，最多等待3秒）
+              let confirmed = false
+              for (let i = 0; i < 15; i++) {
+                await sleep(200)
+                const pageText = document.body.innerText
+                if (pageText.includes('检测到 Markdown')) {
+                  const confirmBtn = document.querySelector('.mp-modal-enter-btn')
+                  if (confirmBtn) {
+                    confirmBtn.click()
+                    confirmed = true
+                    console.log('[COSE] 百度千帆已确认 Markdown 转换')
+                    break
+                  }
+                }
+              }
+
+              return { success: true, confirmed }
+            }
+
+            return { success: false, error: 'Editor not found' }
+          } catch (e) {
+            console.error('[COSE] 百度千帆同步失败:', e)
+            return { success: false, error: e.message }
+          }
+        },
+        args: [content.title, markdownContent],
+        world: 'MAIN',
+      })
+
+      console.log('[COSE] 百度千帆填充结果:', fillResult[0]?.result)
+
+      // 等待内容处理完成
+      await new Promise(resolve => setTimeout(resolve, 2000))
+
+      return { success: true, message: '已同步到百度千帆社区', tabId: tab.id }
     } else {
       // 其他平台
       let targetUrl = platform.publishUrl
