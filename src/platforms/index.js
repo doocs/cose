@@ -21,6 +21,7 @@ import { WeiboPlatform, WeiboLoginConfig } from './weibo.js'
 import { AliyunPlatform, AliyunLoginConfig } from './aliyun.js'
 import { HuaweiCloudPlatform, HuaweiCloudLoginConfig } from './huaweicloud.js'
 import { HuaweiDevPlatform, HuaweiDevLoginConfig } from './huaweidev.js'
+import { TwitterPlatform, TwitterLoginConfig } from './twitter.js'
 
 // 合并平台配置
 const PLATFORMS = [
@@ -46,6 +47,7 @@ const PLATFORMS = [
   AliyunPlatform,
   HuaweiCloudPlatform,
   HuaweiDevPlatform,
+  TwitterPlatform,
 ]
 
 // 合并登录检测配置
@@ -72,6 +74,7 @@ const LOGIN_CHECK_CONFIG = {
   [AliyunPlatform.id]: AliyunLoginConfig,
   [HuaweiCloudPlatform.id]: HuaweiCloudLoginConfig,
   [HuaweiDevPlatform.id]: HuaweiDevLoginConfig,
+  [TwitterPlatform.id]: TwitterLoginConfig,
 }
 
 // 根据 hostname 获取平台填充函数
@@ -98,6 +101,7 @@ function getPlatformFiller(hostname) {
   if (hostname.includes('developer.aliyun.com')) return 'aliyun'
   if (hostname.includes('bbs.huaweicloud.com')) return 'huaweicloud'
   if (hostname.includes('developer.huawei.com')) return 'huaweidev'
+  if (hostname.includes('x.com') || hostname.includes('twitter.com')) return 'twitter'
   return 'generic'
 }
 

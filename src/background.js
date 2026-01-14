@@ -763,6 +763,71 @@ async function checkLoginByCookie(platformId, config) {
       }
     }
 
+    // Twitter/X 特殊处理：检查 auth_token 和 ct0 cookies
+    if (platformId === 'twitter') {
+      try {
+        // Twitter 使用 auth_token 和 ct0 cookies 来标识登录状态
+        const authTokenCookie = await chrome.cookies.get({
+          url: 'https://x.com',
+          name: 'auth_token'
+        })
+        const ct0Cookie = await chrome.cookies.get({
+          url: 'https://x.com',
+          name: 'ct0'
+        })
+        
+        // 如果没有 auth_token cookie，说明未登录
+        if (!authTokenCookie) {
+          console.log(`[COSE] ${platformId} 未找到 auth_token cookie，未登录`)
+          return { loggedIn: false }
+        }
+        
+        console.log(`[COSE] ${platformId} 找到登录 cookie: auth_token=${!!authTokenCookie}, ct0=${!!ct0Cookie}`)
+        
+        // 尝试获取用户信息
+        let username = ''
+        let avatar = ''
+        
+        try {
+          // 方法1: 从 Twitter 首页 HTML 中提取用户信息
+          const response = await fetch('https://x.com/home', {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+              'Accept': 'text/html',
+            }
+          })
+          
+          if (response.ok) {
+            const html = await response.text()
+            
+            // 从页面脚本中提取 screen_name
+            const screenNameMatch = html.match(/"screen_name"\s*:\s*"([^"]+)"/)
+            if (screenNameMatch) {
+              username = screenNameMatch[1]
+            }
+            
+            // 从页面脚本中提取头像 URL
+            const avatarMatch = html.match(/"profile_image_url_https"\s*:\s*"([^"]+)"/)
+            if (avatarMatch) {
+              // 将 _normal 替换为 _x96 获取更大的头像
+              avatar = avatarMatch[1].replace('_normal.', '_x96.')
+            }
+            
+            console.log(`[COSE] ${platformId} 用户信息:`, username, avatar ? '有头像' : '无头像')
+          }
+        } catch (e) {
+          console.log(`[COSE] ${platformId} 获取用户信息失败:`, e.message)
+        }
+        
+        // 有 auth_token cookie 就认为已登录
+        return { loggedIn: true, username, avatar }
+      } catch (e) {
+        console.log(`[COSE] ${platformId} 检测失败:`, e.message)
+        return { loggedIn: false }
+      }
+    }
+
     // 从页面抓取用户信息
     if (config.fetchUserInfoFromPage && config.userInfoUrl) {
       try {
@@ -1215,6 +1280,336 @@ async function syncToPlatform(platformId, content) {
         console.error('[COSE] 简书 API 调用失败:', e)
         return { success: false, message: '简书 API 调用失败: ' + e.message }
       }
+    } else if (platformId === 'twitter') {
+      // Twitter Articles：需要先打开草稿列表页，然后点击 create 按钮创建新文章
+      // 注意：Twitter 使用 Page Visibility API，后台标签页不会渲染编辑器
+      // 解决方案：短暂激活 Tab，等编辑器加载后切回原 Tab
+      
+      // 记录当前活动的 Tab
+      const [currentTab] = await chrome.tabs.query({ active: true, currentWindow: true })
+      
+      // 第一步：打开草稿列表页（激活状态，触发编辑器渲染）
+      tab = await chrome.tabs.create({ url: platform.publishUrl, active: true })
+      await addTabToSyncGroup(tab.id, tab.windowId)
+      await waitForTab(tab.id)
+
+      // 等待页面加载
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      // 第二步：点击 create 按钮并等待编辑器加载完成
+      const clickResult = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: async () => {
+          const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
+          
+          // 查找 create 按钮
+          const createBtn = document.querySelector('button[aria-label="create"]') ||
+                            Array.from(document.querySelectorAll('button')).find(b => 
+                              b.getAttribute('aria-label')?.toLowerCase() === 'create'
+                            )
+          
+          if (createBtn) {
+            createBtn.click()
+            console.log('[COSE] Twitter Articles 已点击 create 按钮')
+            
+            // 等待编辑器加载（等待标题输入框出现）
+            const waitForEditor = async (timeout = 10000) => {
+              const start = Date.now()
+              while (Date.now() - start < timeout) {
+                const titleInput = document.querySelector('textarea[placeholder="Add a title"]')
+                if (titleInput) return true
+                await sleep(200)
+              }
+              return false
+            }
+            
+            const editorLoaded = await waitForEditor()
+            return { success: editorLoaded, message: editorLoaded ? 'Editor loaded' : 'Editor timeout' }
+          }
+          
+          return { success: false, message: 'Create button not found' }
+        },
+        world: 'MAIN',
+      })
+
+      console.log('[COSE] Twitter Articles create 结果:', clickResult[0]?.result)
+
+      // 编辑器加载完成后，切回原 Tab
+      if (currentTab?.id) {
+        try {
+          await chrome.tabs.update(currentTab.id, { active: true })
+          console.log('[COSE] Twitter 已切回原 Tab')
+        } catch (e) {
+          // 原 Tab 可能已关闭，忽略
+        }
+      }
+
+      if (!clickResult[0]?.result?.success) {
+        return { success: false, message: 'Twitter Articles 创建文章失败: ' + (clickResult[0]?.result?.message || '未知错误') }
+      }
+
+      // 等待页面稳定
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      // 使用 Markdown 内容
+      const markdownContent = content.markdown || content.body || ''
+      console.log('[COSE] Twitter Articles Markdown 内容长度:', markdownContent?.length || 0)
+
+      // 第三步：填充标题和内容
+      const fillResult = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: async (title, markdown) => {
+          // ========== 工具函数 ==========
+          const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
+          
+          const waitForElement = async (selector, timeout = 10000) => {
+            const start = Date.now()
+            while (Date.now() - start < timeout) {
+              const el = document.querySelector(selector)
+              if (el) return el
+              await sleep(200)
+            }
+            return null
+          }
+
+
+
+          // ========== 内置 Markdown 解析器（支持代码块和公式）==========
+          // 使用占位符保护机制，避免正则冲突
+          // 代码块使用样式化 HTML，公式使用 CodeCogs API 渲染为图片
+          function parseMarkdownToHtml(md) {
+            if (!md) return ''
+            
+            // 存储需要保护的内容
+            const codeBlocks = []
+            const inlineCodes = []
+            const blockFormulas = []
+            const inlineFormulas = []
+            
+            let html = md
+            
+            // ========== 第一阶段：提取并保护特殊内容 ==========
+            
+            // 1. 提取代码块 ```...```
+            html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, (match, lang, code) => {
+              const index = codeBlocks.length
+              codeBlocks.push({ lang: lang || '', code: code })
+              return `__CODE_BLOCK_${index}__`
+            })
+            
+            // 2. 提取行内代码 `...`
+            html = html.replace(/`([^`\n]+)`/g, (match, code) => {
+              const index = inlineCodes.length
+              inlineCodes.push(code)
+              return `__INLINE_CODE_${index}__`
+            })
+            
+            // 3. 提取块级公式 $$...$$
+            html = html.replace(/\$\$([\s\S]+?)\$\$/g, (match, formula) => {
+              const index = blockFormulas.length
+              blockFormulas.push(formula.trim())
+              return `__BLOCK_FORMULA_${index}__`
+            })
+            
+            // 4. 提取行内公式 $...$
+            html = html.replace(/\$([^\$\n]+)\$/g, (match, formula) => {
+              const index = inlineFormulas.length
+              inlineFormulas.push(formula.trim())
+              return `__INLINE_FORMULA_${index}__`
+            })
+            
+            // ========== 第二阶段：处理标准 Markdown 语法 ==========
+            
+            // 处理标题
+            html = html.replace(/^#### (.+)$/gm, '<h3>$1</h3>')
+            html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>')
+            html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>')
+            html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>')
+            
+            // 处理引用块
+            html = html.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>')
+            
+            // 处理水平分割线
+            html = html.replace(/^---$/gm, '<hr />')
+            html = html.replace(/^\*\*\*$/gm, '<hr />')
+            
+            // 处理图片
+            html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width: 100%;" />')
+            
+            // 处理链接
+            html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
+            
+            // 处理粗体、斜体、删除线
+            html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+            html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>')
+            html = html.replace(/~~([^~]+)~~/g, '<s>$1</s>')
+            
+            // ========== 第三阶段：恢复保护的内容 ==========
+            
+            // 恢复代码块（使用样式化的 pre/code）
+            codeBlocks.forEach((block, index) => {
+              const escapedCode = block.code
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;')
+              
+              const langLabel = block.lang ? `<div style="background: #e1e4e8; padding: 4px 12px; font-size: 12px; color: #586069; border-radius: 6px 6px 0 0;">${block.lang}</div>` : ''
+              const codeHtml = `<div style="margin: 16px 0;">${langLabel}<pre style="background: #f6f8fa; padding: 16px; border-radius: ${block.lang ? '0 0 6px 6px' : '6px'}; overflow-x: auto; font-family: 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 14px; line-height: 1.45; margin: 0; white-space: pre-wrap; word-wrap: break-word;"><code>${escapedCode}</code></pre></div>`
+              
+              html = html.replace(`__CODE_BLOCK_${index}__`, codeHtml)
+            })
+            
+            // 恢复行内代码
+            inlineCodes.forEach((code, index) => {
+              const escapedCode = code
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+              const codeHtml = `<code style="background: #f6f8fa; padding: 2px 6px; border-radius: 3px; font-family: 'SF Mono', Consolas, monospace; font-size: 0.9em;">${escapedCode}</code>`
+              
+              html = html.replace(`__INLINE_CODE_${index}__`, codeHtml)
+            })
+            
+            // 恢复块级公式（使用 CodeCogs API 渲染为图片）
+            blockFormulas.forEach((formula, index) => {
+              const encodedFormula = encodeURIComponent(formula)
+              const formulaHtml = `<div style="text-align: center; margin: 16px 0;"><img src="https://latex.codecogs.com/svg.image?${encodedFormula}" alt="${formula.replace(/"/g, '&quot;')}" style="max-width: 100%;" /></div>`
+              
+              html = html.replace(`__BLOCK_FORMULA_${index}__`, formulaHtml)
+            })
+            
+            // 恢复行内公式
+            inlineFormulas.forEach((formula, index) => {
+              const encodedFormula = encodeURIComponent(formula)
+              const formulaHtml = `<img src="https://latex.codecogs.com/svg.image?${encodedFormula}" alt="${formula.replace(/"/g, '&quot;')}" style="vertical-align: middle;" />`
+              
+              html = html.replace(`__INLINE_FORMULA_${index}__`, formulaHtml)
+            })
+            
+            // ========== 第四阶段：处理列表和段落 ==========
+            
+            // 处理无序列表项
+            html = html.replace(/^[\*\-\+] (.+)$/gm, '<li>$1</li>')
+            
+            // 处理有序列表项
+            html = html.replace(/^\d+[\.\)] (.+)$/gm, '<li>$1</li>')
+            
+            // 将连续的 <li> 包装成 <ul>
+            html = html.replace(/(<li>[\s\S]*?<\/li>\n?)+/g, (match) => {
+              return `<ul>${match}</ul>`
+            })
+            
+            // 处理段落
+            const lines = html.split('\n')
+            const result = []
+            let paragraphLines = []
+            
+            const isBlockElement = (line) => {
+              const trimmed = line.trim()
+              return !trimmed || 
+                     trimmed.startsWith('<h') || 
+                     trimmed.startsWith('<pre') || 
+                     trimmed.startsWith('<blockquote') || 
+                     trimmed.startsWith('<ul') || 
+                     trimmed.startsWith('<ol') || 
+                     trimmed.startsWith('<hr') || 
+                     trimmed.startsWith('<div') || 
+                     trimmed.startsWith('<li') ||
+                     trimmed.startsWith('<img') ||
+                     trimmed.startsWith('</ul') ||
+                     trimmed.startsWith('</ol')
+            }
+            
+            const flushParagraph = () => {
+              if (paragraphLines.length > 0) {
+                result.push(`<p>${paragraphLines.join('<br />')}</p>`)
+                paragraphLines = []
+              }
+            }
+            
+            for (const line of lines) {
+              const trimmed = line.trim()
+              
+              if (!trimmed) {
+                flushParagraph()
+                continue
+              }
+              
+              if (isBlockElement(line)) {
+                flushParagraph()
+                result.push(trimmed)
+              } else {
+                paragraphLines.push(trimmed)
+              }
+            }
+            
+            flushParagraph()
+            
+            return result.join('\n')
+          }
+
+          // ========== 主流程 ==========
+          try {
+            console.log('[COSE] Twitter Articles 开始填充内容...')
+
+            // 使用内置解析器转换 Markdown 为 HTML
+            const htmlContent = parseMarkdownToHtml(markdown)
+            console.log('[COSE] Markdown 已转换为 HTML')
+
+            // 第一步：填充标题
+            const titleInput = await waitForElement('textarea[placeholder="Add a title"], textarea[name="Article Title"]', 5000)
+            if (titleInput && title) {
+              titleInput.focus()
+              const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
+              nativeSetter.call(titleInput, title)
+              titleInput.dispatchEvent(new Event('input', { bubbles: true }))
+              titleInput.dispatchEvent(new Event('change', { bubbles: true }))
+              console.log('[COSE] Twitter Articles 标题填充成功')
+            } else {
+              console.log('[COSE] Twitter Articles 未找到标题输入框')
+            }
+
+            await sleep(500)
+
+            // 第二步：填充内容
+            const contentEl = await waitForElement('.public-DraftEditor-content[contenteditable="true"], .DraftEditor-root [contenteditable="true"]', 5000)
+            if (contentEl && htmlContent) {
+              contentEl.focus()
+
+              const dt = new DataTransfer()
+              dt.setData('text/html', htmlContent)
+              dt.setData('text/plain', htmlContent.replace(/<[^>]*>/g, ''))
+
+              const pasteEvent = new ClipboardEvent('paste', {
+                bubbles: true,
+                cancelable: true,
+                clipboardData: dt
+              })
+
+              contentEl.dispatchEvent(pasteEvent)
+              console.log('[COSE] Twitter Articles 内容填充成功')
+              return { success: true, method: 'paste-html', length: htmlContent.length }
+            } else {
+              console.log('[COSE] Twitter Articles 未找到内容编辑器')
+              return { success: false, error: 'Content editor not found' }
+            }
+          } catch (e) {
+            console.error('[COSE] Twitter Articles 同步失败:', e)
+            return { success: false, error: e.message }
+          }
+        },
+        args: [content.title, markdownContent],
+        world: 'MAIN',
+      })
+
+      console.log('[COSE] Twitter Articles 填充结果:', fillResult[0]?.result)
+
+      // 等待内容注入完成
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      return { success: true, message: '已同步到 Twitter Articles', tabId: tab.id }
     } else {
       // 其他平台
       let targetUrl = platform.publishUrl
