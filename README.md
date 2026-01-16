@@ -37,30 +37,55 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 
 ## 已支持的平台
 
-- 微信公众号
-- 今日头条
-- 知乎
-- 博客园
-- 百家号
-- 网易号
-- CSDN
-- 掘金
-- 思否
-- 开源中国
-- 51CTO
-- InfoQ
-- 简书
-- 腾讯云
-- Medium
-- 少数派
-- 搜狐号
-- B站专栏
-- 微博文章
-- 阿里云社区
-- 华为云博客
-- 华为开发者文章
-- X(Formerly Twitter) Articles
-- 百度云千帆
+### 媒体平台
+
+<div align="center">
+<div>
+<img src="https://cdn.simpleicons.org/wechat" alt="微信公众号" width="60" height="60" />
+<img src="https://api.iconify.design/icon-park-solid/jinritoutiao.svg?color=%23ED1C24" alt="今日头条" width="60" height="60" />
+<img src="https://cdn.simpleicons.org/zhihu" alt="知乎" width="60" height="60" />
+<img src="https://cdn.simpleicons.org/baidu" alt="百家号" width="60" height="60" />
+<img src="https://cdn.simpleicons.org/neteasecloudmusic" alt="网易号" width="60" height="60" />
+<img src="https://favicon.im/sohu.com?larger=true" alt="搜狐号" width="60" height="60" />
+<img src="https://cdn.simpleicons.org/sinaweibo" alt="微博文章" width="60" height="60" />
+<img src="https://cdn.simpleicons.org/bilibili" alt="B站专栏" width="60" height="60" />
+<img src="https://icon.horse/icon/sspai.com" alt="少数派" width="60" height="60" />
+<img src="https://cdn.simpleicons.org/x" alt="X(Formerly Twitter) Articles" width="60" height="60" />
+</div>
+</div>
+
+
+### 博客平台
+<div align="center">
+<div>
+<img src="https://cdn.simpleicons.org/csdn/FC5531" alt="CSDN" width="60" height="60" />
+<img src="https://favicon.im/cnblogs.com?larger=true" alt="博客园" width="60" height="60" />
+<img src="https://cdn.simpleicons.org/juejin/1E80FF" alt="掘金" width="60" height="60" />
+<img src="https://favicon.im/medium.com?larger=true" alt="Medium" width="60" height="60" />
+<img src="https://cdn.brandfetch.io/id4vYQbdaC/w/168/h/62/theme/dark/logo.png?c=1bxid64Mup7aczewSAYMX&t=1743144928777" alt="51CTO" width="60" height="60" />
+<img src="https://cdn.brandfetch.io/id5v32DsU5/w/400/h/400/theme/dark/icon.png?c=1bxid64Mup7aczewSAYMX&t=1767149702768" alt="思否" width="60" height="60" />
+<img src="https://static.oschina.net/new-osc/img/logo_osc.svg" alt="开源中国" width="60" height="60" />
+<img src="https://www.google.com/s2/favicons?domain=infoq.cn&sz=128" alt="InfoQ" width="60" height="60" />
+<img src="https://favicon.im/jianshu.com?larger=true" alt="简书" width="60" height="60" />
+</div>
+</div>
+
+### 云平台及其开发者社区
+
+<div align="center">
+<div>
+  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/dark/tencentcloud-color.png" alt="腾讯云" width="30" height="60" />
+  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/light/tencentcloud-text.png" alt="腾讯云" width="70" height="60" />
+  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/dark/alibabacloud-color.png" alt="阿里云社区" width="30" height="60" />
+  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/light/alibabacloud-text.png" alt="阿里云社区" width="140" height="60" />
+  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/dark/huaweicloud-color.png" alt="华为云博客" width="30" height="60" />
+  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/light/huaweicloud-text-cn.png" alt="华为云博客" width="70" height="60" />
+  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/dark/huawei-color.png" alt="华为开发者文章" width="30" height="60" />
+  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/light/huawei-text.png" alt="华为开发者文章" width="100" height="60" />
+  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/dark/baiducloud-color.png" alt="百度云千帆" width="30" height="60" />
+  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/light/baiducloud-text.png" alt="百度云千帆" width="110" height="60" />
+</div>
+</div>
 
 更多想要添加的平台欢迎提 [Issue](https://github.com/doocs/cose/issues) ！
 
