@@ -38,6 +38,29 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 ## 已支持的平台
 
 > 更多想要添加的平台欢迎提 [Issue](https://github.com/doocs/cose/issues) ！
+>
+> <details>
+> <summary>已支持平台速查表(点击展开)</summary>
+>
+> | 字母 | 平台 |
+> |:---:|:---|
+> | A | 阿里云社区 |
+> | B | B站专栏、百度云千帆、百家号、博客园 |
+> | C | CSDN |
+> | H | 华为开发者文章、华为云博客 |
+> | I | InfoQ |
+> | J | 简书、掘金、今日头条 |
+> | K | 开源中国 |
+> | M | Medium |
+> | S | 少数派、搜狐号、思否 |
+> | T | 腾讯云 |
+> | W | 网易号、微博文章、微信公众号 |
+> | X | X(Formerly Twitter) Articles |
+> | Z | 知乎 |
+> | 5 | 51CTO |
+>
+> </details>
+
 
 
 ### 媒体平台
@@ -74,6 +97,7 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 </div>
 
 ### 云平台及其开发者社区
+<br/>
 
 <div align="center">
 <div>
@@ -89,6 +113,7 @@ _**C**reate **O**nce **S**ync **E**verywhere_
   <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/light/baiducloud-text.png" alt="百度云千帆" width="110" height="60" />
 </div>
 </div>
+
 
 ## 开发者模式测试
 
