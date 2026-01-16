@@ -90,6 +90,29 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 </div>
 </div>
 
+<details>
+<summary>已支持平台速查表</summary>
+
+| 字母 | 平台 |
+|:---:|:---|
+| A | 阿里云社区 |
+| B | B站专栏、百度云千帆、百家号、博客园 |
+| C | CSDN |
+| H | 华为开发者文章、华为云博客 |
+| I | InfoQ |
+| J | 简书、掘金、今日头条 |
+| K | 开源中国 |
+| M | Medium |
+| S | 少数派、搜狐号、思否 |
+| T | 腾讯云 |
+| W | 网易号、微博文章、微信公众号 |
+| X | X(Formerly Twitter) Articles |
+| Z | 知乎 |
+| 5 | 51CTO |
+
+</details>
+
+
 ## 开发者模式测试
 
 1. 克隆或下载本项目
