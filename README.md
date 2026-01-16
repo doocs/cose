@@ -53,7 +53,7 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 <img src="https://cdn.simpleicons.org/sinaweibo" alt="微博文章" width="60" height="60" />
 <img src="https://cdn.simpleicons.org/bilibili" alt="B站专栏" width="60" height="60" />
 <img src="https://icon.horse/icon/sspai.com" alt="少数派" width="60" height="60" />
-<img src="https://cdn.simpleicons.org/x" alt="X(Formerly Twitter) Articles" width="60" height="60" />
+<img src="https://cdn.simpleicons.org/x" alt="X(Formerly Twitter) Articles" width="50" height="60" />
 </div>
 </div>
 
