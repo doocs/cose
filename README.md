@@ -61,15 +61,15 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 ### 博客平台
 <div align="center">
 <div>
-<img src="https://cdn.simpleicons.org/csdn/FC5531" alt="CSDN" width="60" height="60" />
+<img src="https://cdn.simpleicons.org/csdn/FC5531" alt="CSDN" width="80" height="60" />
 <img src="https://favicon.im/cnblogs.com?larger=true" alt="博客园" width="60" height="60" />
 <img src="https://cdn.simpleicons.org/juejin/1E80FF" alt="掘金" width="60" height="60" />
 <img src="https://favicon.im/medium.com?larger=true" alt="Medium" width="60" height="60" />
-<img src="https://cdn.brandfetch.io/id4vYQbdaC/w/168/h/62/theme/dark/logo.png?c=1bxid64Mup7aczewSAYMX&t=1743144928777" alt="51CTO" width="60" height="60" />
 <img src="https://cdn.brandfetch.io/id5v32DsU5/w/400/h/400/theme/dark/icon.png?c=1bxid64Mup7aczewSAYMX&t=1767149702768" alt="思否" width="60" height="60" />
-<img src="https://static.oschina.net/new-osc/img/logo_osc.svg" alt="开源中国" width="60" height="60" />
-<img src="https://www.google.com/s2/favicons?domain=infoq.cn&sz=128" alt="InfoQ" width="60" height="60" />
+  <img src="https://www.google.com/s2/favicons?domain=infoq.cn&sz=128" alt="InfoQ" width="60" height="60" />
 <img src="https://favicon.im/jianshu.com?larger=true" alt="简书" width="60" height="60" />
+<img src="https://static.oschina.net/new-osc/img/logo_osc.svg" alt="开源中国" width="120" height="60" />
+<img src="https://cdn.brandfetch.io/id4vYQbdaC/w/168/h/62/theme/dark/logo.png?c=1bxid64Mup7aczewSAYMX&t=1743144928777" alt="51CTO" width="80" height="60" />
 </div>
 </div>
 
