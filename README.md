@@ -37,6 +37,9 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 
 ## 已支持的平台
 
+> 更多想要添加的平台欢迎提 [Issue](https://github.com/doocs/cose/issues) ！
+
+
 ### 媒体平台
 
 <div align="center">
@@ -86,8 +89,6 @@ _**C**reate **O**nce **S**ync **E**verywhere_
   <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/light/baiducloud-text.png" alt="百度云千帆" width="110" height="60" />
 </div>
 </div>
-
-更多想要添加的平台欢迎提 [Issue](https://github.com/doocs/cose/issues) ！
 
 ## 开发者模式测试
 
