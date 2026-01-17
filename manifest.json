@@ -42,7 +42,8 @@
     "https://developer.huawei.com/*",
     "https://*.x.com/*",
     "https://*.twitter.com/*",
-    "https://qianfan.cloud.baidu.com/*"
+    "https://qianfan.cloud.baidu.com/*",
+    "https://*.alipay.com/*"
   ],
   "action": {
     "default_icon": {

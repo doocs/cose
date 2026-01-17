@@ -56,7 +56,7 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 > | T | 腾讯云 |
 > | W | 网易号、微博文章、微信公众号 |
 > | X | X(Formerly Twitter) Articles |
-> | Z | 知乎 |
+> | Z | 支付宝开放平台、知乎 |
 > | 5 | 51CTO |
 >
 > </details>
@@ -111,6 +111,7 @@ _**C**reate **O**nce **S**ync **E**verywhere_
   <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/light/huawei-text.png" alt="华为开发者文章" width="100" height="60" />
   <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/dark/baiducloud-color.png" alt="百度云千帆" width="30" height="60" />
   <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/light/baiducloud-text.png" alt="百度云千帆" width="110" height="60" />
+  <img src="https://cdn.simpleicons.org/alipay/1677FF" alt="支付宝开放平台" width="30" height="50" />
 </div>
 </div>
 

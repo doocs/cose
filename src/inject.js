@@ -87,6 +87,7 @@
     { id: 'huaweidev', name: 'HuaweiDev', icon: 'https://developer.huawei.com/favicon.ico', title: '华为开发者文章', type: 'huaweidev', url: 'https://developer.huawei.com/consumer/cn/blog/create' },
     { id: 'twitter', name: 'Twitter', icon: 'https://abs.twimg.com/favicons/twitter.3.ico', title: 'Twitter Articles', type: 'twitter', url: 'https://x.com/compose/articles/edit/' },
     { id: 'qianfan', name: 'Qianfan', icon: 'https://bce.bdstatic.com/img/favicon.ico', title: '百度云千帆', type: 'qianfan', url: 'https://qianfan.cloud.baidu.com/qianfandev/topic/create' },
+    { id: 'alipayopen', name: 'AlipayOpen', icon: 'https://www.alipay.com/favicon.ico', title: '支付宝开放平台', type: 'alipayopen', url: 'https://open.alipay.com/portal/forum/post/add#article' },
   ]
 
   // 暴露 $cose 全局对象
