@@ -43,7 +43,8 @@
     "https://*.x.com/*",
     "https://*.twitter.com/*",
     "https://qianfan.cloud.baidu.com/*",
-    "https://*.alipay.com/*"
+    "https://*.alipay.com/*",
+    "https://*.modelscope.cn/*"
   ],
   "action": {
     "default_icon": {

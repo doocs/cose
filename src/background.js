@@ -3336,6 +3336,95 @@ function fillContentOnPage(content, platformId) {
     else if (host.includes('mp.sohu.com')) {
       console.log('[COSE] 搜狐号由 syncToPlatform 处理')
     }
+    // ModelScope 魔搭社区
+    // 使用仓颉(cangjie)富文本编辑器，需要特殊的事件序列来触发"转为富文本"
+    else if (host.includes('modelscope.cn')) {
+      console.log('[COSE] ModelScope 开始同步...')
+      
+      // 等待页面加载
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      
+      const textarea = document.querySelector('textarea')
+      const cangjieEditor = document.querySelector('[data-cangjie-editable="true"]')
+      
+      if (textarea) {
+        // 聚焦到 textarea
+        textarea.focus()
+        
+        // 触发 paste 事件（这会设置内容并触发"转为富文本"）
+        // 注意：不要预先设置 textarea.value，否则会导致内容重复
+        try {
+          const clipboardData = new DataTransfer()
+          clipboardData.setData('text/plain', contentToFill)
+          const pasteEvent = new ClipboardEvent('paste', {
+            bubbles: true,
+            cancelable: true,
+            clipboardData: clipboardData
+          })
+          textarea.dispatchEvent(pasteEvent)
+        } catch (e) {
+          // 如果 ClipboardEvent 失败，降级到手动设置
+          const textareaSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
+          textareaSetter.call(textarea, contentToFill)
+          textarea.dispatchEvent(new InputEvent('input', { 
+            bubbles: true, 
+            data: contentToFill, 
+            inputType: 'insertText'
+          }))
+        }
+        
+        textarea.dispatchEvent(new Event('change', { bubbles: true }))
+        
+        console.log('[COSE] ModelScope 内容填充成功')
+        
+        // 等待"转为富文本"按钮出现并点击
+        await new Promise(resolve => setTimeout(resolve, 800))
+        
+        // 查找并点击"转为富文本"按钮
+        const findAndClickRichTextBtn = () => {
+          // 使用特定选择器
+          const richTextBtn = document.querySelector('[data-testid="menu-item-markdownToDoc"][data-role="markdownToDoc"]')
+          if (richTextBtn) {
+            console.log('[COSE] ModelScope 找到"转为富文本"按钮，点击中...')
+            richTextBtn.click()
+            return true
+          }
+          
+          // 降级：查找文本匹配
+          const allElements = document.querySelectorAll('button, span, div, a, [role="button"]')
+          for (const el of allElements) {
+            const text = el.textContent?.trim()
+            if (text === '转为富文本' || text?.includes('转为富文本')) {
+              console.log('[COSE] ModelScope 找到"转为富文本"按钮（通过文本），点击中...')
+              el.click()
+              return true
+            }
+          }
+          return false
+        }
+        
+        // 尝试多次查找
+        let found = findAndClickRichTextBtn()
+        for (let i = 0; i < 5 && !found; i++) {
+          await new Promise(resolve => setTimeout(resolve, 500))
+          found = findAndClickRichTextBtn()
+        }
+        
+        if (found) {
+          console.log('[COSE] ModelScope 已点击"转为富文本"')
+        } else {
+          console.log('[COSE] ModelScope 未找到"转为富文本"按钮（可能已自动转换）')
+        }
+      } else if (cangjieEditor) {
+        // 降级：直接操作仓颉编辑器
+        cangjieEditor.focus()
+        document.execCommand('selectAll', false, null)
+        document.execCommand('insertText', false, contentToFill)
+        console.log('[COSE] ModelScope 通过 execCommand 填充')
+      } else {
+        console.log('[COSE] ModelScope 未找到编辑器')
+      }
+    }
     // 通用处理
     else {
       const titleSelectors = ['input[placeholder*="标题"]', 'input[name="title"]', 'textarea[placeholder*="标题"]']

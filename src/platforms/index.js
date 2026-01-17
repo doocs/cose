@@ -24,6 +24,7 @@ import { HuaweiDevPlatform, HuaweiDevLoginConfig } from './huaweidev.js'
 import { TwitterPlatform, TwitterLoginConfig } from './twitter.js'
 import { QianfanPlatform, QianfanLoginConfig } from './qianfan.js'
 import { AlipayOpenPlatform, AlipayOpenLoginConfig } from './alipayopen.js'
+import { ModelScopePlatform, ModelScopeLoginConfig } from './modelscope.js'
 
 // 合并平台配置
 const PLATFORMS = [
@@ -52,6 +53,7 @@ const PLATFORMS = [
   TwitterPlatform,
   QianfanPlatform,
   AlipayOpenPlatform,
+  ModelScopePlatform,
 ]
 
 // 合并登录检测配置
@@ -81,6 +83,7 @@ const LOGIN_CHECK_CONFIG = {
   [TwitterPlatform.id]: TwitterLoginConfig,
   [QianfanPlatform.id]: QianfanLoginConfig,
   [AlipayOpenPlatform.id]: AlipayOpenLoginConfig,
+  [ModelScopePlatform.id]: ModelScopeLoginConfig,
 }
 
 // 根据 hostname 获取平台填充函数
@@ -110,6 +113,7 @@ function getPlatformFiller(hostname) {
   if (hostname.includes('x.com') || hostname.includes('twitter.com')) return 'twitter'
   if (hostname.includes('qianfan.cloud.baidu.com')) return 'qianfan'
   if (hostname.includes('open.alipay.com')) return 'alipayopen'
+  if (hostname.includes('modelscope.cn')) return 'modelscope'
   return 'generic'
 }
 

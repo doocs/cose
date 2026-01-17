@@ -51,7 +51,7 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 > | I | InfoQ |
 > | J | 简书、掘金、今日头条 |
 > | K | 开源中国 |
-> | M | Medium |
+> | M | Medium、ModelScope 魔搭社区 |
 > | S | 少数派、搜狐号、思否 |
 > | T | 腾讯云 |
 > | W | 网易号、微博文章、微信公众号 |
@@ -112,6 +112,8 @@ _**C**reate **O**nce **S**ync **E**verywhere_
   <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/dark/baiducloud-color.png" alt="百度云千帆" width="30" height="60" />
   <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/light/baiducloud-text.png" alt="百度云千帆" width="110" height="60" />
   <img src="https://cdn.simpleicons.org/alipay/1677FF" alt="支付宝开放平台" width="30" height="50" />
+  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/dark/modelscope-color.png" alt="魔搭社区" width="36" height="60" />
+  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/light/modelscope-text.png" alt="魔搭社区" width="160" height="60" />
 </div>
 </div>
 
