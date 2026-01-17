@@ -1,5 +1,6 @@
 // 平台配置
 import { PLATFORMS, LOGIN_CHECK_CONFIG } from './platforms/index.js'
+import { fillAlipayOpenContent } from './platforms/alipayopen.js'
 
 // 当前同步任务的 Tab Group ID
 let currentSyncGroupId = null
@@ -120,6 +121,106 @@ async function checkPlatformLogin(platform) {
     return { loggedIn: false, error: '未配置检测' }
   }
 
+  // 支付宝开放平台特殊处理：静默创建后台 tab 检测登录状态
+  if (platform.id === 'alipayopen') {
+    let tempTab = null
+    try {
+      console.log(`[COSE] alipayopen 开始静默检测`)
+      
+      // 先查找已打开的支付宝页面
+      let tabs = await chrome.tabs.query({ url: 'https://open.alipay.com/*' })
+      if (tabs.length === 0) {
+        tabs = await chrome.tabs.query({ url: 'https://*.alipay.com/*' })
+      }
+      
+      let targetTabId
+      if (tabs.length > 0) {
+        // 使用已打开的页面
+        targetTabId = tabs[0].id
+        console.log(`[COSE] alipayopen 使用已打开的页面`)
+      } else {
+        // 创建隐藏窗口中的 tab（用户不可见）
+        console.log(`[COSE] alipayopen 创建隐藏窗口`)
+        const tempWindow = await chrome.windows.create({
+          url: 'https://open.alipay.com/portal/forum/',
+          state: 'minimized',
+          focused: false,
+        })
+        tempTab = { id: tempWindow.tabs[0].id, windowId: tempWindow.id }
+        targetTabId = tempTab.id
+        
+        // 等待页面加载完成（监听 onUpdated 事件）
+        await new Promise((resolve) => {
+          const listener = (tabId, info) => {
+            if (tabId === targetTabId && info.status === 'complete') {
+              chrome.tabs.onUpdated.removeListener(listener)
+              resolve()
+            }
+          }
+          chrome.tabs.onUpdated.addListener(listener)
+          // 超时保护 5 秒
+          setTimeout(() => {
+            chrome.tabs.onUpdated.removeListener(listener)
+            resolve()
+          }, 5000)
+        })
+      }
+      
+      // 在页面上下文中调用 API
+      const results = await chrome.scripting.executeScript({
+        target: { tabId: targetTabId },
+        func: () => {
+          return new Promise((resolve) => {
+            fetch('https://developerportal.alipay.com/octopus/service.do', {
+              method: 'POST',
+              credentials: 'include',
+              headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8',
+              },
+              body: 'data=%5B%7B%7D%5D&serviceName=alipay.open.developerops.forum.user.query',
+            })
+            .then(response => response.ok ? response.json() : null)
+            .then(data => {
+              if (data?.stat === 'ok' && data?.data?.isLoginUser === 1) {
+                resolve({ nickname: data.data.nickname, avatar: data.data.avatar })
+              } else {
+                resolve(null)
+              }
+            })
+            .catch(() => resolve(null))
+          })
+        }
+      })
+      
+      // 关闭临时创建的窗口
+      if (tempTab && tempTab.windowId) {
+        await chrome.windows.remove(tempTab.windowId)
+        console.log(`[COSE] alipayopen 已关闭隐藏窗口`)
+      }
+      
+      const data = results?.[0]?.result
+      if (data && data.nickname) {
+        console.log(`[COSE] alipayopen 已登录:`, data.nickname)
+        return {
+          loggedIn: true,
+          username: data.nickname,
+          avatar: data.avatar || '',
+        }
+      }
+      
+      console.log(`[COSE] alipayopen 未登录或获取用户信息失败`)
+      return { loggedIn: false }
+    } catch (e) {
+      // 确保关闭临时窗口
+      if (tempTab && tempTab.windowId) {
+        try { await chrome.windows.remove(tempTab.windowId) } catch {}
+      }
+      console.log(`[COSE] alipayopen 检测失败:`, e.message)
+      return { loggedIn: false, error: e.message }
+    }
+  }
+
   // 微博特殊处理：通过 cookie 检测登录，通过 fetch HTML 获取用户信息
   if (platform.id === 'weibo') {
     try {
@@ -207,6 +308,7 @@ async function checkPlatformLogin(platform) {
   }
 
   try {
+    console.log(`[COSE] ${platform.id} 开始 API 检测:`, config.api)
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 8000)
     const response = await fetch(config.api, {
@@ -216,20 +318,25 @@ async function checkPlatformLogin(platform) {
       signal: controller.signal,
     })
     clearTimeout(timeoutId)
+    console.log(`[COSE] ${platform.id} API 响应状态:`, response.status)
 
     let data = null
     const contentType = response.headers.get('content-type') || ''
     if (contentType.includes('application/json') || contentType.includes('text/plain')) {
       try { data = await response.json() } catch (e) { data = null }
     }
+    console.log(`[COSE] ${platform.id} API 数据:`, data)
 
     const loggedIn = config.checkLogin(data)
+    console.log(`[COSE] ${platform.id} checkLogin 结果:`, loggedIn, 'type:', typeof loggedIn)
     if (loggedIn && config.getUserInfo) {
       const userInfo = config.getUserInfo(data)
+      console.log(`[COSE] ${platform.id} 用户信息:`, userInfo)
       return { loggedIn: true, ...userInfo }
     }
     return { loggedIn: !!loggedIn }
   } catch (error) {
+    console.log(`[COSE] ${platform.id} API 检测失败:`, error.message)
     return { loggedIn: false, error: error.message }
   }
 }
@@ -1761,6 +1868,35 @@ async function syncToPlatform(platformId, content) {
       await new Promise(resolve => setTimeout(resolve, 2000))
 
       return { success: true, message: '已同步到百度云千帆', tabId: tab.id }
+    }
+
+    // 支付宝开放平台：使用 ne-engine 富文本编辑器，支持 Markdown 转换
+    if (platformId === 'alipayopen') {
+      // 先打开发布页面
+      tab = await chrome.tabs.create({ url: platform.publishUrl, active: false })
+      await addTabToSyncGroup(tab.id, tab.windowId)
+      await waitForTab(tab.id)
+
+      // 等待页面加载
+      await new Promise(resolve => setTimeout(resolve, 2000))
+
+      const markdownContent = content.markdown || content.body || ''
+      console.log('[COSE] 支付宝开放平台 Markdown 内容长度:', markdownContent?.length || 0)
+
+      // 使用导入的填充函数
+      const fillResult = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: fillAlipayOpenContent,
+        args: [content.title, markdownContent],
+        world: 'MAIN',
+      })
+
+      console.log('[COSE] 支付宝开放平台填充结果:', fillResult[0]?.result)
+
+      // 等待内容处理完成
+      await new Promise(resolve => setTimeout(resolve, 2000))
+
+      return { success: true, message: '已同步到支付宝开放平台', tabId: tab.id }
     } else {
       // 其他平台
       let targetUrl = platform.publishUrl
