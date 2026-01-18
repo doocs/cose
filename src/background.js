@@ -1212,32 +1212,59 @@ async function syncToPlatform(platformId, content) {
   try {
     let tab
 
-    // 微信公众号需要特殊处理：先打开首页获取 token，再跳转到编辑器
+    // 微信公众号：主动打开首页，然后进入编辑器
     if (platformId === 'wechat') {
-      // 先打开首页
+      // 步骤1：先打开微信公众号首页
+      console.log('[COSE] 打开微信公众号首页')
       tab = await chrome.tabs.create({ url: 'https://mp.weixin.qq.com/', active: false })
       await addTabToSyncGroup(tab.id, tab.windowId)
       await waitForTab(tab.id)
-
-      // 从首页提取 token 并跳转到编辑器
+      
+      // 等待页面加载完成
+      await new Promise(resolve => setTimeout(resolve, 3000))
+      
+      // 步骤2：从页面提取 token
       const [result] = await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: () => {
-          // 从页面 URL 或 DOM 中提取 token
-          const tokenMatch = document.body.innerHTML.match(/token[=:]["']?(\d+)["']?/i)
-          return tokenMatch ? tokenMatch[1] : null
-        },
+          // 从当前 URL 提取
+          const urlMatch = window.location.href.match(/token=(\d+)/)
+          if (urlMatch) return urlMatch[1]
+          
+          // 从页面中的链接提取
+          const links = document.querySelectorAll('a[href*="token"]')
+          for (const link of links) {
+            const match = link.href?.match(/token=(\d+)/)
+            if (match) return match[1]
+          }
+          
+          // 从页面脚本提取
+          const scripts = document.querySelectorAll('script:not([src])')
+          for (const script of scripts) {
+            const content = script.textContent
+            const match = content.match(/token["\']?\s*[:=]\s*["\']?(\d+)["\']?/i)
+            if (match && match[1]) {
+              return match[1]
+            }
+          }
+          
+          return null
+        }
       })
-
+      
       const token = result?.result
-      if (token) {
-        // 跳转到编辑器页面
-        const editorUrl = `https://mp.weixin.qq.com/cgi-bin/appmsg?t=media/appmsg_edit_v2&action=edit&isNew=1&type=10&token=${token}&lang=zh_CN`
-        await chrome.tabs.update(tab.id, { url: editorUrl })
-        await waitForTab(tab.id)
-      } else {
-        console.log('[COSE] 未能获取微信 token，使用默认页面')
+      
+      if (!token) {
+        console.error('[COSE] 无法从页面获取 token')
+        return { success: false, message: '无法获取微信公众号 token，请确保已登录', tabId: tab.id }
       }
+      
+      // 步骤3：跳转到编辑器页面
+      const editorUrl = `https://mp.weixin.qq.com/cgi-bin/appmsg?t=media/appmsg_edit_v2&action=edit&isNew=1&type=10&token=${token}&lang=zh_CN`
+      console.log('[COSE] 获取到 token:', token, '跳转到编辑器')
+      
+      await chrome.tabs.update(tab.id, { url: editorUrl })
+      await waitForTab(tab.id)
     } else if (platformId === 'zhihu') {
       // 知乎：使用导入文档功能上传 md 文件
       tab = await chrome.tabs.create({ url: platform.publishUrl, active: false })
@@ -1897,8 +1924,8 @@ async function syncToPlatform(platformId, content) {
       await new Promise(resolve => setTimeout(resolve, 2000))
 
       return { success: true, message: '已同步到支付宝开放平台', tabId: tab.id }
-    } else {
-      // 其他平台
+    } else if (platformId !== 'wechat') {
+      // 其他平台（排除微信，因为微信在上面已经处理）
       let targetUrl = platform.publishUrl
 
       // 开源中国：尝试使用动态用户 ID
@@ -1920,61 +1947,157 @@ async function syncToPlatform(platformId, content) {
 
     // 微信公众号：直接注入 HTML 到编辑器
     if (platformId === 'wechat') {
-      // 等待页面完全加载
-      await new Promise(resolve => setTimeout(resolve, 4000))
-
       // 使用剪贴板 HTML（带完整样式）或降级到 body
       const htmlContent = content.wechatHtml || content.body
       console.log('[COSE] 微信 HTML 内容长度:', htmlContent?.length || 0)
 
-      // 直接注入内容到编辑器（同步函数，避免 async 问题）
-      await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        func: (title, htmlBody) => {
-          // 填充标题
-          const titleInput = document.querySelector('#title')
-          if (titleInput && title) {
-            titleInput.focus()
-            titleInput.value = title
-            titleInput.dispatchEvent(new Event('input', { bubbles: true }))
-            console.log('[COSE] 标题已填充')
+      // 等待额外时间确保编辑器完全加载
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      
+      // 等待编辑器就绪并注入内容
+      console.log('[COSE] 开始注入微信内容...')
+      console.log('[COSE] 目标 tab ID:', tab.id)
+      
+      let result
+      try {
+        result = await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: async (title, htmlBody) => {
+          // 等待元素出现的工具函数
+          const waitForElement = (selector, timeout = 15000) => {
+            return new Promise((resolve) => {
+              const el = document.querySelector(selector)
+              if (el) return resolve(el)
+
+              const observer = new MutationObserver(() => {
+                const el = document.querySelector(selector)
+                if (el) {
+                  observer.disconnect()
+                  resolve(el)
+                }
+              })
+              observer.observe(document.body, { childList: true, subtree: true })
+
+              setTimeout(() => {
+                observer.disconnect()
+                resolve(document.querySelector(selector))
+              }, timeout)
+            })
           }
 
-          // 找到编辑器
-          const editor = document.querySelector('.ProseMirror') || document.querySelector('[contenteditable="true"]')
-          if (editor && htmlBody) {
-            editor.focus()
-
-            // 清空现有占位符内容
-            if (editor.textContent.includes('从这里开始写正文')) {
-              editor.innerHTML = ''
+          try {
+            // 等待编辑器加载完成
+            const editor = await waitForElement('.ProseMirror')
+            if (!editor) {
+              return { success: false, error: '未找到编辑器' }
             }
 
-            // 方法：创建 DataTransfer 并触发 paste 事件
-            const dt = new DataTransfer()
-            dt.setData('text/html', htmlBody)
-            dt.setData('text/plain', htmlBody.replace(/<[^>]*>/g, ''))
+            // 等待标题输入框
+            const titleInput = await waitForElement('#title')
 
-            const pasteEvent = new ClipboardEvent('paste', {
-              bubbles: true,
-              cancelable: true,
-              clipboardData: dt
-            })
+            // 填充标题
+            if (titleInput && title) {
+              titleInput.focus()
+              // 使用 native setter 确保 React/Vue 等框架能检测到变化
+              const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set
+              if (nativeSetter) {
+                nativeSetter.call(titleInput, title)
+              } else {
+                titleInput.value = title
+              }
+              titleInput.dispatchEvent(new Event('input', { bubbles: true }))
+              titleInput.dispatchEvent(new Event('change', { bubbles: true }))
+              console.log('[COSE] 微信标题已填充:', title)
+            }
 
-            editor.dispatchEvent(pasteEvent)
-            console.log('[COSE] 内容已通过 paste 事件注入')
+            // 稍等一下让标题生效
+            await new Promise(r => setTimeout(r, 300))
+
+            // 填充正文内容
+            if (editor && htmlBody) {
+              editor.focus()
+
+              // 清空现有占位符内容
+              if (editor.textContent.includes('从这里开始写正文')) {
+                editor.innerHTML = ''
+              }
+
+              // 使用 ClipboardEvent + DataTransfer 注入 HTML
+              const dt = new DataTransfer()
+              dt.setData('text/html', htmlBody)
+              dt.setData('text/plain', htmlBody.replace(/<[^>]*>/g, ''))
+
+              const pasteEvent = new ClipboardEvent('paste', {
+                bubbles: true,
+                cancelable: true,
+                clipboardData: dt
+              })
+
+              editor.dispatchEvent(pasteEvent)
+              console.log('[COSE] 微信内容已通过 paste 事件注入')
+
+              // 等待内容渲染
+              await new Promise(r => setTimeout(r, 500))
+
+              // 验证内容是否注入成功
+              const wordCount = editor.textContent?.length || 0
+              if (wordCount === 0) {
+                // 备用方案：直接设置 innerHTML
+                console.log('[COSE] paste 事件未生效，尝试备用方案')
+                editor.innerHTML = htmlBody
+                editor.dispatchEvent(new Event('input', { bubbles: true }))
+              }
+
+              return { 
+                success: true, 
+                wordCount: editor.textContent?.length || 0,
+                titleFilled: titleInput?.value === title
+              }
+            }
+
+            return { success: false, error: '内容为空' }
+          } catch (err) {
+            return { success: false, error: err.message }
           }
         },
         args: [content.title, htmlContent],
         world: 'MAIN',
       })
+      } catch (e) {
+        console.error('[COSE] executeScript 执行失败:', e)
+        return { success: false, message: '脚本执行失败: ' + e.message, tabId: tab.id }
+      }
 
-      // 等待内容注入完成后，点击保存为草稿按钮
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      console.log('[COSE] executeScript 返回数组长度:', result?.length)
+      console.log('[COSE] executeScript 完整返回:', JSON.stringify(result, null, 2))
+      
+      if (!result || result.length === 0) {
+        console.error('[COSE] executeScript 返回空数组')
+        return { success: false, message: '脚本执行失败：无返回值', tabId: tab.id }
+      }
+      
+      const fillResult = result[0].result
+      console.log('[COSE] 微信填充结果:', JSON.stringify(fillResult, null, 2))
+      
+      // 检查 result 结构
+      if (!result || !result[0]) {
+        console.error('[COSE] executeScript 没有返回有效结果')
+        return { success: false, message: '内容注入失败：脚本执行无返回值', tabId: tab.id }
+      }
+      
+      if (!fillResult?.success) {
+        console.error('[COSE] 微信内容填充失败:', fillResult?.error)
+        console.error('[COSE] 完整 result 对象:', result)
+        return { success: false, message: fillResult?.error || '内容填充失败', tabId: tab.id }
+      }
+
+      console.log('[COSE] 微信内容填充成功，字数:', fillResult.wordCount)
+
+      // 等待内容稳定后，点击保存为草稿按钮
+      await new Promise(resolve => setTimeout(resolve, 1000))
       await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: () => {
-          // 查找保存为草稿按钮
           const saveDraftBtn = Array.from(document.querySelectorAll('button'))
             .find(b => b.textContent.includes('保存为草稿'))
           if (saveDraftBtn) {
