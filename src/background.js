@@ -1,6 +1,6 @@
 // 平台配置
 import { PLATFORMS, LOGIN_CHECK_CONFIG } from './platforms/index.js'
-import { fillAlipayOpenContent } from './platforms/alipayopen.js'
+// [DISABLED] import { fillAlipayOpenContent } from './platforms/alipayopen.js'
 
 // 当前同步任务的 Tab Group ID
 let currentSyncGroupId = null
@@ -121,7 +121,7 @@ async function checkPlatformLogin(platform) {
     return { loggedIn: false, error: '未配置检测' }
   }
 
-  // 支付宝开放平台特殊处理：静默创建后台 tab 检测登录状态
+  /* [DISABLED] 支付宝开放平台特殊处理：静默创建后台 tab 检测登录状态
   if (platform.id === 'alipayopen') {
     let tempTab = null
     try {
@@ -220,6 +220,7 @@ async function checkPlatformLogin(platform) {
       return { loggedIn: false, error: e.message }
     }
   }
+  [DISABLED] */
 
   // 微博特殊处理：通过 cookie 检测登录，通过 fetch HTML 获取用户信息
   if (platform.id === 'weibo') {
@@ -1897,7 +1898,7 @@ async function syncToPlatform(platformId, content) {
       return { success: true, message: '已同步到百度云千帆', tabId: tab.id }
     }
 
-    // 支付宝开放平台：使用 ne-engine 富文本编辑器，支持 Markdown 转换
+    /* [DISABLED] 支付宝开放平台：使用 ne-engine 富文本编辑器，支持 Markdown 转换
     if (platformId === 'alipayopen') {
       // 先打开发布页面
       tab = await chrome.tabs.create({ url: platform.publishUrl, active: false })
@@ -1924,7 +1925,8 @@ async function syncToPlatform(platformId, content) {
       await new Promise(resolve => setTimeout(resolve, 2000))
 
       return { success: true, message: '已同步到支付宝开放平台', tabId: tab.id }
-    } else if (platformId !== 'wechat') {
+    } else [DISABLED] */
+    if (platformId !== 'wechat') {
       // 其他平台（排除微信，因为微信在上面已经处理）
       let targetUrl = platform.publishUrl
 

@@ -87,7 +87,7 @@
     { id: 'huaweidev', name: 'HuaweiDev', icon: 'https://developer.huawei.com/favicon.ico', title: '华为开发者文章', type: 'huaweidev', url: 'https://developer.huawei.com/consumer/cn/blog/create' },
     { id: 'twitter', name: 'Twitter', icon: 'https://abs.twimg.com/favicons/twitter.3.ico', title: 'Twitter Articles', type: 'twitter', url: 'https://x.com/compose/articles/edit/' },
     { id: 'qianfan', name: 'Qianfan', icon: 'https://bce.bdstatic.com/img/favicon.ico', title: '百度云千帆', type: 'qianfan', url: 'https://qianfan.cloud.baidu.com/qianfandev/topic/create' },
-    { id: 'alipayopen', name: 'AlipayOpen', icon: 'https://www.alipay.com/favicon.ico', title: '支付宝开放平台', type: 'alipayopen', url: 'https://open.alipay.com/portal/forum/post/add#article' },
+    // [DISABLED] { id: 'alipayopen', name: 'AlipayOpen', icon: 'https://www.alipay.com/favicon.ico', title: '支付宝开放平台', type: 'alipayopen', url: 'https://open.alipay.com/portal/forum/post/add#article' },
     { id: 'modelscope', name: 'ModelScope', icon: 'https://img.alicdn.com/imgextra/i4/O1CN01fvt4it25rEZU4Gjso_!!6000000007579-2-tps-128-128.png', title: 'ModelScope 魔搭社区', type: 'modelscope', url: 'https://modelscope.cn/learn/create' },
   ]
 

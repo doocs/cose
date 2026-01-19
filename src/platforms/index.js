@@ -23,7 +23,7 @@ import { HuaweiCloudPlatform, HuaweiCloudLoginConfig } from './huaweicloud.js'
 import { HuaweiDevPlatform, HuaweiDevLoginConfig } from './huaweidev.js'
 import { TwitterPlatform, TwitterLoginConfig } from './twitter.js'
 import { QianfanPlatform, QianfanLoginConfig } from './qianfan.js'
-import { AlipayOpenPlatform, AlipayOpenLoginConfig } from './alipayopen.js'
+// [DISABLED] import { AlipayOpenPlatform, AlipayOpenLoginConfig } from './alipayopen.js'
 import { ModelScopePlatform, ModelScopeLoginConfig } from './modelscope.js'
 
 // 合并平台配置
@@ -52,7 +52,7 @@ const PLATFORMS = [
   HuaweiDevPlatform,
   TwitterPlatform,
   QianfanPlatform,
-  AlipayOpenPlatform,
+  // [DISABLED] AlipayOpenPlatform,
   ModelScopePlatform,
 ]
 
@@ -82,7 +82,7 @@ const LOGIN_CHECK_CONFIG = {
   [HuaweiDevPlatform.id]: HuaweiDevLoginConfig,
   [TwitterPlatform.id]: TwitterLoginConfig,
   [QianfanPlatform.id]: QianfanLoginConfig,
-  [AlipayOpenPlatform.id]: AlipayOpenLoginConfig,
+  // [DISABLED] [AlipayOpenPlatform.id]: AlipayOpenLoginConfig,
   [ModelScopePlatform.id]: ModelScopeLoginConfig,
 }
 
@@ -112,7 +112,7 @@ function getPlatformFiller(hostname) {
   if (hostname.includes('developer.huawei.com')) return 'huaweidev'
   if (hostname.includes('x.com') || hostname.includes('twitter.com')) return 'twitter'
   if (hostname.includes('qianfan.cloud.baidu.com')) return 'qianfan'
-  if (hostname.includes('open.alipay.com')) return 'alipayopen'
+  // [DISABLED] if (hostname.includes('open.alipay.com')) return 'alipayopen'
   if (hostname.includes('modelscope.cn')) return 'modelscope'
   return 'generic'
 }
