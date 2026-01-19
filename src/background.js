@@ -2396,6 +2396,69 @@ async function syncToPlatform(platformId, content) {
       return { success: true, message: '已同步到阿里云开发者社区', tabId: tab.id }
     }
 
+    // 火山引擎开发者社区：使用 ByteMD 编辑器（基于 CodeMirror）
+    if (platformId === 'volcengine') {
+      // 等待页面完全加载
+      await new Promise(resolve => setTimeout(resolve, 3000))
+
+      // 火山引擎使用 Markdown 编辑器
+      const markdownContent = content.markdown || content.body || ''
+      console.log('[COSE] 火山引擎开发者社区 Markdown 内容长度:', markdownContent?.length || 0)
+
+      // 填充标题和内容
+      const fillResult = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: (title, markdown) => {
+          // 填充标题
+          const titleInput = document.querySelector('input[placeholder*="标题"]') ||
+            document.querySelector('input[class*="title"]') ||
+            document.querySelector('.article-title input')
+          if (titleInput && title) {
+            titleInput.focus()
+            // 使用 native setter 来绕过 React 的受控组件
+            const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set
+            nativeSetter.call(titleInput, title)
+            titleInput.dispatchEvent(new Event('input', { bubbles: true }))
+            titleInput.dispatchEvent(new Event('change', { bubbles: true }))
+            console.log('[COSE] 火山引擎开发者社区标题填充成功')
+          }
+
+          // 火山引擎使用 ByteMD 编辑器（基于 CodeMirror）
+          const codeMirrorEl = document.querySelector('.CodeMirror')
+          if (codeMirrorEl && codeMirrorEl.CodeMirror && markdown) {
+            codeMirrorEl.CodeMirror.setValue(markdown)
+            console.log('[COSE] 火山引擎开发者社区内容填充成功')
+            return { success: true, method: 'CodeMirror' }
+          }
+
+          // 备用方案：尝试直接操作 textarea
+          const contentTextarea = document.querySelector('.bytemd-editor textarea') ||
+            document.querySelector('textarea:not([placeholder*="标题"])')
+          
+          if (contentTextarea && markdown) {
+            contentTextarea.focus()
+            const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
+            nativeSetter.call(contentTextarea, markdown)
+            contentTextarea.dispatchEvent(new Event('input', { bubbles: true }))
+            contentTextarea.dispatchEvent(new Event('change', { bubbles: true }))
+            console.log('[COSE] 火山引擎开发者社区内容填充成功（textarea）')
+            return { success: true, method: 'textarea' }
+          }
+          
+          return { success: false, error: 'Editor not found' }
+        },
+        args: [content.title, markdownContent],
+        world: 'MAIN',
+      })
+
+      console.log('[COSE] 火山引擎开发者社区填充结果:', fillResult)
+
+      // 等待内容注入完成
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      return { success: true, message: '已同步到火山引擎开发者社区', tabId: tab.id }
+    }
+
     // 华为云开发者博客：使用 Markdown 编辑器（在 iframe 中）
     if (platformId === 'huaweicloud') {
       // 等待页面完全加载
