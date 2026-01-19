@@ -44,7 +44,8 @@
     "https://*.twitter.com/*",
     "https://qianfan.cloud.baidu.com/*",
     "https://*.alipay.com/*",
-    "https://*.modelscope.cn/*"
+    "https://*.modelscope.cn/*",
+    "https://*.volcengine.com/*"
   ],
   "action": {
     "default_icon": {

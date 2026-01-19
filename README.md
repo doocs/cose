@@ -47,7 +47,7 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 > | A | 阿里云社区 |
 > | B | B站专栏、百度云千帆、百家号、博客园 |
 > | C | CSDN |
-> | H | 华为开发者文章、华为云博客 |
+> | H | 华为开发者文章、华为云博客、火山引擎社区 |
 > | I | InfoQ |
 > | J | 简书、掘金、今日头条 |
 > | K | 开源中国 |
@@ -111,9 +111,12 @@ _**C**reate **O**nce **S**ync **E**verywhere_
   <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/light/huawei-text.png" alt="华为开发者文章" width="100" height="60" />
   <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/dark/baiducloud-color.png" alt="百度云千帆" width="30" height="60" />
   <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/light/baiducloud-text.png" alt="百度云千帆" width="110" height="60" />
-  <img src="https://cdn.simpleicons.org/alipay/1677FF" alt="支付宝开放平台" width="30" height="50" />
+  <br />
+  <!-- <img src="https://cdn.simpleicons.org/alipay/1677FF" alt="支付宝开放平台" width="30" height="50" /> -->
   <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/dark/modelscope-color.png" alt="魔搭社区" width="36" height="60" />
   <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/light/modelscope-text.png" alt="魔搭社区" width="160" height="60" />
+  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/dark/volcengine-color.png" alt="火山引擎" width="36" height="60" />
+  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/light/volcengine-text.png" alt="火山引擎" width="90" height="60" />
 </div>
 </div>
 
