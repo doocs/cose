@@ -11,7 +11,7 @@
 
       .phrase {
         font-family: 'Segoe UI', Arial, sans-serif;
-        font-size: 16px;
+        font-size: 25px;
         fill: #888;
       }
       .initial {
@@ -49,7 +49,7 @@
     </style>
   </defs>
   
-  <text class="phrase" x="225" y="45" text-anchor="middle">
+  <text class="phrase" x="225" y="60" text-anchor="middle">
     <tspan class="initial">C</tspan><tspan class="rest">reate </tspan>
     <tspan class="initial">O</tspan><tspan class="rest">nce, </tspan>
     <tspan class="initial">S</tspan><tspan class="rest">ynchronize </tspan>
