@@ -2,6 +2,11 @@
 import { PLATFORMS, LOGIN_CHECK_CONFIG } from './platforms/index.js'
 // [DISABLED] import { fillAlipayOpenContent } from './platforms/alipayopen.js'
 
+// 点击扩展图标时打开 md.doocs.org
+chrome.action.onClicked.addListener(() => {
+  chrome.tabs.create({ url: 'https://md.doocs.org' })
+})
+
 // 当前同步任务的 Tab Group ID
 let currentSyncGroupId = null
 // 存储平台用户信息
