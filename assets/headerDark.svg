@@ -9,7 +9,7 @@
             font-style: normal;
         }
 
-      .heading {
+      .letter {
         font-family: "Bungee Shade", sans-serif;
         font-size: 4em;
         font-weight: normal;
@@ -18,8 +18,12 @@
         stroke-width: 1;
         stroke-dasharray: 500;
         stroke-dashoffset: 500;
-        animation: draw 1s ease forwards, fillIn 0.3s ease 0.8s forwards;
       }
+      
+      .letter-0 { animation: draw 0.4s ease forwards, fillIn 0.4s ease 1.6s forwards; }
+      .letter-1 { animation: draw 0.4s ease 0.4s forwards, fillIn 0.4s ease 1.6s forwards; }
+      .letter-2 { animation: draw 0.4s ease 0.8s forwards, fillIn 0.4s ease 1.6s forwards; }
+      .letter-3 { animation: draw 0.4s ease 1.2s forwards, fillIn 0.4s ease 1.6s forwards; }
       
       @keyframes draw {
         to {
@@ -36,7 +40,7 @@
     </style>
   </defs>
   
-  <text class="heading" x="50%" y="80">
-    COSE
+  <text x="50%" y="80">
+    <tspan class="letter letter-0">C</tspan><tspan class="letter letter-1">O</tspan><tspan class="letter letter-2">S</tspan><tspan class="letter letter-3">E</tspan>
   </text>
 </svg>
