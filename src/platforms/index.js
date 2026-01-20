@@ -26,6 +26,7 @@ import { QianfanPlatform, QianfanLoginConfig } from './qianfan.js'
 // [DISABLED] import { AlipayOpenPlatform, AlipayOpenLoginConfig } from './alipayopen.js'
 import { ModelScopePlatform, ModelScopeLoginConfig } from './modelscope.js'
 import { VolcenginePlatform, VolcengineLoginConfig } from './volcengine.js'
+import { DouyinPlatform, DouyinLoginConfig } from './douyin.js'
 
 // 合并平台配置
 const PLATFORMS = [
@@ -56,6 +57,7 @@ const PLATFORMS = [
   // [DISABLED] AlipayOpenPlatform,
   ModelScopePlatform,
   VolcenginePlatform,
+  DouyinPlatform,
 ]
 
 // 合并登录检测配置
@@ -87,6 +89,7 @@ const LOGIN_CHECK_CONFIG = {
   // [DISABLED] [AlipayOpenPlatform.id]: AlipayOpenLoginConfig,
   [ModelScopePlatform.id]: ModelScopeLoginConfig,
   [VolcenginePlatform.id]: VolcengineLoginConfig,
+  [DouyinPlatform.id]: DouyinLoginConfig,
 }
 
 // 根据 hostname 获取平台填充函数
@@ -118,6 +121,7 @@ function getPlatformFiller(hostname) {
   // [DISABLED] if (hostname.includes('open.alipay.com')) return 'alipayopen'
   if (hostname.includes('modelscope.cn')) return 'modelscope'
   if (hostname.includes('developer.volcengine.com')) return 'volcengine'
+  if (hostname.includes('creator.douyin.com')) return 'douyin'
   return 'generic'
 }
 

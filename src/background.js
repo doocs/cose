@@ -2113,6 +2113,130 @@ async function syncToPlatform(platformId, content) {
       return { success: true, message: '已同步并保存为草稿', tabId: tab.id }
     }
 
+    // 抖音：使用剪贴板 HTML 粘贴到编辑器（类似微信公众号）
+    if (platformId === 'douyin') {
+      // 使用剪贴板 HTML（带完整样式）或降级到 body
+      const htmlContent = content.wechatHtml || content.body
+      console.log('[COSE] 抖音 HTML 内容长度:', htmlContent?.length || 0)
+      console.log('[COSE] 开始注入抖音内容...')
+      
+      let result
+      try {
+        result = await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: async (title, htmlBody) => {
+          // 等待元素出现的工具函数（检测到立即返回）
+          const waitForElement = (selector, timeout = 10000) => {
+            return new Promise((resolve) => {
+              const el = document.querySelector(selector)
+              if (el) return resolve(el)
+
+              const observer = new MutationObserver(() => {
+                const el = document.querySelector(selector)
+                if (el) {
+                  observer.disconnect()
+                  resolve(el)
+                }
+              })
+              observer.observe(document.body, { childList: true, subtree: true })
+
+              setTimeout(() => {
+                observer.disconnect()
+                resolve(document.querySelector(selector))
+              }, timeout)
+            })
+          }
+
+          try {
+            // 等待编辑器加载完成 - 抖音使用 contenteditable div
+            const editor = await waitForElement('[contenteditable="true"]')
+            if (!editor) {
+              return { success: false, error: '未找到编辑器' }
+            }
+
+            // 等待标题输入框
+            const titleInput = await waitForElement('input[placeholder*="标题"]')
+
+            // 填充标题
+            if (titleInput && title) {
+              titleInput.focus()
+              // 使用 native setter 确保 React 等框架能检测到变化
+              const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
+              if (nativeSetter) {
+                nativeSetter.call(titleInput, title)
+              } else {
+                titleInput.value = title
+              }
+              titleInput.dispatchEvent(new Event('input', { bubbles: true }))
+              titleInput.dispatchEvent(new Event('change', { bubbles: true }))
+              console.log('[COSE] 抖音标题已填充:', title)
+            }
+
+            // 填充正文内容
+            if (editor && htmlBody) {
+              editor.focus()
+
+              // 清空现有内容
+              editor.innerHTML = ''
+
+              // 使用 ClipboardEvent + DataTransfer 注入 HTML
+              const dt = new DataTransfer()
+              dt.setData('text/html', htmlBody)
+              dt.setData('text/plain', htmlBody.replace(/<[^>]*>/g, ''))
+
+              const pasteEvent = new ClipboardEvent('paste', {
+                bubbles: true,
+                cancelable: true,
+                clipboardData: dt
+              })
+
+              editor.dispatchEvent(pasteEvent)
+              console.log('[COSE] 抖音内容已通过 paste 事件注入')
+
+              // 立即验证内容是否注入成功
+              const wordCount = editor.textContent?.length || 0
+              if (wordCount === 0) {
+                // 备用方案：直接设置 innerHTML
+                console.log('[COSE] paste 事件未生效，尝试备用方案')
+                editor.innerHTML = htmlBody
+                editor.dispatchEvent(new Event('input', { bubbles: true }))
+              }
+
+              return { 
+                success: true, 
+                wordCount: editor.textContent?.length || 0,
+                titleFilled: titleInput?.value === title
+              }
+            }
+
+            return { success: false, error: '内容为空' }
+          } catch (err) {
+            return { success: false, error: err.message }
+          }
+        },
+        args: [content.title, htmlContent],
+        world: 'MAIN',
+      })
+      } catch (e) {
+        console.error('[COSE] executeScript 执行失败:', e)
+        return { success: false, message: '脚本执行失败: ' + e.message, tabId: tab.id }
+      }
+
+      console.log('[COSE] 抖音填充结果:', JSON.stringify(result, null, 2))
+      
+      if (!result || result.length === 0) {
+        return { success: false, message: '脚本执行失败：无返回值', tabId: tab.id }
+      }
+      
+      const fillResult = result[0].result
+      if (!fillResult?.success) {
+        return { success: false, message: fillResult?.error || '内容填充失败', tabId: tab.id }
+      }
+
+      console.log('[COSE] 抖音内容填充成功，字数:', fillResult.wordCount)
+      return { success: true, message: '已同步到抖音', tabId: tab.id }
+    }
+
     // 搜狐号：使用剪贴板 HTML 粘贴到编辑器（类似微信公众号）
     if (platformId === 'sohu') {
       // 等待页面完全加载
