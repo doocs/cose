@@ -9,6 +9,20 @@
             font-style: normal;
         }
 
+      .phrase {
+        font-family: 'Segoe UI', Arial, sans-serif;
+        font-size: 16px;
+        fill: #888;
+      }
+      .initial {
+        font-weight: 600;
+        fill: #888;
+        animation: highlightInit 0.5s ease 1s forwards, fadeInitial 0.5s ease 2.5s forwards;
+      }
+      .rest {
+        animation: fadeRest 0.5s ease 2s forwards;
+      }
+
       .letter {
         font-family: "Bungee Shade", sans-serif;
         font-size: 4em;
@@ -18,27 +32,29 @@
         stroke-width: 1;
         stroke-dasharray: 500;
         stroke-dashoffset: 500;
+        opacity: 0;
       }
       
-      .letter-0 { animation: draw 0.4s ease forwards, fillIn 0.4s ease 1.6s forwards; }
-      .letter-1 { animation: draw 0.4s ease 0.4s forwards, fillIn 0.4s ease 1.6s forwards; }
-      .letter-2 { animation: draw 0.4s ease 0.8s forwards, fillIn 0.4s ease 1.6s forwards; }
-      .letter-3 { animation: draw 0.4s ease 1.2s forwards, fillIn 0.4s ease 1.6s forwards; }
+      .letter-0 { animation: showLetter 0.01s ease 3s forwards, draw 0.4s ease 3s forwards, fillIn 0.4s ease 4.6s forwards; }
+      .letter-1 { animation: showLetter 0.01s ease 3.4s forwards, draw 0.4s ease 3.4s forwards, fillIn 0.4s ease 4.6s forwards; }
+      .letter-2 { animation: showLetter 0.01s ease 3.8s forwards, draw 0.4s ease 3.8s forwards, fillIn 0.4s ease 4.6s forwards; }
+      .letter-3 { animation: showLetter 0.01s ease 4.2s forwards, draw 0.4s ease 4.2s forwards, fillIn 0.4s ease 4.6s forwards; }
       
-      @keyframes draw {
-        to {
-          stroke-dashoffset: 0;
-        }
-      }
-      
-      @keyframes fillIn {
-        to {
-          fill: black;
-          stroke-width: 0;
-        }
-      }
+      @keyframes highlightInit { to { fill: #000; font-weight: 700; } }
+      @keyframes fadeRest { to { opacity: 0; } }
+      @keyframes fadeInitial { to { opacity: 0; } }
+      @keyframes showLetter { to { opacity: 1; } }
+      @keyframes draw { to { stroke-dashoffset: 0; } }
+      @keyframes fillIn { to { fill: black; stroke-width: 0; } }
     </style>
   </defs>
+  
+  <text class="phrase" x="225" y="45" text-anchor="middle">
+    <tspan class="initial">C</tspan><tspan class="rest">reate </tspan>
+    <tspan class="initial">O</tspan><tspan class="rest">nce, </tspan>
+    <tspan class="initial">S</tspan><tspan class="rest">ynchronize </tspan>
+    <tspan class="initial">E</tspan><tspan class="rest">verywhere</tspan>
+  </text>
   
   <text x="50%" y="80">
     <tspan class="letter letter-0">C</tspan><tspan class="letter letter-1">O</tspan><tspan class="letter letter-2">S</tspan><tspan class="letter letter-3">E</tspan>
