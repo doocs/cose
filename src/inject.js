@@ -90,6 +90,7 @@
     // [DISABLED] { id: 'alipayopen', name: 'AlipayOpen', icon: 'https://www.alipay.com/favicon.ico', title: '支付宝开放平台', type: 'alipayopen', url: 'https://open.alipay.com/portal/forum/post/add#article' },
     { id: 'modelscope', name: 'ModelScope', icon: 'https://img.alicdn.com/imgextra/i4/O1CN01fvt4it25rEZU4Gjso_!!6000000007579-2-tps-128-128.png', title: 'ModelScope 魔搭社区', type: 'modelscope', url: 'https://modelscope.cn/learn/create' },
     { id: 'volcengine', name: 'Volcengine', icon: 'https://lf1-cdn-tos.bytegoofy.com/goofy/tech-fe/fav.png', title: '火山引擎开发者社区', type: 'volcengine', url: 'https://developer.volcengine.com/articles/draft' },
+    { id: 'douyin', name: 'Douyin', icon: 'https://lf3-static.bytednsdoc.com/obj/eden-cn/yvahlyj_upfbvk_zlp/ljhwZthlaukjlkulzlp/pc_creator/favicon_v2_7145ff0.ico', title: '抖音文章', type: 'douyin', url: 'https://creator.douyin.com/creator-micro/content/post/article?default-tab=5&enter_from=publish_page&media_type=article&type=new' },
   ]
 
   // 暴露 $cose 全局对象
