@@ -71,6 +71,7 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 <img src="https://cdn.simpleicons.org/wechat" alt="微信公众号" width="60" height="60" />
 <img src="https://api.iconify.design/icon-park-solid/jinritoutiao.svg?color=%23ED1C24" alt="今日头条" width="60" height="60" />
 <img src="https://cdn.simpleicons.org/zhihu" alt="知乎" width="60" height="60" />
+<img src="https://cdn.simpleicons.org/tiktok" alt="抖音文章" width="60" height="60" />
 <img src="https://cdn.simpleicons.org/baidu" alt="百家号" width="60" height="60" />
 <img src="https://cdn.simpleicons.org/neteasecloudmusic" alt="网易号" width="60" height="60" />
 <img src="https://favicon.im/sohu.com?larger=true" alt="搜狐号" width="60" height="60" />
@@ -78,7 +79,6 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 <img src="https://cdn.simpleicons.org/bilibili" alt="B站专栏" width="60" height="60" />
 <img src="https://icon.horse/icon/sspai.com" alt="少数派" width="60" height="60" />
 <img src="https://cdn.simpleicons.org/x" alt="X(Formerly Twitter) Articles" width="50" height="60" />
-<img src="https://cdn.simpleicons.org/tiktok" alt="抖音文章" width="60" height="60" />
 </div>
 </div>
 
