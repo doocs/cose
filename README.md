@@ -47,6 +47,7 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 > | A | 阿里云社区 |
 > | B | B站专栏、百度云千帆、百家号、博客园 |
 > | C | CSDN |
+> | D | 抖音文章 |
 > | H | 华为开发者文章、华为云博客、火山引擎社区 |
 > | I | InfoQ |
 > | J | 简书、掘金、今日头条 |
@@ -77,6 +78,7 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 <img src="https://cdn.simpleicons.org/bilibili" alt="B站专栏" width="60" height="60" />
 <img src="https://icon.horse/icon/sspai.com" alt="少数派" width="60" height="60" />
 <img src="https://cdn.simpleicons.org/x" alt="X(Formerly Twitter) Articles" width="50" height="60" />
+<img src="https://cdn.simpleicons.org/tiktok" alt="抖音文章" width="60" height="60" />
 </div>
 </div>
 
