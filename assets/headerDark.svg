@@ -18,7 +18,7 @@
         stroke-width: 1;
         stroke-dasharray: 500;
         stroke-dashoffset: 500;
-        animation: draw 1s ease forwards, fillIn 0.5s ease 0.8s forwards;
+        animation: draw 1s ease forwards, fillIn 0.3s ease 0.5s forwards;
       }
       
       @keyframes draw {
