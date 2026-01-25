@@ -87,10 +87,11 @@
     { id: 'huaweidev', name: 'HuaweiDev', icon: 'https://developer.huawei.com/favicon.ico', title: '华为开发者文章', type: 'huaweidev', url: 'https://developer.huawei.com/consumer/cn/blog/create' },
     { id: 'twitter', name: 'Twitter', icon: 'https://abs.twimg.com/favicons/twitter.3.ico', title: 'Twitter Articles', type: 'twitter', url: 'https://x.com/compose/articles/edit/' },
     { id: 'qianfan', name: 'Qianfan', icon: 'https://bce.bdstatic.com/img/favicon.ico', title: '百度云千帆', type: 'qianfan', url: 'https://qianfan.cloud.baidu.com/qianfandev/topic/create' },
-    // [DISABLED] { id: 'alipayopen', name: 'AlipayOpen', icon: 'https://www.alipay.com/favicon.ico', title: '支付宝开放平台', type: 'alipayopen', url: 'https://open.alipay.com/portal/forum/post/add#article' },
+    { id: 'alipayopen', name: 'AlipayOpen', icon: 'https://www.alipay.com/favicon.ico', title: '支付宝开放平台', type: 'alipayopen', url: 'https://open.alipay.com/portal/forum/post/add#article' },
     { id: 'modelscope', name: 'ModelScope', icon: 'https://img.alicdn.com/imgextra/i4/O1CN01fvt4it25rEZU4Gjso_!!6000000007579-2-tps-128-128.png', title: 'ModelScope 魔搭社区', type: 'modelscope', url: 'https://modelscope.cn/learn/create' },
     { id: 'volcengine', name: 'Volcengine', icon: 'https://lf1-cdn-tos.bytegoofy.com/goofy/tech-fe/fav.png', title: '火山引擎开发者社区', type: 'volcengine', url: 'https://developer.volcengine.com/articles/draft' },
     { id: 'douyin', name: 'Douyin', icon: 'https://lf3-static.bytednsdoc.com/obj/eden-cn/yvahlyj_upfbvk_zlp/ljhwZthlaukjlkulzlp/pc_creator/favicon_v2_7145ff0.ico', title: '抖音文章', type: 'douyin', url: 'https://creator.douyin.com/creator-micro/content/post/article?default-tab=5&enter_from=publish_page&media_type=article&type=new' },
+    { id: 'xiaohongshu', name: 'Xiaohongshu', icon: 'https://www.xiaohongshu.com/favicon.ico', title: '小红书', type: 'xiaohongshu', url: 'https://creator.xiaohongshu.com/publish/publish?from=menu&target=article' },
   ]
 
   // 暴露 $cose 全局对象
@@ -187,7 +188,7 @@
         // 开始新的同步批次，将所有 tab 放入一个 group
         await sendMessage('START_SYNC_BATCH', {})
 
-        // 检查是否需要同步到微信公众号或百家号或网易号或 Medium 或少数派或B站专栏或微博头条（需要使用剪贴板 HTML）
+        // 检查是否需要同步到微信公众号或百家号或网易号或 Medium 或少数派或B站专栏或微博头条或小红书（需要使用剪贴板 HTML）
         const hasWechat = selectedAccounts.some(a => (a.uid || a.type) === 'wechat')
         const hasBaijiahao = selectedAccounts.some(a => (a.uid || a.type) === 'baijiahao')
         const hasWangyihao = selectedAccounts.some(a => (a.uid || a.type) === 'wangyihao')
@@ -195,8 +196,9 @@
         const hasSspai = selectedAccounts.some(a => (a.uid || a.type) === 'sspai')
         const hasBilibili = selectedAccounts.some(a => (a.uid || a.type) === 'bilibili')
         const hasWeibo = selectedAccounts.some(a => (a.uid || a.type) === 'weibo')
+        const hasXiaohongshu = selectedAccounts.some(a => (a.uid || a.type) === 'xiaohongshu')
         let clipboardHtmlContent = null
-        if (hasWechat || hasBaijiahao || hasWangyihao || hasMedium || hasSspai || hasBilibili || hasWeibo) {
+        if (hasWechat || hasBaijiahao || hasWangyihao || hasMedium || hasSspai || hasBilibili || hasWeibo || hasXiaohongshu) {
           // 先点击复制按钮，将带样式的内容复制到剪贴板
           const copyBtn = document.querySelector('.copy-btn') ||
             document.querySelector('button[class*="copy"]') ||
@@ -240,8 +242,8 @@
                 markdown: post.markdown,
                 thumb: post.thumb,
                 desc: post.desc,
-                // 微信公众号、百家号、网易号、Medium、少数派、B站专栏和微博头条使用剪贴板中带样式的 HTML
-                wechatHtml: (platformId === 'wechat' || platformId === 'baijiahao' || platformId === 'wangyihao' || platformId === 'medium' || platformId === 'sspai' || platformId === 'bilibili' || platformId === 'weibo') ? clipboardHtmlContent : null,
+                // 微信公众号、百家号、网易号、Medium、少数派、B站专栏、微博头条和小红书使用剪贴板中带样式的 HTML
+                wechatHtml: (platformId === 'wechat' || platformId === 'baijiahao' || platformId === 'wangyihao' || platformId === 'medium' || platformId === 'sspai' || platformId === 'bilibili' || platformId === 'weibo' || platformId === 'xiaohongshu') ? clipboardHtmlContent : null,
               },
             })
 

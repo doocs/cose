@@ -23,10 +23,11 @@ import { HuaweiCloudPlatform, HuaweiCloudLoginConfig } from './huaweicloud.js'
 import { HuaweiDevPlatform, HuaweiDevLoginConfig } from './huaweidev.js'
 import { TwitterPlatform, TwitterLoginConfig } from './twitter.js'
 import { QianfanPlatform, QianfanLoginConfig } from './qianfan.js'
-// [DISABLED] import { AlipayOpenPlatform, AlipayOpenLoginConfig } from './alipayopen.js'
+import { AlipayOpenPlatform, AlipayOpenLoginConfig } from './alipayopen.js'
 import { ModelScopePlatform, ModelScopeLoginConfig } from './modelscope.js'
 import { VolcenginePlatform, VolcengineLoginConfig } from './volcengine.js'
 import { DouyinPlatform, DouyinLoginConfig } from './douyin.js'
+import { XiaohongshuPlatform, XiaohongshuLoginConfig } from './xiaohongshu.js'
 
 // 合并平台配置
 const PLATFORMS = [
@@ -54,10 +55,11 @@ const PLATFORMS = [
   HuaweiDevPlatform,
   TwitterPlatform,
   QianfanPlatform,
-  // [DISABLED] AlipayOpenPlatform,
+  AlipayOpenPlatform,
   ModelScopePlatform,
   VolcenginePlatform,
   DouyinPlatform,
+  XiaohongshuPlatform,
 ]
 
 // 合并登录检测配置
@@ -86,10 +88,11 @@ const LOGIN_CHECK_CONFIG = {
   [HuaweiDevPlatform.id]: HuaweiDevLoginConfig,
   [TwitterPlatform.id]: TwitterLoginConfig,
   [QianfanPlatform.id]: QianfanLoginConfig,
-  // [DISABLED] [AlipayOpenPlatform.id]: AlipayOpenLoginConfig,
+  [AlipayOpenPlatform.id]: AlipayOpenLoginConfig,
   [ModelScopePlatform.id]: ModelScopeLoginConfig,
   [VolcenginePlatform.id]: VolcengineLoginConfig,
   [DouyinPlatform.id]: DouyinLoginConfig,
+  [XiaohongshuPlatform.id]: XiaohongshuLoginConfig,
 }
 
 // 根据 hostname 获取平台填充函数
@@ -118,10 +121,11 @@ function getPlatformFiller(hostname) {
   if (hostname.includes('developer.huawei.com')) return 'huaweidev'
   if (hostname.includes('x.com') || hostname.includes('twitter.com')) return 'twitter'
   if (hostname.includes('qianfan.cloud.baidu.com')) return 'qianfan'
-  // [DISABLED] if (hostname.includes('open.alipay.com')) return 'alipayopen'
+  if (hostname.includes('open.alipay.com')) return 'alipayopen'
   if (hostname.includes('modelscope.cn')) return 'modelscope'
   if (hostname.includes('developer.volcengine.com')) return 'volcengine'
   if (hostname.includes('creator.douyin.com')) return 'douyin'
+  if (hostname.includes('creator.xiaohongshu.com')) return 'xiaohongshu'
   return 'generic'
 }
 
