@@ -144,9 +144,9 @@ async function checkPlatformLogin(platform) {
       const cachedUser = stored.alipayopen_user
       
       if (cachedUser && cachedUser.loggedIn) {
-        // 检查缓存是否过期（7天）
+        // 检查缓存是否过期（1小时）
         const cacheAge = Date.now() - (cachedUser.cachedAt || 0)
-        const maxAge = 7 * 24 * 60 * 60 * 1000 // 7 days
+        const maxAge = 1 * 60 * 60 * 1000 // 1 hour
         
         if (cacheAge < maxAge) {
           console.log(`[COSE] alipayopen 从缓存读取用户信息:`, cachedUser.username)
@@ -3392,6 +3392,146 @@ async function syncToPlatform(platformId, content) {
       await new Promise(resolve => setTimeout(resolve, 2000))
 
       return { success: true, message: '已同步到少数派', tabId: tab.id }
+    }
+
+    // 支付宝开放平台：使用 ne-engine 富文本编辑器
+    if (platformId === 'alipayopen') {
+      // 等待页面完全加载
+      await new Promise(resolve => setTimeout(resolve, 3000))
+
+      // 使用剪贴板 HTML（带完整样式）或降级到 body
+      const htmlContent = content.wechatHtml || content.body
+      console.log('[COSE] 支付宝开放平台 HTML 内容长度:', htmlContent?.length || 0)
+
+      // 填充标题和内容
+      const fillResult = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: async (title, htmlBody) => {
+          // 等待元素出现的工具函数
+          const waitForElement = (selector, timeout = 10000) => {
+            return new Promise((resolve) => {
+              const el = document.querySelector(selector)
+              if (el) return resolve(el)
+
+              const observer = new MutationObserver(() => {
+                const el = document.querySelector(selector)
+                if (el) {
+                  observer.disconnect()
+                  resolve(el)
+                }
+              })
+              observer.observe(document.body, { childList: true, subtree: true })
+
+              setTimeout(() => {
+                observer.disconnect()
+                resolve(document.querySelector(selector))
+              }, timeout)
+            })
+          }
+
+          try {
+            console.log('[COSE] 支付宝开放平台开始填充内容...')
+
+            // 等待并查找标题输入框
+            const titleInput = await waitForElement('#title', 5000) || await waitForElement('input[placeholder*="标题"]', 5000)
+            if (titleInput && title) {
+              titleInput.focus()
+              
+              // Ant Design 输入框需要特殊处理
+              // 先清空
+              titleInput.value = ''
+              
+              // 使用 native setter 确保 React 能检测到变化
+              const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
+              if (nativeSetter) {
+                nativeSetter.call(titleInput, title)
+              } else {
+                titleInput.value = title
+              }
+              
+              // 触发多个事件确保 Ant Design 组件能识别
+              titleInput.dispatchEvent(new Event('input', { bubbles: true }))
+              titleInput.dispatchEvent(new Event('change', { bubbles: true }))
+              titleInput.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true }))
+              titleInput.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }))
+              
+              // 使用 setValue 方法（如果存在）
+              if (titleInput._valueTracker) {
+                titleInput._valueTracker.setValue('')
+              }
+              
+              // 再次设置值
+              titleInput.value = title
+              titleInput.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }))
+              
+              // 模拟用户输入
+              const inputEvent = new InputEvent('input', {
+                bubbles: true,
+                cancelable: true,
+                data: title,
+                inputType: 'insertText'
+              })
+              titleInput.dispatchEvent(inputEvent)
+              
+              console.log('[COSE] 支付宝开放平台标题已填充:', title, '当前值:', titleInput.value)
+            }
+
+            // 稍等一下让标题生效
+            await new Promise(r => setTimeout(r, 300))
+
+            // 等待并查找 ne-engine 编辑器
+            const editor = await waitForElement('.ne-engine[contenteditable="true"]', 5000)
+            if (editor && htmlBody) {
+              editor.focus()
+
+              // 清空现有内容
+              editor.innerHTML = ''
+
+              // 使用 ClipboardEvent + DataTransfer 注入 HTML
+              const dt = new DataTransfer()
+              dt.setData('text/html', htmlBody)
+              dt.setData('text/plain', htmlBody.replace(/<[^>]*>/g, ''))
+
+              const pasteEvent = new ClipboardEvent('paste', {
+                bubbles: true,
+                cancelable: true,
+                clipboardData: dt
+              })
+
+              editor.dispatchEvent(pasteEvent)
+              console.log('[COSE] 支付宝开放平台内容已通过 paste 事件注入')
+
+              // 等待内容渲染
+              await new Promise(r => setTimeout(r, 500))
+
+              // 验证内容是否注入成功
+              const wordCount = editor.textContent?.length || 0
+              if (wordCount === 0) {
+                // 备用方案：直接设置 innerHTML
+                console.log('[COSE] paste 事件未生效，尝试备用方案')
+                editor.innerHTML = htmlBody
+                editor.dispatchEvent(new Event('input', { bubbles: true }))
+              }
+
+              return { success: true, method: 'paste-html', length: htmlBody.length }
+            }
+
+            return { success: false, error: 'ne-engine editor not found' }
+          } catch (e) {
+            console.error('[COSE] 支付宝开放平台同步失败:', e)
+            return { success: false, error: e.message }
+          }
+        },
+        args: [content.title, htmlContent],
+        world: 'MAIN',
+      })
+
+      console.log('[COSE] 支付宝开放平台填充结果:', fillResult[0]?.result)
+
+      // 等待内容注入完成
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      return { success: true, message: '已同步到支付宝开放平台', tabId: tab.id }
     }
 
     // 其他平台使用 scripting API 直接注入填充脚本
