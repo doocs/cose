@@ -120,7 +120,7 @@ _**C**reate **O**nce **S**ync **E**verywhere_
   <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/light/modelscope-text.png" alt="魔搭社区" width="160" height="60" />
   <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/dark/volcengine-color.png" alt="火山引擎" width="36" height="60" />
   <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/light/volcengine-text.png" alt="火山引擎" width="90" height="60" />
-  <img src="https://www.elecfans.com/static/main/img/elecfans-logo.jpg" alt="电子发烧友" width="50" height="50" />
+  <img src="https://www.elecfans.com/static/main/img/elecfans-logo.jpg" alt="电子发烧友" width="35" height="60" />
 </div>
 </div>
 
