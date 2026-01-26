@@ -56,7 +56,7 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 > | S | 少数派、搜狐号、思否 |
 > | T | 腾讯云 |
 > | W | 网易号、微博文章、微信公众号 |
-> | X | X(Formerly Twitter) Articles |
+> | X | 小红书长文、X(Formerly Twitter) Articles |
 > | Z | 支付宝开放平台、知乎 |
 > | 5 | 51CTO |
 >
@@ -72,6 +72,7 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 <img src="https://api.iconify.design/icon-park-solid/jinritoutiao.svg?color=%23ED1C24" alt="今日头条" width="60" height="60" />
 <img src="https://cdn.simpleicons.org/zhihu" alt="知乎" width="60" height="60" />
 <img src="https://cdn.simpleicons.org/tiktok" alt="抖音文章" width="60" height="60" />
+<img src="https://cdn.simpleicons.org/xiaohongshu" alt="小红书" width="60" height="60" />
 <img src="https://cdn.simpleicons.org/baidu" alt="百家号" width="60" height="60" />
 <img src="https://cdn.simpleicons.org/neteasecloudmusic" alt="网易号" width="60" height="60" />
 <img src="https://favicon.im/sohu.com?larger=true" alt="搜狐号" width="60" height="60" />
@@ -114,7 +115,7 @@ _**C**reate **O**nce **S**ync **E**verywhere_
   <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/dark/baiducloud-color.png" alt="百度云千帆" width="30" height="60" />
   <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/light/baiducloud-text.png" alt="百度云千帆" width="110" height="60" />
   <br />
-  <!-- <img src="https://cdn.simpleicons.org/alipay/1677FF" alt="支付宝开放平台" width="30" height="50" /> -->
+  <img src="https://cdn.simpleicons.org/alipay/1677FF" alt="支付宝开放平台" width="30" height="50" />
   <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/dark/modelscope-color.png" alt="魔搭社区" width="36" height="60" />
   <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/light/modelscope-text.png" alt="魔搭社区" width="160" height="60" />
   <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/dark/volcengine-color.png" alt="火山引擎" width="36" height="60" />
