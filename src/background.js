@@ -3282,26 +3282,17 @@ async function syncToPlatform(platformId, content) {
 
           // 等待一下再填充内容
           setTimeout(() => {
-            // 找到 iframe 中的编辑器
-            const iframe = document.querySelector('iframe')
-            if (iframe && iframe.contentDocument && htmlBody) {
-              const iframeBody = iframe.contentDocument.body
-              if (iframeBody) {
-                iframeBody.focus()
-
-                // 方法：创建 DataTransfer 并触发 paste 事件
-                const dt = new DataTransfer()
-                dt.setData('text/html', htmlBody)
-                dt.setData('text/plain', htmlBody.replace(/<[^>]*>/g, ''))
-
-                const pasteEvent = new ClipboardEvent('paste', {
-                  bubbles: true,
-                  cancelable: true,
-                  clipboardData: dt
-                })
-
-                iframeBody.dispatchEvent(pasteEvent)
-                console.log('[COSE] 百家号内容已通过 paste 事件注入')
+            // 尝试通过 UEditor API 填充
+            if (window.UE_V2 && window.UE_V2.instants && window.UE_V2.instants.ueditorInstant0) {
+              try {
+                const editor = window.UE_V2.instants.ueditorInstant0
+                editor.setContent(htmlBody)
+                editor.fireEvent('contentChange');
+                editor.fireEvent('selectionchange');
+                console.log('[COSE] 百家号通过 UEditor API 填充成功')
+                return
+              } catch (e) {
+                console.log('[COSE] 百家号 UEditor API 调用失败', e)
               }
             }
           }, 500)
