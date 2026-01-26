@@ -47,7 +47,7 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 > | A | 阿里云社区 |
 > | B | B站专栏、百度云千帆、百家号、博客园 |
 > | C | CSDN |
-> | D | 抖音文章 |
+> | D | 电子发烧友、抖音文章 |
 > | H | 华为开发者文章、华为云博客、火山引擎社区 |
 > | I | InfoQ |
 > | J | 简书、掘金、今日头条 |
@@ -78,7 +78,7 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 <img src="https://favicon.im/sohu.com?larger=true" alt="搜狐号" width="60" height="60" />
 <img src="https://cdn.simpleicons.org/sinaweibo" alt="微博文章" width="60" height="60" />
 <img src="https://cdn.simpleicons.org/bilibili" alt="B站专栏" width="60" height="60" />
-<img src="https://icon.horse/icon/sspai.com" alt="少数派" width="60" height="60" />
+<img src="https://favicon.im/sspai.com?larger=true" alt="少数派" width="60" height="60" />
 <img src="https://cdn.simpleicons.org/x" alt="X(Formerly Twitter) Articles" width="50" height="60" />
 </div>
 </div>
@@ -120,6 +120,7 @@ _**C**reate **O**nce **S**ync **E**verywhere_
   <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/light/modelscope-text.png" alt="魔搭社区" width="160" height="60" />
   <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/dark/volcengine-color.png" alt="火山引擎" width="36" height="60" />
   <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/light/volcengine-text.png" alt="火山引擎" width="90" height="60" />
+  <img src="https://www.elecfans.com/static/main/img/elecfans-logo.jpg" alt="电子发烧友" width="35" height="60" />
 </div>
 </div>
 
