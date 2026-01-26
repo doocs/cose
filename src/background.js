@@ -84,6 +84,16 @@ async function handleMessage(request, sender) {
       return { success: true }
     case 'SYNC_TO_PLATFORM':
       return await syncToPlatform(request.platformId, request.content)
+    case 'CACHE_USER_INFO':
+      // 缓存用户信息
+      if (request.platform === 'xiaohongshu' && request.userInfo) {
+        await chrome.storage.local.set({ xiaohongshu_user: request.userInfo })
+        console.log('[COSE] 小红书用户信息已缓存:', request.userInfo.username)
+      } else if (request.platform === 'alipayopen' && request.userInfo) {
+        await chrome.storage.local.set({ alipayopen_user: request.userInfo })
+        console.log('[COSE] 支付宝用户信息已缓存:', request.userInfo.username)
+      }
+      return { success: true }
     default:
       return { error: 'Unknown message type' }
   }
@@ -126,106 +136,94 @@ async function checkPlatformLogin(platform) {
     return { loggedIn: false, error: '未配置检测' }
   }
 
-  /* [DISABLED] 支付宝开放平台特殊处理：静默创建后台 tab 检测登录状态
+  // 支付宝开放平台特殊处理：从 storage 读取缓存的用户信息（由 content script 在访问支付宝时缓存）
   if (platform.id === 'alipayopen') {
-    let tempTab = null
     try {
-      console.log(`[COSE] alipayopen 开始静默检测`)
+      // 从 storage 读取缓存的用户信息
+      const stored = await chrome.storage.local.get('alipayopen_user')
+      const cachedUser = stored.alipayopen_user
       
-      // 先查找已打开的支付宝页面
+      if (cachedUser && cachedUser.loggedIn) {
+        // 检查缓存是否过期（7天）
+        const cacheAge = Date.now() - (cachedUser.cachedAt || 0)
+        const maxAge = 7 * 24 * 60 * 60 * 1000 // 7 days
+        
+        if (cacheAge < maxAge) {
+          console.log(`[COSE] alipayopen 从缓存读取用户信息:`, cachedUser.username)
+          return {
+            loggedIn: true,
+            username: cachedUser.username || '',
+            avatar: cachedUser.avatar || ''
+          }
+        } else {
+          console.log(`[COSE] alipayopen 缓存已过期`)
+          // 清除过期缓存
+          await chrome.storage.local.remove('alipayopen_user')
+        }
+      }
+      
+      // 尝试从已打开的支付宝页面获取用户信息并缓存
       let tabs = await chrome.tabs.query({ url: 'https://open.alipay.com/*' })
       if (tabs.length === 0) {
         tabs = await chrome.tabs.query({ url: 'https://*.alipay.com/*' })
       }
       
-      let targetTabId
       if (tabs.length > 0) {
-        // 使用已打开的页面
-        targetTabId = tabs[0].id
-        console.log(`[COSE] alipayopen 使用已打开的页面`)
-      } else {
-        // 创建隐藏窗口中的 tab（用户不可见）
-        console.log(`[COSE] alipayopen 创建隐藏窗口`)
-        const tempWindow = await chrome.windows.create({
-          url: 'https://open.alipay.com/portal/forum/',
-          state: 'minimized',
-          focused: false,
-        })
-        tempTab = { id: tempWindow.tabs[0].id, windowId: tempWindow.id }
-        targetTabId = tempTab.id
-        
-        // 等待页面加载完成（监听 onUpdated 事件）
-        await new Promise((resolve) => {
-          const listener = (tabId, info) => {
-            if (tabId === targetTabId && info.status === 'complete') {
-              chrome.tabs.onUpdated.removeListener(listener)
-              resolve()
+        try {
+          // 在已打开的页面上下文中调用 API
+          const results = await chrome.scripting.executeScript({
+            target: { tabId: tabs[0].id },
+            func: async () => {
+              try {
+                const response = await fetch('https://developerportal.alipay.com/octopus/service.do', {
+                  method: 'POST',
+                  credentials: 'include',
+                  headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8',
+                  },
+                  body: 'data=%5B%7B%7D%5D&serviceName=alipay.open.developerops.forum.user.query',
+                })
+                if (!response.ok) return null
+                return await response.json()
+              } catch (e) {
+                return null
+              }
             }
-          }
-          chrome.tabs.onUpdated.addListener(listener)
-          // 超时保护 5 秒
-          setTimeout(() => {
-            chrome.tabs.onUpdated.removeListener(listener)
-            resolve()
-          }, 5000)
-        })
-      }
-      
-      // 在页面上下文中调用 API
-      const results = await chrome.scripting.executeScript({
-        target: { tabId: targetTabId },
-        func: () => {
-          return new Promise((resolve) => {
-            fetch('https://developerportal.alipay.com/octopus/service.do', {
-              method: 'POST',
-              credentials: 'include',
-              headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8',
-              },
-              body: 'data=%5B%7B%7D%5D&serviceName=alipay.open.developerops.forum.user.query',
-            })
-            .then(response => response.ok ? response.json() : null)
-            .then(data => {
-              if (data?.stat === 'ok' && data?.data?.isLoginUser === 1) {
-                resolve({ nickname: data.data.nickname, avatar: data.data.avatar })
-              } else {
-                resolve(null)
+          })
+          
+          const data = results?.[0]?.result
+          console.log(`[COSE] alipayopen API 数据:`, data)
+          
+          if (data?.stat === 'ok' && data?.data?.isLoginUser === 1) {
+            const username = data.data.nickname || ''
+            const avatar = data.data.avatar || ''
+            
+            // 缓存用户信息
+            await chrome.storage.local.set({
+              alipayopen_user: {
+                loggedIn: true,
+                username,
+                avatar,
+                cachedAt: Date.now()
               }
             })
-            .catch(() => resolve(null))
-          })
-        }
-      })
-      
-      // 关闭临时创建的窗口
-      if (tempTab && tempTab.windowId) {
-        await chrome.windows.remove(tempTab.windowId)
-        console.log(`[COSE] alipayopen 已关闭隐藏窗口`)
-      }
-      
-      const data = results?.[0]?.result
-      if (data && data.nickname) {
-        console.log(`[COSE] alipayopen 已登录:`, data.nickname)
-        return {
-          loggedIn: true,
-          username: data.nickname,
-          avatar: data.avatar || '',
+            
+            console.log(`[COSE] alipayopen 用户信息:`, username, avatar ? '有头像' : '无头像')
+            return { loggedIn: true, username, avatar }
+          }
+        } catch (e) {
+          console.log(`[COSE] alipayopen 从页面获取用户信息失败:`, e.message)
         }
       }
       
-      console.log(`[COSE] alipayopen 未登录或获取用户信息失败`)
+      console.log(`[COSE] alipayopen 未检测到登录状态，请先访问支付宝开放平台`)
       return { loggedIn: false }
     } catch (e) {
-      // 确保关闭临时窗口
-      if (tempTab && tempTab.windowId) {
-        try { await chrome.windows.remove(tempTab.windowId) } catch {}
-      }
       console.log(`[COSE] alipayopen 检测失败:`, e.message)
       return { loggedIn: false, error: e.message }
     }
   }
-  [DISABLED] */
 
   // 微博特殊处理：通过 cookie 检测登录，通过 fetch HTML 获取用户信息
   if (platform.id === 'weibo') {
@@ -311,6 +309,85 @@ async function checkPlatformLogin(platform) {
 
   if (config.useCookie) {
     return await checkLoginByCookie(platform.id, config)
+  }
+
+  // 小红书特殊处理：直接使用 scripting API 检测登录状态
+  if (platform.id === 'xiaohongshu') {
+    try {
+      // 先检查缓存
+      const stored = await chrome.storage.local.get('xiaohongshu_user')
+      const cachedUser = stored.xiaohongshu_user
+      
+      if (cachedUser && cachedUser.loggedIn) {
+        const cacheAge = Date.now() - (cachedUser.cachedAt || 0)
+        const maxAge = 7 * 24 * 60 * 60 * 1000 // 7 days
+        
+        if (cacheAge < maxAge) {
+          console.log(`[COSE] xiaohongshu 从缓存读取:`, cachedUser.username)
+          return {
+            loggedIn: true,
+            username: cachedUser.username || '',
+            avatar: cachedUser.avatar || ''
+          }
+        } else {
+          await chrome.storage.local.remove('xiaohongshu_user')
+        }
+      }
+      
+      // 缓存无效，尝试在已打开的小红书页面中检测
+      const tabs = await chrome.tabs.query({ url: 'https://creator.xiaohongshu.com/*' })
+      if (tabs.length > 0) {
+        const results = await chrome.scripting.executeScript({
+          target: { tabId: tabs[0].id },
+          func: async () => {
+            try {
+              const response = await fetch('https://creator.xiaohongshu.com/api/galaxy/user/info', {
+                method: 'GET',
+                credentials: 'include',
+                headers: { 'Accept': 'application/json' }
+              })
+              
+              if (!response.ok) return null
+              
+              const data = await response.json()
+              if (data?.success === true && data?.code === 0 && data?.data?.userId) {
+                return {
+                  loggedIn: true,
+                  username: data.data.userName || data.data.redId || '',
+                  avatar: data.data.userAvatar || '',
+                  userId: data.data.userId
+                }
+              }
+              return null
+            } catch (e) {
+              return null
+            }
+          }
+        })
+        
+        const result = results?.[0]?.result
+        if (result && result.loggedIn) {
+          // 缓存结果
+          const userInfo = {
+            ...result,
+            cachedAt: Date.now()
+          }
+          await chrome.storage.local.set({ xiaohongshu_user: userInfo })
+          console.log(`[COSE] xiaohongshu 检测成功:`, userInfo.username)
+          return {
+            loggedIn: true,
+            username: userInfo.username || '',
+            avatar: userInfo.avatar || ''
+          }
+        }
+      }
+      
+      console.log(`[COSE] xiaohongshu 未登录，请先访问小红书创作者中心`)
+      return { loggedIn: false }
+    } catch (e) {
+      console.log(`[COSE] xiaohongshu 检测失败:`, e.message)
+      return { loggedIn: false }
+    }
   }
 
   try {
@@ -1462,6 +1539,172 @@ async function syncToPlatform(platformId, content) {
         console.error('[COSE] 简书 API 调用失败:', e)
         return { success: false, message: '简书 API 调用失败: ' + e.message }
       }
+    } else if (platformId === 'xiaohongshu') {
+      // 小红书：需要先点击"新的创作"按钮，等待编辑器加载后填充
+      console.log('[COSE] 开始处理小红书同步...')
+      
+      // 打开发布页面
+      tab = await chrome.tabs.create({ url: platform.publishUrl, active: false })
+      await addTabToSyncGroup(tab.id, tab.windowId)
+      await waitForTab(tab.id)
+      
+      // 等待页面加载完成
+      await new Promise(resolve => setTimeout(resolve, 3000))
+      
+      // 在页面中执行：点击"新的创作"并等待编辑器加载
+      const clickResult = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: async () => {
+          const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
+          
+          // 查找"新的创作"按钮
+          const createBtn = Array.from(document.querySelectorAll('button'))
+            .find(el => el.textContent.includes('新的创作'))
+          
+          if (createBtn) {
+            createBtn.click()
+            console.log('[COSE] 小红书已点击"新的创作"按钮')
+            
+            // 等待编辑器加载（等待富文本编辑器出现）
+            const waitForEditor = async (timeout = 10000) => {
+              const start = Date.now()
+              while (Date.now() - start < timeout) {
+                // 查找编辑器元素，可能是 contenteditable 或 textarea
+                const editor = document.querySelector('[contenteditable="true"]') ||
+                              document.querySelector('textarea') ||
+                              document.querySelector('.editor') ||
+                              document.querySelector('.content-editor')
+                if (editor) return true
+                await sleep(200)
+              }
+              return false
+            }
+            
+            const editorLoaded = await waitForEditor()
+            return { success: editorLoaded, message: editorLoaded ? 'Editor loaded' : 'Editor timeout' }
+          }
+          
+          return { success: false, message: 'Create button not found' }
+        }
+      })
+      
+      if (!clickResult[0]?.result?.success) {
+        return { success: false, message: '小红书创建文章失败: ' + (clickResult[0]?.result?.message || '未知错误') }
+      }
+      
+      // 等待页面稳定
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      // 使用剪贴板 HTML（带完整样式）或降级到 body
+      const htmlContent = content.wechatHtml || content.body
+      console.log('[COSE] 小红书 HTML 内容长度:', htmlContent?.length || 0)
+      
+      // 填充标题和内容
+      const fillResult = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: async (title, htmlBody) => {
+          const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
+          
+          // 等待元素出现的工具函数
+          const waitForElement = (selector, timeout = 15000) => {
+            return new Promise((resolve) => {
+              const el = document.querySelector(selector)
+              if (el) return resolve(el)
+
+              const observer = new MutationObserver(() => {
+                const el = document.querySelector(selector)
+                if (el) {
+                  observer.disconnect()
+                  resolve(el)
+                }
+              })
+              observer.observe(document.body, { childList: true, subtree: true })
+
+              setTimeout(() => {
+                observer.disconnect()
+                resolve(document.querySelector(selector))
+              }, timeout)
+            })
+          }
+          
+          try {
+            console.log('[COSE] 小红书开始填充内容...')
+            
+            // 等待并查找标题输入框
+            const titleInput = await waitForElement('input[placeholder*="标题"], textarea[placeholder*="标题"], .title-input', 5000)
+            if (titleInput && title) {
+              titleInput.focus()
+              // 使用 native setter 确保 React/Vue 等框架能检测到变化
+              const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set
+              if (nativeSetter) {
+                nativeSetter.call(titleInput, title)
+              } else {
+                titleInput.value = title
+              }
+              titleInput.dispatchEvent(new Event('input', { bubbles: true }))
+              titleInput.dispatchEvent(new Event('change', { bubbles: true }))
+              console.log('[COSE] 小红书标题已填充:', title)
+            }
+            
+            // 稍等一下让标题生效
+            await new Promise(r => setTimeout(r, 300))
+            
+            // 等待并查找内容编辑器
+            const contentEditor = await waitForElement('[contenteditable="true"], .editor-content, .content-editor', 5000)
+            if (contentEditor && htmlBody) {
+              contentEditor.focus()
+              
+              // 清空现有占位符内容
+              if (contentEditor.textContent.includes('从这里开始写正文') || 
+                  contentEditor.textContent.includes('请输入正文') ||
+                  contentEditor.textContent.includes('写点什么')) {
+                contentEditor.innerHTML = ''
+              }
+              
+              // 使用 ClipboardEvent + DataTransfer 注入 HTML
+              const dt = new DataTransfer()
+              dt.setData('text/html', htmlBody)
+              dt.setData('text/plain', htmlBody.replace(/<[^>]*>/g, ''))
+              
+              const pasteEvent = new ClipboardEvent('paste', {
+                bubbles: true,
+                cancelable: true,
+                clipboardData: dt
+              })
+              
+              contentEditor.dispatchEvent(pasteEvent)
+              console.log('[COSE] 小红书内容已通过 paste 事件注入')
+              
+              // 等待内容渲染
+              await new Promise(r => setTimeout(r, 500))
+              
+              // 验证内容是否注入成功
+              const wordCount = contentEditor.textContent?.length || 0
+              if (wordCount === 0) {
+                // 备用方案：直接设置 innerHTML
+                console.log('[COSE] paste 事件未生效，尝试备用方案')
+                contentEditor.innerHTML = htmlBody
+              }
+              
+              return { success: true, method: 'paste-html', length: htmlBody.length }
+            }
+            
+            return { success: false, error: 'Content editor not found' }
+          } catch (e) {
+            console.error('[COSE] 小红书同步失败:', e)
+            return { success: false, error: e.message }
+          }
+        },
+        args: [content.title, htmlContent],
+        world: 'MAIN',
+      })
+      
+      console.log('[COSE] 小红书填充结果:', fillResult[0]?.result)
+      
+      // 等待内容注入完成
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      return { success: true, message: '已同步到小红书', tabId: tab.id }
     } else if (platformId === 'twitter') {
       // Twitter Articles：需要先打开草稿列表页，然后点击 create 按钮创建新文章
       // 注意：Twitter 使用 Page Visibility API，后台标签页不会渲染编辑器

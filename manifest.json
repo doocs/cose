@@ -9,7 +9,8 @@
     "scripting",
     "cookies",
     "debugger",
-    "clipboardRead"
+    "clipboardRead",
+    "storage"
   ],
   "host_permissions": [
     "https://*.csdn.net/*",
@@ -46,7 +47,8 @@
     "https://*.alipay.com/*",
     "https://*.modelscope.cn/*",
     "https://*.volcengine.com/*",
-    "https://*.douyin.com/*"
+    "https://*.douyin.com/*",
+    "https://*.xiaohongshu.com/*"
   ],
   "action": {
     "default_icon": {
@@ -69,7 +71,7 @@
       "js": [
         "src/content.js"
       ],
-      "run_at": "document_start"
+      "run_at": "document_idle"
     }
   ],
   "icons": {
