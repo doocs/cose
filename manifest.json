@@ -48,7 +48,8 @@
     "https://*.modelscope.cn/*",
     "https://*.volcengine.com/*",
     "https://*.douyin.com/*",
-    "https://*.xiaohongshu.com/*"
+    "https://*.xiaohongshu.com/*",
+    "https://*.elecfans.com/*"
   ],
   "action": {
     "default_icon": {

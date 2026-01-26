@@ -390,6 +390,67 @@ async function checkPlatformLogin(platform) {
     }
   }
 
+  // 电子发烧友特殊处理：直接调用 API 检测登录状态
+  if (platform.id === 'elecfans') {
+    try {
+      // 先获取 elecfans 的登录 cookie
+      const authCookie = await chrome.cookies.get({
+        url: 'https://www.elecfans.com',
+        name: 'auth'
+      })
+      
+      const authWwwCookie = await chrome.cookies.get({
+        url: 'https://www.elecfans.com',
+        name: 'auth_www'
+      })
+      
+      console.log(`[COSE] elecfans cookies: auth=${!!authCookie}, auth_www=${!!authWwwCookie}`)
+      
+      if (!authCookie && !authWwwCookie) {
+        console.log(`[COSE] elecfans 未找到登录 cookie，未登录`)
+        return { loggedIn: false }
+      }
+      
+      // 直接调用 API 获取用户信息
+      try {
+        const response = await fetch('https://www.elecfans.com/webapi/passport/checklogin?_=' + Date.now(), {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Accept': 'application/json, text/javascript, */*; q=0.01',
+          }
+        })
+        
+        if (!response.ok) {
+          console.log(`[COSE] elecfans API 响应错误:`, response.status)
+          return { loggedIn: true, username: '', avatar: '' }
+        }
+        
+        const data = await response.json()
+        console.log(`[COSE] elecfans API 数据:`, data)
+        
+        // API 返回格式: {"uid":"6997925","username":"jf_50332692","avatar":"https://..."}
+        if (data && data.uid) {
+          const username = data.username || ''
+          const avatar = data.avatar || ''
+          console.log(`[COSE] elecfans 用户信息:`, username, avatar ? '有头像' : '无头像')
+          return { loggedIn: true, username, avatar }
+        } else {
+          // 有 cookie 但 API 返回无用户，仍然认为已登录
+          console.log(`[COSE] elecfans API 返回无用户数据，但有 cookie`)
+          return { loggedIn: true, username: '', avatar: '' }
+        }
+      } catch (e) {
+        console.log(`[COSE] elecfans API 调用失败:`, e.message)
+        // API 失败但有 cookie，仍然认为已登录
+        return { loggedIn: true, username: '', avatar: '' }
+      }
+    } catch (e) {
+      console.log(`[COSE] elecfans 检测失败:`, e.message)
+      return { loggedIn: false }
+    }
+  }
+
   try {
     console.log(`[COSE] ${platform.id} 开始 API 检测:`, config.api)
     const controller = new AbortController()
@@ -3532,6 +3593,152 @@ async function syncToPlatform(platformId, content) {
       await new Promise(resolve => setTimeout(resolve, 1000))
 
       return { success: true, message: '已同步到支付宝开放平台', tabId: tab.id }
+    }
+
+    // 电子发烧友：等待 Vditor 编辑器加载后填充内容
+    if (platformId === 'elecfans') {
+      // 等待页面完全加载
+      await new Promise(resolve => setTimeout(resolve, 3000))
+
+      // 使用 Markdown 内容
+      const markdownContent = content.markdown || content.body || ''
+      console.log('[COSE] 电子发烧友 Markdown 内容长度:', markdownContent?.length || 0)
+
+      // 填充标题和内容
+      const fillResult = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: async (title, markdown) => {
+          // 等待元素出现的工具函数
+          const waitForElement = (selector, timeout = 10000) => {
+            return new Promise((resolve) => {
+              const el = document.querySelector(selector)
+              if (el) return resolve(el)
+
+              const observer = new MutationObserver(() => {
+                const el = document.querySelector(selector)
+                if (el) {
+                  observer.disconnect()
+                  resolve(el)
+                }
+              })
+              observer.observe(document.body, { childList: true, subtree: true })
+
+              setTimeout(() => {
+                observer.disconnect()
+                resolve(document.querySelector(selector))
+              }, timeout)
+            })
+          }
+
+          try {
+            console.log('[COSE] 电子发烧友开始填充内容...')
+
+            // 等待并查找标题输入框
+            const titleInput = await waitForElement('input[placeholder*="标题"], input.title-input, input[name="title"]', 5000)
+            if (titleInput && title) {
+              titleInput.focus()
+              // 使用 native setter 确保框架能检测到变化
+              const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
+              if (nativeSetter) {
+                nativeSetter.call(titleInput, title)
+              } else {
+                titleInput.value = title
+              }
+              titleInput.dispatchEvent(new Event('input', { bubbles: true }))
+              titleInput.dispatchEvent(new Event('change', { bubbles: true }))
+              console.log('[COSE] 电子发烧友标题已填充:', title)
+            }
+
+            // 稍等一下让标题生效
+            await new Promise(r => setTimeout(r, 500))
+
+            // 优先查找 Vditor 编辑器（电子发烧友使用 Vditor）
+            const vditorWysiwyg = document.querySelector('.vditor-wysiwyg .vditor-reset')
+            if (vditorWysiwyg) {
+              vditorWysiwyg.focus()
+              
+              // Vditor 需要 HTML 内容，将 Markdown 转换为简单 HTML
+              // 先尝试使用 ClipboardEvent 粘贴 Markdown
+              const dt = new DataTransfer()
+              dt.setData('text/plain', markdown)
+              
+              const pasteEvent = new ClipboardEvent('paste', {
+                bubbles: true,
+                cancelable: true,
+                clipboardData: dt
+              })
+              
+              vditorWysiwyg.dispatchEvent(pasteEvent)
+              console.log('[COSE] 电子发烧友 Vditor paste 事件已触发')
+              
+              // 等待内容渲染
+              await new Promise(r => setTimeout(r, 500))
+              
+              // 验证内容是否注入成功
+              const wordCount = vditorWysiwyg.textContent?.length || 0
+              if (wordCount > 10) {
+                console.log('[COSE] 电子发烧友 Vditor 内容已填充，字数:', wordCount)
+                return { success: true, method: 'vditor-paste', length: wordCount }
+              }
+              
+              // 备用方案：直接设置 textContent（Vditor 会自动解析 Markdown）
+              console.log('[COSE] paste 事件未生效，尝试直接输入')
+              vditorWysiwyg.textContent = markdown
+              vditorWysiwyg.dispatchEvent(new Event('input', { bubbles: true }))
+              
+              return { success: true, method: 'vditor-direct', length: markdown.length }
+            }
+
+            // 等待并查找 CodeMirror 编辑器或 textarea
+            const cmElement = document.querySelector('.CodeMirror')
+            if (cmElement && cmElement.CodeMirror) {
+              cmElement.CodeMirror.setValue(markdown)
+              console.log('[COSE] 电子发烧友 CodeMirror 内容已填充')
+              return { success: true, method: 'codemirror', length: markdown.length }
+            }
+
+            // 尝试查找 textarea
+            const textarea = await waitForElement('textarea.content-textarea, textarea[name="content"], textarea', 5000)
+            if (textarea && markdown) {
+              textarea.focus()
+              const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set
+              if (nativeSetter) {
+                nativeSetter.call(textarea, markdown)
+              } else {
+                textarea.value = markdown
+              }
+              textarea.dispatchEvent(new Event('input', { bubbles: true }))
+              textarea.dispatchEvent(new Event('change', { bubbles: true }))
+              console.log('[COSE] 电子发烧友 textarea 内容已填充')
+              return { success: true, method: 'textarea', length: markdown.length }
+            }
+
+            // 尝试查找通用 contenteditable 编辑器
+            const editor = await waitForElement('[contenteditable="true"]', 5000)
+            if (editor && markdown) {
+              editor.focus()
+              editor.textContent = markdown
+              editor.dispatchEvent(new Event('input', { bubbles: true }))
+              console.log('[COSE] 电子发烧友 contenteditable 内容已填充')
+              return { success: true, method: 'contenteditable', length: markdown.length }
+            }
+
+            return { success: false, error: 'editor not found' }
+          } catch (e) {
+            console.error('[COSE] 电子发烧友同步失败:', e)
+            return { success: false, error: e.message }
+          }
+        },
+        args: [content.title, markdownContent],
+        world: 'MAIN',
+      })
+
+      console.log('[COSE] 电子发烧友填充结果:', fillResult[0]?.result)
+
+      // 等待内容注入完成
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      return { success: true, message: '已同步到电子发烧友', tabId: tab.id }
     }
 
     // 其他平台使用 scripting API 直接注入填充脚本
