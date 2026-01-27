@@ -4369,6 +4369,37 @@ function fillContentOnPage(content, platformId) {
         console.log('[COSE] ModelScope 未找到编辑器')
       }
     }
+    // LLMAPIS
+    else if (host.includes('llmapis.com')) {
+      // 填充内容 (标题会作为 H2 添加到内容开头)
+      const contentTextarea = await waitFor('#content', 5000)
+      if (contentTextarea) {
+        contentTextarea.focus()
+
+        // 组合标题和内容: 使用 H2 格式的标题 + 原始内容
+        const finalContent = title ? `## ${title}\n\n${contentToFill}` : contentToFill
+
+        // 使用原生 setter 填充值 (绕过 React 的受控组件限制)
+        const nativeSetter = Object.getOwnPropertyDescriptor(
+          window.HTMLTextAreaElement.prototype, 'value'
+        ).set
+        nativeSetter.call(contentTextarea, finalContent)
+
+        // 触发 input 事件以更新 React 状态
+        contentTextarea.dispatchEvent(new Event('input', { bubbles: true }))
+        contentTextarea.dispatchEvent(new Event('change', { bubbles: true }))
+
+        // 更新字数统计
+        const charCount = document.getElementById('char-count')
+        if (charCount) {
+          charCount.textContent = finalContent.length.toString()
+        }
+
+        console.log('[COSE] LLMAPIS 内容填充成功，长度:', finalContent.length)
+      } else {
+        console.error('[COSE] LLMAPIS 未找到内容输入框 #content')
+      }
+    }
     // 通用处理
     else {
       const titleSelectors = ['input[placeholder*="标题"]', 'input[name="title"]', 'textarea[placeholder*="标题"]']
