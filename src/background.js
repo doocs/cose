@@ -3286,7 +3286,53 @@ async function syncToPlatform(platformId, content) {
             if (window.UE_V2 && window.UE_V2.instants && window.UE_V2.instants.ueditorInstant0) {
               try {
                 const editor = window.UE_V2.instants.ueditorInstant0
+                
+                // 提取原始 HTML 中的公式（包含完整 SVG）
+                const tempDiv = document.createElement('div')
+                tempDiv.innerHTML = htmlBody
+                const originalFormulas = []
+                tempDiv.querySelectorAll('.katex-inline, .katex-block, section.katex-block').forEach((formula, index) => {
+                  const svg = formula.querySelector('svg')
+                  if (svg && svg.innerHTML) {
+                    originalFormulas.push({
+                      index,
+                      className: formula.className,
+                      fullHtml: formula.outerHTML
+                    })
+                  }
+                })
+                console.log('[COSE] 百家号提取到', originalFormulas.length, '个公式')
+                
+                // 先用 setContent 设置内容（公式 SVG 会被过滤）
                 editor.setContent(htmlBody)
+                
+                // 然后直接向 iframe 注入完整的公式 SVG
+                if (originalFormulas.length > 0) {
+                  setTimeout(() => {
+                    const iframe = document.querySelector('iframe')
+                    if (iframe && iframe.contentDocument) {
+                      const iframeDoc = iframe.contentDocument
+                      const emptyFormulas = iframeDoc.querySelectorAll('.katex-inline, .katex-block, section.katex-block')
+                      
+                      emptyFormulas.forEach((emptyFormula, index) => {
+                        const original = originalFormulas[index]
+                        if (original) {
+                          // 创建新元素并替换
+                          const newElement = document.createElement('div')
+                          newElement.innerHTML = original.fullHtml
+                          const newFormula = newElement.firstElementChild
+                          if (newFormula && emptyFormula.parentNode) {
+                            emptyFormula.parentNode.replaceChild(newFormula, emptyFormula)
+                          }
+                        }
+                      })
+                      
+                      console.log('[COSE] 百家号公式 SVG 已恢复')
+                      editor.fireEvent('contentChange')
+                    }
+                  }, 300)
+                }
+                
                 editor.fireEvent('contentChange');
                 editor.fireEvent('selectionchange');
                 console.log('[COSE] 百家号通过 UEditor API 填充成功')
