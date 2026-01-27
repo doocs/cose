@@ -16,7 +16,7 @@ const LLMAPIsPlatform = {
   url: 'https://llmapis.com',
   publishUrl: 'https://llmapis.com/garden/post/new',
   title: 'LLMAPIS',
-  type: 'llmapis.com',
+  type: 'llmapis',
 }
 
 // LLMAPIS 登录检测配置
