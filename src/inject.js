@@ -93,6 +93,7 @@
     { id: 'douyin', name: 'Douyin', icon: 'https://lf3-static.bytednsdoc.com/obj/eden-cn/yvahlyj_upfbvk_zlp/ljhwZthlaukjlkulzlp/pc_creator/favicon_v2_7145ff0.ico', title: '抖音文章', type: 'douyin', url: 'https://creator.douyin.com/creator-micro/content/post/article?default-tab=5&enter_from=publish_page&media_type=article&type=new' },
     { id: 'xiaohongshu', name: 'Xiaohongshu', icon: 'https://www.xiaohongshu.com/favicon.ico', title: '小红书', type: 'xiaohongshu', url: 'https://creator.xiaohongshu.com/publish/publish?from=menu&target=article' },
     { id: 'elecfans', name: 'Elecfans', icon: 'https://www.elecfans.com/favicon.ico', title: '电子发烧友', type: 'elecfans', url: 'https://www.elecfans.com/d/article/md/' },
+    { id: 'llmapis', name: 'LLMAPIS', icon: 'https://llmapis.com/favicon.ico', title: 'LLMAPIS', type: 'llmapis.com', url: 'https://llmapis.com/garden/post/new' },
   ]
 
   // 暴露 $cose 全局对象
