@@ -1,7 +1,7 @@
 // 平台配置汇总 - 统一通过导入方式引入
-import { CSDNPlatform, CSDNLoginConfig } from './csdn.js'
-import { JuejinPlatform, JuejinLoginConfig } from './juejin.js'
-import { WechatPlatform, WechatLoginConfig } from './wechat.js'
+import { CSDNPlatform, CSDNLoginConfig, syncCSDNContent } from './csdn.js'
+import { JuejinPlatform, JuejinLoginConfig, syncJuejinContent } from './juejin.js'
+import { WechatPlatform, WechatLoginConfig, syncWechatContent } from './wechat.js'
 import { ZhihuPlatform, ZhihuLoginConfig } from './zhihu.js'
 import { ToutiaoPlatform, ToutiaoLoginConfig } from './toutiao.js'
 import { SegmentFaultPlatform, SegmentFaultLoginConfig } from './segmentfault.js'
@@ -133,5 +133,14 @@ function getPlatformFiller(hostname) {
   return 'generic'
 }
 
+// 同步处理器映射
+// 如果平台有自定义同步逻辑，在此注册处理器
+// 未注册的平台将使用 background.js 中的通用填充逻辑
+const SYNC_HANDLERS = {
+  csdn: syncCSDNContent,
+  juejin: syncJuejinContent,
+  wechat: syncWechatContent,
+}
+
 // 导出
-export { PLATFORMS, LOGIN_CHECK_CONFIG, getPlatformFiller }
+export { PLATFORMS, LOGIN_CHECK_CONFIG, SYNC_HANDLERS, getPlatformFiller }
