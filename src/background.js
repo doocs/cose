@@ -1,5 +1,5 @@
 // 平台配置
-import { PLATFORMS, LOGIN_CHECK_CONFIG } from './platforms/index.js'
+import { PLATFORMS, LOGIN_CHECK_CONFIG, SYNC_HANDLERS } from './platforms/index.js'
 // [DISABLED] import { fillAlipayOpenContent } from './platforms/alipayopen.js'
 
 // 点击扩展图标时打开 md.doocs.org
@@ -525,27 +525,17 @@ async function checkLoginByCookie(platformId, config) {
       username = decodeURIComponent(cookieMap[config.usernameCookie] || '')
     }
 
-    // 从用户页面抓取头像 (CSDN)
-    if (config.fetchAvatarFromPage && config.usernameCookieForApi) {
-      const apiUsername = cookieMap[config.usernameCookieForApi]
-      if (apiUsername) {
-        try {
-          const response = await fetch(`https://blog.csdn.net/${apiUsername}`, {
-            method: 'GET',
-            credentials: 'include'
-          })
-          const html = await response.text()
-          // 从 HTML 中提取头像 URL
-          const avatarMatch = html.match(/https:\/\/i-avatar\.csdnimg\.cn\/[^"'\s!]+/i)
-          if (avatarMatch) {
-            // 使用 wsrv.nl 图片代理解决跨域问题
-            const originalUrl = avatarMatch[0] + '!1'
-            avatar = `https://wsrv.nl/?url=${encodeURIComponent(originalUrl)}&w=64&h=64`
-            console.log(`[COSE] ${platformId} 找到头像:`, avatar)
-          }
-        } catch (e) {
-          console.log(`[COSE] ${platformId} 获取头像失败:`, e.message)
+
+    // 使用平台配置的 fetchAvatar 回调获取头像
+    if (config.fetchAvatar && typeof config.fetchAvatar === 'function') {
+      try {
+        const fetchedAvatar = await config.fetchAvatar(cookieMap)
+        if (fetchedAvatar) {
+          avatar = fetchedAvatar
+          console.log(`[COSE] ${platformId} 找到头像:`, avatar)
         }
+      } catch (e) {
+        console.log(`[COSE] ${platformId} 获取头像失败:`, e.message)
       }
     }
 
@@ -1356,60 +1346,28 @@ async function syncToPlatform(platformId, content) {
   try {
     let tab
 
-    // 微信公众号：主动打开首页，然后进入编辑器
-    if (platformId === 'wechat') {
-      // 步骤1：先打开微信公众号首页
-      console.log('[COSE] 打开微信公众号首页')
-      tab = await chrome.tabs.create({ url: 'https://mp.weixin.qq.com/', active: false })
+    // 检查是否有平台特定的同步处理器
+    const syncHandler = SYNC_HANDLERS[platformId]
+    if (syncHandler) {
+      console.log(`[COSE] 使用 ${platformId} 平台特定同步处理器`)
+      // 创建新标签页（对于微信等需要特殊处理的平台，使用首页）
+      const initialUrl = platformId === 'wechat' ? 'https://mp.weixin.qq.com/' : platform.publishUrl
+      tab = await chrome.tabs.create({ url: initialUrl, active: false })
       await addTabToSyncGroup(tab.id, tab.windowId)
-      await waitForTab(tab.id)
       
-      // 等待页面加载完成
-      await new Promise(resolve => setTimeout(resolve, 3000))
-      
-      // 步骤2：从页面提取 token
-      const [result] = await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        func: () => {
-          // 从当前 URL 提取
-          const urlMatch = window.location.href.match(/token=(\d+)/)
-          if (urlMatch) return urlMatch[1]
-          
-          // 从页面中的链接提取
-          const links = document.querySelectorAll('a[href*="token"]')
-          for (const link of links) {
-            const match = link.href?.match(/token=(\d+)/)
-            if (match) return match[1]
-          }
-          
-          // 从页面脚本提取
-          const scripts = document.querySelectorAll('script:not([src])')
-          for (const script of scripts) {
-            const content = script.textContent
-            const match = content.match(/token["\']?\s*[:=]\s*["\']?(\d+)["\']?/i)
-            if (match && match[1]) {
-              return match[1]
-            }
-          }
-          
-          return null
-        }
-      })
-      
-      const token = result?.result
-      
-      if (!token) {
-        console.error('[COSE] 无法从页面获取 token')
-        return { success: false, message: '无法获取微信公众号 token，请确保已登录', tabId: tab.id }
+      // 调用平台特定处理器
+      const helpers = {
+        chrome,
+        waitForTab,
+        addTabToSyncGroup,
+        PLATFORMS,
       }
-      
-      // 步骤3：跳转到编辑器页面
-      const editorUrl = `https://mp.weixin.qq.com/cgi-bin/appmsg?t=media/appmsg_edit_v2&action=edit&isNew=1&type=10&token=${token}&lang=zh_CN`
-      console.log('[COSE] 获取到 token:', token, '跳转到编辑器')
-      
-      await chrome.tabs.update(tab.id, { url: editorUrl })
-      await waitForTab(tab.id)
-    } else if (platformId === 'zhihu') {
+      return await syncHandler(tab, content, helpers)
+    }
+
+    // ==== 以下是原有的平台特定逻辑（待迁移）====
+
+    if (platformId === 'zhihu') {
       // 知乎：使用导入文档功能上传 md 文件
       tab = await chrome.tabs.create({ url: platform.publishUrl, active: false })
       await addTabToSyncGroup(tab.id, tab.windowId)
@@ -3830,75 +3788,8 @@ function fillContentOnPage(content, platformId) {
     const host = window.location.hostname
     const contentToFill = markdown || body || ''
 
-    // CSDN
-    if (host.includes('csdn.net')) {
-      // 填充标题
-      const titleInput = await waitFor('.article-bar__title input, input[placeholder*="标题"]')
-      setInputValue(titleInput, title)
-
-      // 等待编辑器加载
-      await new Promise(resolve => setTimeout(resolve, 1000))
-
-      // CSDN 使用 contenteditable 的 PRE 元素
-      const editor = document.querySelector('.editor__inner[contenteditable="true"], [contenteditable="true"].markdown-highlighting')
-
-      if (editor) {
-        editor.focus()
-        // 清空现有内容
-        editor.textContent = ''
-        // 直接设置文本内容
-        editor.textContent = contentToFill
-        // 触发 input 事件让编辑器识别变化
-        editor.dispatchEvent(new Event('input', { bubbles: true }))
-        console.log('[COSE] CSDN contenteditable 填充成功')
-      } else {
-        // 降级尝试其他方式
-        const cmElement = document.querySelector('.CodeMirror')
-        if (cmElement && cmElement.CodeMirror) {
-          cmElement.CodeMirror.setValue(contentToFill)
-          console.log('[COSE] CSDN CodeMirror 填充成功')
-        } else {
-          console.log('[COSE] CSDN 未找到编辑器元素')
-        }
-      }
-    }
-    // 掘金 - 使用 ByteMD (CodeMirror)
-    else if (host.includes('juejin.cn')) {
-      // 填充标题
-      const titleInput = await waitFor('input[placeholder*="标题"]')
-      if (titleInput) {
-        titleInput.focus()
-        titleInput.value = title
-        titleInput.dispatchEvent(new Event('input', { bubbles: true }))
-      }
-
-      // 等待编辑器加载
-      await new Promise(resolve => setTimeout(resolve, 1000))
-
-      // 掘金使用 ByteMD 编辑器（基于 CodeMirror）
-      const cmElement = document.querySelector('.CodeMirror')
-      if (cmElement && cmElement.CodeMirror) {
-        cmElement.CodeMirror.setValue(contentToFill)
-        console.log('[COSE] 掘金 CodeMirror 填充成功')
-      } else {
-        // 降级到 textarea
-        const textarea = document.querySelector('.bytemd-body textarea')
-        if (textarea) {
-          textarea.focus()
-          textarea.value = contentToFill
-          textarea.dispatchEvent(new Event('input', { bubbles: true }))
-          console.log('[COSE] 掘金 textarea 填充成功')
-        } else {
-          console.log('[COSE] 掘金 未找到编辑器')
-        }
-      }
-    }
-    // 微信公众号 - 由 syncToPlatform 单独处理，这里跳过
-    else if (host.includes('mp.weixin.qq.com')) {
-      console.log('[COSE] 微信公众号由 debugger API 处理')
-    }
     // 知乎专栏 - 由 syncToPlatform 单独处理（使用导入文档功能）
-    else if (host.includes('zhihu.com')) {
+    if (host.includes('zhihu.com')) {
       console.log('[COSE] 知乎由导入文档功能处理')
     }
     // 今日头条
