@@ -1,3 +1,5 @@
+import { injectUtils } from './common.js'
+
 // 微信公众号平台配置
 const WechatPlatform = {
   id: 'wechat',
@@ -21,39 +23,19 @@ const WechatLoginConfig = {
 }
 
 // 微信公众号内容填充函数（在页面主世界中执行）
+// 注意：需要先调用 injectUtils 注入 window.waitFor
 function fillWechatContent(title, htmlBody) {
-  // 等待元素出现的工具函数
-  const waitForElement = (selector, timeout = 15000) => {
-    return new Promise((resolve) => {
-      const el = document.querySelector(selector)
-      if (el) return resolve(el)
-
-      const observer = new MutationObserver(() => {
-        const el = document.querySelector(selector)
-        if (el) {
-          observer.disconnect()
-          resolve(el)
-        }
-      })
-      observer.observe(document.body, { childList: true, subtree: true })
-
-      setTimeout(() => {
-        observer.disconnect()
-        resolve(document.querySelector(selector))
-      }, timeout)
-    })
-  }
 
   async function fill() {
     try {
       // 等待编辑器加载完成
-      const editor = await waitForElement('.ProseMirror')
+      const editor = await window.waitFor('.ProseMirror', 15000)
       if (!editor) {
         return { success: false, error: '未找到编辑器' }
       }
 
       // 等待标题输入框
-      const titleInput = await waitForElement('#title')
+      const titleInput = await window.waitFor('#title')
 
       // 填充标题
       if (titleInput && title) {
@@ -149,6 +131,9 @@ async function syncWechatContent(tab, content, helpers) {
   // 步骤1：等待首页加载完成
   console.log('[COSE] 微信公众号等待页面加载')
   await waitForTab(tab.id)
+  
+  // 注入公共工具函数（waitFor, setInputValue）
+  await injectUtils(chrome, tab.id)
   
   // 步骤2：使用 MutationObserver 监听获取 token
   console.log('[COSE] 开始检测 token...')
@@ -249,6 +234,9 @@ async function syncWechatContent(tab, content, helpers) {
   }
 
   console.log('[COSE] 编辑器已就绪，开始注入内容...')
+  
+  // 页面跳转后需要重新注入工具函数（waitFor, setInputValue）
+  await injectUtils(chrome, tab.id)
   
   // 步骤5：填充内容
   let result

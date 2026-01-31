@@ -39,28 +39,17 @@ const CSDNLoginConfig = {
   },
 }
 
+import { injectUtils } from './common.js'
+
 // CSDN 内容填充函数（在页面主世界中执行）
 // 此函数会被序列化后注入到页面中执行
+// 注意：需要先调用 injectUtils 注入 window.waitFor
 function fillCSDNContent(title, markdown, body) {
   const contentToFill = markdown || body || ''
 
-  // 等待元素出现的工具函数
-  function waitFor(selector, timeout = 10000) {
-    return new Promise((resolve) => {
-      const start = Date.now()
-      const check = () => {
-        const el = document.querySelector(selector)
-        if (el) resolve(el)
-        else if (Date.now() - start > timeout) resolve(null)
-        else setTimeout(check, 200)
-      }
-      check()
-    })
-  }
-
   async function fill() {
-    // 填充标题
-    const titleInput = await waitFor('.article-bar__title input, input[placeholder*="标题"]')
+    // 填充标题（使用注入的 window.waitFor）
+    const titleInput = await window.waitFor('.article-bar__title input, input[placeholder*="标题"]')
     if (titleInput && title) {
       titleInput.focus()
       titleInput.value = title
@@ -112,6 +101,9 @@ async function syncCSDNContent(tab, content, helpers) {
 
   // 等待页面加载
   await new Promise(resolve => setTimeout(resolve, 2000))
+
+  // 先注入公共工具函数（waitFor, setInputValue）
+  await injectUtils(chrome, tab.id)
 
   // 在页面中执行填充脚本
   const result = await chrome.scripting.executeScript({
