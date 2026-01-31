@@ -78,6 +78,10 @@ async function handleMessage(request, sender) {
       return { platforms: PLATFORMS }
     case 'CHECK_PLATFORM_STATUS':
       return { status: await checkAllPlatforms(request.platforms || PLATFORMS) }
+    case 'CHECK_PLATFORM_STATUS_PROGRESSIVE':
+      // 渐进式检测：每个平台检测完成后立即返回结果
+      checkAllPlatformsProgressive(request.platforms || PLATFORMS, sender.tab?.id)
+      return { started: true, total: (request.platforms || PLATFORMS).length }
     case 'START_SYNC_BATCH':
       // 开始新的同步批次，重置 tab group
       currentSyncGroupId = null
@@ -124,6 +128,73 @@ async function checkAllPlatforms(platforms) {
     console.error('[COSE] 检查平台状态失败:', e)
   }
   return status
+}
+
+// 渐进式检查所有平台登录状态（每个平台完成后立即返回结果）
+async function checkAllPlatformsProgressive(platforms, tabId) {
+  const validPlatforms = (platforms || []).filter(p => p && p.id)
+  let completed = 0
+  const total = validPlatforms.length
+
+  // 并行检查所有平台，每个完成后立即发送结果
+  const promises = validPlatforms.map(async (platform) => {
+    try {
+      const result = await checkPlatformLogin(platform)
+      completed++
+      
+      // 通过 content script 发送单个平台结果回页面
+      if (tabId) {
+        try {
+          await chrome.tabs.sendMessage(tabId, {
+            type: 'PLATFORM_STATUS_UPDATE',
+            platformId: platform.id,
+            platform: platform,
+            result: result,
+            completed: completed,
+            total: total
+          })
+        } catch (e) {
+          console.log('[COSE] 发送平台状态更新失败:', platform.id, e.message)
+        }
+      }
+      
+      return { id: platform.id, result }
+    } catch (e) {
+      completed++
+      const errorResult = { loggedIn: false, error: e.message }
+      
+      if (tabId) {
+        try {
+          await chrome.tabs.sendMessage(tabId, {
+            type: 'PLATFORM_STATUS_UPDATE',
+            platformId: platform.id,
+            platform: platform,
+            result: errorResult,
+            completed: completed,
+            total: total
+          })
+        } catch (e2) {
+          console.log('[COSE] 发送平台状态更新失败:', platform.id, e2.message)
+        }
+      }
+      
+      return { id: platform.id, result: errorResult }
+    }
+  })
+
+  // 等待所有完成后发送完成消息
+  await Promise.allSettled(promises)
+  
+  if (tabId) {
+    try {
+      await chrome.tabs.sendMessage(tabId, {
+        type: 'PLATFORM_STATUS_COMPLETE',
+        total: total
+      })
+    } catch (e) {
+      console.log('[COSE] 发送完成消息失败:', e.message)
+    }
+  }
 }
 
 // 检查单个平台登录状态

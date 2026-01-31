@@ -129,6 +129,12 @@ console.log('[COSE Content Script] Hostname:', window.location.hostname)
             platforms: payload?.platforms,
           })
           break
+        case 'CHECK_PLATFORM_STATUS_PROGRESSIVE':
+          result = await chrome.runtime.sendMessage({
+            type: 'CHECK_PLATFORM_STATUS_PROGRESSIVE',
+            platforms: payload?.platforms,
+          })
+          break
         case 'START_SYNC_BATCH':
           result = await chrome.runtime.sendMessage({ type: 'START_SYNC_BATCH' })
           break
@@ -177,6 +183,16 @@ console.log('[COSE Content Script] Hostname:', window.location.hostname)
       } else {
         console.log('[COSE] Chrome API 不可用，无法保存缓存')
       }
+    }
+  })
+  // 监听来自 background 的消息并转发到页面（用于渐进式状态更新）
+  chrome.runtime.onMessage.addListener((message) => {
+    if (message.type === 'PLATFORM_STATUS_UPDATE' || message.type === 'PLATFORM_STATUS_COMPLETE') {
+      window.postMessage({
+        source: 'cose-extension',
+        type: message.type,
+        ...message
+      }, '*')
     }
   })
 })()

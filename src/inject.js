@@ -6,13 +6,49 @@
 
   let requestId = 0
   const pendingRequests = new Map()
+  
+  // 渐进式更新的回调
+  let progressiveCallbacks = {
+    onProgress: null,
+    onComplete: null
+  }
 
   // 监听来自 content script 的响应
   window.addEventListener('message', (event) => {
     if (event.source !== window) return
     if (!event.data || event.data.source !== 'cose-extension') return
 
-    const { requestId: resId, result, error } = event.data
+    const { type, requestId: resId, result, error, platformId, platform, completed, total } = event.data
+    
+    // 处理渐进式平台状态更新
+    if (type === 'PLATFORM_STATUS_UPDATE') {
+      if (progressiveCallbacks.onProgress && platform && event.data.result) {
+        const platformResult = event.data.result
+        const account = {
+          uid: platform.id,
+          type: platform.type,
+          title: platform.title,
+          displayName: platformResult.loggedIn ? (platformResult.username || platform.title) : platform.title,
+          icon: platform.icon,
+          avatar: platformResult.avatar,
+          home: platform.url || '',
+          checked: false,
+          loggedIn: platformResult.loggedIn || false,
+          isChecking: false
+        }
+        progressiveCallbacks.onProgress(account, completed, total)
+      }
+      return
+    }
+    
+    // 处理渐进式检测完成
+    if (type === 'PLATFORM_STATUS_COMPLETE') {
+      if (progressiveCallbacks.onComplete) {
+        progressiveCallbacks.onComplete()
+      }
+      return
+    }
+
     const pending = pendingRequests.get(resId)
     if (pending) {
       pendingRequests.delete(resId)
@@ -159,6 +195,24 @@
         }
         return accounts
       }
+    },
+
+    // 渐进式获取账号列表（每个平台检测完成后立即返回）
+    // onProgress(account, completed, total) - 每个平台完成时调用
+    // onComplete() - 所有平台完成时调用
+    getAccountsProgressive(onProgress, onComplete) {
+      progressiveCallbacks.onProgress = onProgress
+      progressiveCallbacks.onComplete = onComplete
+      
+      // 发送渐进式检测请求
+      sendMessage('CHECK_PLATFORM_STATUS_PROGRESSIVE', { platforms: PLATFORMS })
+        .catch(error => {
+          console.error('[COSE] 渐进式检测启动失败:', error)
+          // 如果启动失败，调用完成回调
+          if (typeof onComplete === 'function') {
+            onComplete()
+          }
+        })
     },
 
     // 添加发布任务（兼容 wechatsync 的 addTask 接口）
