@@ -19,7 +19,7 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 
 ## 使用方法
 
-> 点击观看视频：[![Bilibili](https://img.shields.io/badge/Video-Bilibili-00A1D6?logo=bilibili&logoColor=white)](https://www.bilibili.com/video/BV1ZxqnB1E2C/) [![YouTube](https://img.shields.io/badge/Video-YouTube-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=KTskiA8Xaj4) 
+> 点击观看视频：[![Bilibili](https://img.shields.io/badge/Video-Bilibili-00A1D6?logo=bilibili&logoColor=white)](https://www.bilibili.com/video/BV1ZxqnB1E2C/) [![YouTube](https://img.shields.io/badge/Video-YouTube-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=KTskiA8Xaj4)
 
 1. 先点击安装扩展 [![Chrome Web Store](https://img.shields.io/badge/Install-Chrome%20Web%20Store-4285F4?logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/ilhikcdphhpjofhlnbojifbihhfmmhfk) 然后打开 [md.doocs.org](https://md.doocs.org) 或本地开发环境
 2. 编辑 Markdown 内容
@@ -34,7 +34,6 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 - 同步的标签页自动归入分组，便于管理
 - 微信公众号同步时完整保留渲染样式并自动保存为草稿
 
-
 ## 已支持的平台
 
 > 更多想要添加的平台欢迎提 [Issue](https://github.com/doocs/cose/issues) ！
@@ -42,27 +41,26 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 > <details>
 > <summary>已支持平台速查表(点击展开)</summary>
 >
-> | 字母 | 平台 |
-> |:---:|:---|
-> | A | 阿里云社区 |
-> | B | B站专栏、百度云千帆、百家号、博客园 |
-> | C | CSDN |
-> | D | 电子发烧友、抖音文章 |
-> | H | 华为开发者文章、华为云博客、火山引擎社区 |
-> | I | InfoQ |
-> | J | 简书、掘金、今日头条 |
-> | K | 开源中国 |
-> | M | Medium、ModelScope 魔搭社区 |
-> | S | 少数派、搜狐号、思否 |
-> | T | 腾讯云 |
-> | W | 网易号、微博文章、微信公众号 |
-> | X | 小红书长文、X(Formerly Twitter) Articles |
-> | Z | 支付宝开放平台、知乎 |
-> | 5 | 51CTO |
+> | 字母 | 平台                                     |
+> | :--: | :--------------------------------------- |
+> |  A   | 阿里云社区                               |
+> |  B   | B站专栏、百度云千帆、百家号、博客园      |
+> |  C   | CSDN                                     |
+> |  D   | 电子发烧友、抖音文章                     |
+> |  H   | 华为开发者文章、华为云博客、火山引擎社区 |
+> |  I   | InfoQ                                    |
+> |  J   | 简书、掘金、今日头条                     |
+> |  K   | 开源中国                                 |
+> |  L   | llmapis.com                              |
+> |  M   | Medium、ModelScope 魔搭社区              |
+> |  S   | 少数派、搜狐号、思否                     |
+> |  T   | 腾讯云                                   |
+> |  W   | 网易号、微博文章、微信公众号             |
+> |  X   | 小红书长文、X(Formerly Twitter) Articles |
+> |  Z   | 支付宝开放平台、知乎                     |
+> |  5   | 51CTO                                    |
 >
 > </details>
-
-
 
 ### 媒体平台
 
@@ -80,11 +78,12 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 <img src="https://cdn.simpleicons.org/bilibili" alt="B站专栏" width="60" height="60" />
 <img src="https://favicon.im/sspai.com?larger=true" alt="少数派" width="60" height="60" />
 <img src="https://cdn.simpleicons.org/x" alt="X(Formerly Twitter) Articles" width="50" height="60" />
+<img src="https://llmapis.com/api/badge/doocs/cose" alt="llmapis.com" width="60" />
 </div>
 </div>
-
 
 ### 博客平台
+
 <div align="center">
 <div>
 <img src="https://cdn.simpleicons.org/csdn/FC5531" alt="CSDN" width="80" height="60" />
@@ -100,6 +99,7 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 </div>
 
 ### 云平台及其开发者社区
+
 <br/>
 
 <div align="center">
@@ -124,7 +124,6 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 </div>
 </div>
 
-
 ## 开发者模式测试
 
 1. 克隆或下载本项目
@@ -132,3 +131,7 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 3. 开启右上角的 **开发者模式**
 4. 点击 **加载已解压的扩展程序**
 5. 选择 `cose` 目录
+
+<a href="https://llmapis.com?source=https%3A%2F%2Fgithub.com%2Fdoocs%2Fcose" target="_blank"><img src="https://llmapis.com/api/badge/doocs/cose" alt="LLMAPIS" width="100" /></a>
+
+_Partnership with [https://llmapis.com](https://llmapis.com) - Discover more awesome tools and resources_
