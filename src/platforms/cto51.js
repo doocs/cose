@@ -2,7 +2,7 @@
 const CTO51Platform = {
     id: 'cto51',
     name: '51CTO',
-    icon: 'https://www.google.com/s2/favicons?domain=51cto.com&sz=32',
+    icon: 'https://blog.51cto.com/favicon.ico',
     url: 'https://blog.51cto.com',
     loginUrl: 'https://home.51cto.com/index/login',
     publishUrl: 'https://blog.51cto.com/blogger/publish',

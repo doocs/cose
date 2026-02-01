@@ -2,7 +2,7 @@
 const SohuPlatform = {
   id: 'sohu',
   name: 'Sohu',
-  icon: 'https://www.google.com/s2/favicons?domain=sohu.com&sz=32',
+  icon: 'https://statics.itc.cn/mp-new/icon/1.1/favicon.ico',
   url: 'https://mp.sohu.com',
   publishUrl: 'https://mp.sohu.com/mpfe/v4/contentManagement/news/addarticle?contentStatus=1',
   title: '搜狐号',

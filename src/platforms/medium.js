@@ -2,7 +2,7 @@
 const MediumPlatform = {
     id: 'medium',
     name: 'Medium',
-    icon: 'https://miro.medium.com/v2/resize:fill:32:32/1*sHhtYhaCe2Uc3IU0IgKwIQ.png',
+    icon: 'https://cdn.simpleicons.org/medium',
     url: 'https://medium.com',
     publishUrl: 'https://medium.com/new-story',
     title: 'Medium',
