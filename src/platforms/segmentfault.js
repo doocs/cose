@@ -2,7 +2,7 @@
 const SegmentFaultPlatform = {
   id: 'segmentfault',
   name: 'SegmentFault',
-  icon: 'https://www.google.com/s2/favicons?domain=segmentfault.com&sz=32',
+  icon: 'https://fastly.jsdelivr.net/gh/bucketio/img16@main/2026/02/01/1769960912823-e037663a-7f65-414e-a114-ed86b4e86964.png',
   url: 'https://segmentfault.com',
   publishUrl: 'https://segmentfault.com/write',
   title: '思否',
