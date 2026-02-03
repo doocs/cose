@@ -1,0 +1,19 @@
+{
+  "name": "cose-extension",
+  "version": "1.2.2",
+  "description": "Create Once, Sync Everywhere. 一键将文章同步到多个平台",
+  "type": "module",
+  "scripts": {
+    "dev": "web-ext run --source-dir ./dist --target=chromium --chromium-profile \"/tmp/chrome-debug-profile\" --keep-profile-changes --args=\"--remote-debugging-port=9222\"",
+    "build": "vite build",
+    "watch": "vite build --watch",
+    "lint": "web-ext lint --source-dir ./dist"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "vite": "^5.0.12",
+    "web-ext": "^7.11.0",
+    "vite-plugin-static-copy": "^1.0.1",
+    "rimraf": "^5.0.5"
+  }
+}
