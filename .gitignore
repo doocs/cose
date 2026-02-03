@@ -8,3 +8,5 @@
 .zed
 .windsurf
 .kiro
+dist/
+node_modules/
