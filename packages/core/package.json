@@ -1,0 +1,15 @@
+{
+    "name": "@cose/core",
+    "version": "1.0.0",
+    "description": "Core publishing logic for COSE",
+    "main": "index.js",
+    "type": "module",
+    "exports": {
+        ".": "./index.js",
+        "./platforms/*": "./src/platforms/*.js",
+        "./utils": "./src/utils.js"
+    },
+    "dependencies": {
+        "@cose/detection": "workspace:*"
+    }
+}

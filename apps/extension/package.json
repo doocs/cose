@@ -1,0 +1,30 @@
+{
+  "name": "cose-extension",
+  "version": "1.2.2",
+  "description": "Create Once, Sync Everywhere. 一键将文章同步到多个平台",
+  "type": "module",
+  "scripts": {
+    "dev": "mkdir -p /tmp/chrome-debug-profile && web-ext run --source-dir ./dist --target=chromium --chromium-binary \"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome\" --chromium-profile /tmp/chrome-debug-profile --keep-profile-changes",
+    "dev:chrome": "mkdir -p /tmp/chrome-debug-profile && '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --remote-debugging-port=9222 --user-data-dir=/tmp/chrome-debug-profile --load-extension=$(pwd)/dist",
+    "dev:watch": "node scripts/reload-extension.mjs",
+    "build": "tsx scripts/cli.ts build",
+    "build:firefox": "tsx scripts/cli.ts build --target firefox",
+    "build:safari": "tsx scripts/cli.ts build --target safari",
+    "build:release": "tsx scripts/cli.ts build --release",
+    "watch": "tsx scripts/cli.ts build --watch",
+    "lint": "web-ext lint --source-dir ./dist"
+  },
+  "dependencies": {
+    "@cose/core": "workspace:*"
+  },
+  "devDependencies": {
+    "cac": "^6.7.14",
+    "execa": "^9.6.1",
+    "rimraf": "^5.0.5",
+    "tsx": "^4.21.0",
+    "vite": "^5.0.12",
+    "vite-plugin-static-copy": "^1.0.1",
+    "web-ext": "^7.11.0",
+    "ws": "^8.19.0"
+  }
+}
