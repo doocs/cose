@@ -29,6 +29,7 @@ import { VolcenginePlatform, VolcengineLoginConfig } from './volcengine.js'
 import { DouyinPlatform, DouyinLoginConfig } from './douyin.js'
 import { XiaohongshuPlatform, XiaohongshuLoginConfig } from './xiaohongshu.js'
 import { ElecfansPlatform, ElecfansLoginConfig } from './elecfans.js'
+import { LLMAPIsPlatform, LLMAPIsLoginConfig } from './llmapis.js'
 
 // 合并平台配置
 const PLATFORMS = [
@@ -62,6 +63,7 @@ const PLATFORMS = [
   DouyinPlatform,
   XiaohongshuPlatform,
   ElecfansPlatform,
+  LLMAPIsPlatform,
 ]
 
 // 合并登录检测配置
@@ -96,6 +98,7 @@ const LOGIN_CHECK_CONFIG = {
   [DouyinPlatform.id]: DouyinLoginConfig,
   [XiaohongshuPlatform.id]: XiaohongshuLoginConfig,
   [ElecfansPlatform.id]: ElecfansLoginConfig,
+  [LLMAPIsPlatform.id]: LLMAPIsLoginConfig,
 }
 
 // 根据 hostname 获取平台填充函数
@@ -130,6 +133,7 @@ function getPlatformFiller(hostname) {
   if (hostname.includes('creator.douyin.com')) return 'douyin'
   if (hostname.includes('creator.xiaohongshu.com')) return 'xiaohongshu'
   if (hostname.includes('elecfans.com')) return 'elecfans'
+  if (hostname.includes('llmapis.com')) return 'llmapis'
   return 'generic'
 }
 
