@@ -104,7 +104,7 @@ const copyResources = async () => {
         {
             // Copy platform scripts from core package
             from: path.resolve(rootDir, '../../packages/core/src/platforms'),
-            to: path.join(rootDir, 'dist/src/platforms'),
+            to: path.join(rootDir, 'dist/bundles/platforms'),
         },
     ]
 

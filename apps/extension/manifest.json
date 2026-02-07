@@ -63,7 +63,7 @@
     "default_title": "COSE"
   },
   "background": {
-    "service_worker": "src/background.js",
+    "service_worker": "bundles/background.js",
     "type": "module"
   },
   "content_scripts": [
@@ -73,7 +73,7 @@
         "https://*/*"
       ],
       "js": [
-        "src/content.js"
+        "bundles/content.js"
       ],
       "run_at": "document_idle"
     }
@@ -86,8 +86,8 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "src/inject.js",
-        "src/platforms/*.js"
+        "bundles/inject.js",
+        "bundles/platforms/*.js"
       ],
       "matches": [
         "<all_urls>"
