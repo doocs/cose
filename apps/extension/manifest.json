@@ -10,7 +10,8 @@
     "cookies",
     "debugger",
     "clipboardRead",
-    "storage"
+    "storage",
+    "declarativeNetRequest"
   ],
   "host_permissions": [
     "https://*.csdn.net/*",
@@ -21,9 +22,11 @@
     "https://*.douban.com/*",
     "https://*.bilibili.com/*",
     "https://*.weibo.com/*",
+    "https://*.sinaimg.cn/*",
     "https://mp.weixin.qq.com/*",
     "https://*.zhihu.com/*",
     "https://*.sspai.com/*",
+    "https://cdnfile.sspai.com/*",
     "https://*.xueqiu.com/*",
     "https://*.eastmoney.com/*",
     "https://*.wordpress.com/*",

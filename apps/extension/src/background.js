@@ -2,6 +2,68 @@
 import { PLATFORMS, LOGIN_CHECK_CONFIG, SYNC_HANDLERS } from '@cose/core/src/platforms/index.js'
 // [DISABLED] import { fillAlipayOpenContent } from '@cose/core/src/platforms/alipayopen.js'
 
+// 初始化动态规则：为 sinaimg 和 sspai 头像添加 CORS 头
+async function initDynamicRules() {
+  try {
+    // 先移除已有的规则
+    const existingRules = await chrome.declarativeNetRequest.getDynamicRules()
+    const existingIds = existingRules.map(r => r.id)
+    if (existingIds.length > 0) {
+      await chrome.declarativeNetRequest.updateDynamicRules({
+        removeRuleIds: existingIds
+      })
+    }
+
+    // 添加新规则
+    await chrome.declarativeNetRequest.updateDynamicRules({
+      addRules: [
+        {
+          id: 1,
+          priority: 100,
+          action: {
+            type: 'modifyHeaders',
+            requestHeaders: [
+              { header: 'Referer', operation: 'set', value: 'https://weibo.com/' },
+              { header: 'Origin', operation: 'set', value: 'https://weibo.com' }
+            ],
+            responseHeaders: [
+              { header: 'Access-Control-Allow-Origin', operation: 'set', value: '*' }
+            ]
+          },
+          condition: {
+            urlFilter: '*sinaimg.cn*',
+            resourceTypes: ['image', 'xmlhttprequest']
+          }
+        },
+        {
+          id: 2,
+          priority: 100,
+          action: {
+            type: 'modifyHeaders',
+            requestHeaders: [
+              { header: 'Referer', operation: 'set', value: 'https://sspai.com/' },
+              { header: 'Origin', operation: 'set', value: 'https://sspai.com' }
+            ],
+            responseHeaders: [
+              { header: 'Access-Control-Allow-Origin', operation: 'set', value: '*' }
+            ]
+          },
+          condition: {
+            urlFilter: '*cdnfile.sspai.com*',
+            resourceTypes: ['image', 'xmlhttprequest']
+          }
+        }
+      ]
+    })
+    console.log('[COSE] 动态规则初始化完成')
+  } catch (e) {
+    console.error('[COSE] 动态规则初始化失败:', e)
+  }
+}
+
+// 扩展启动时初始化规则
+initDynamicRules()
+
 // 点击扩展图标时打开 md.doocs.org
 chrome.action.onClicked.addListener(() => {
   chrome.tabs.create({ url: 'https://md.doocs.org' })
@@ -58,8 +120,29 @@ async function addTabToSyncGroup(tabId, windowId) {
 // 登录检测配置
 // 登录检测配置由 import 导入
 
+async function logToStorage(msg, data = null) {
+  try {
+    const timestamp = new Date().toISOString()
+    const logMsg = data ? `${msg} ${JSON.stringify(data)}` : msg
+    const { debug_logs = [] } = await chrome.storage.local.get('debug_logs')
+    debug_logs.push(`[${timestamp}] ${logMsg}`)
+    if (debug_logs.length > 500) debug_logs.shift()
+    await chrome.storage.local.set({ debug_logs })
+  } catch (e) {
+    console.error('Error logging to storage:', e)
+  }
+  console.log(msg, data || '')
+}
+
 // 消息监听
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.type === 'GET_DEBUG_LOGS') {
+    chrome.storage.local.get('debug_logs', (result) => {
+      sendResponse({ logs: result.debug_logs || [] })
+    })
+    return true
+  }
+
   (async () => {
     try {
       const result = await handleMessage(request, sender)
@@ -73,6 +156,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 })
 
 async function handleMessage(request, sender) {
+  console.log(`[COSE] handleMessage received type: ${request.type}`, request)
   switch (request.type) {
     case 'GET_PLATFORMS':
       return { platforms: PLATFORMS }
@@ -341,26 +425,89 @@ async function checkPlatformLogin(platform) {
         })
         const html = await response.text()
 
-        console.log(`[COSE] weibo HTML 长度:`, html.length)
+        await logToStorage(`[COSE] weibo HTML 长度: ${html.length}`)
+        if (html.length < 1000) {
+          await logToStorage(`[COSE] weibo HTML content snippet:`, html)
+        } else {
+          await logToStorage(`[COSE] weibo HTML content starts with:`, html.substring(0, 500))
+        }
 
         // 从 HTML 中提取用户名
         const nickMatch = html.match(/"nick"\s*:\s*"([^"]+)"/)
         if (nickMatch) {
           username = nickMatch[1]
+        } else {
+          // 深度查找 nick
+          const altNickMatch = html.match(/\\"nick\\"\s*:\s*\\"([^\\"]+)\\"/)
+          if (altNickMatch) {
+            username = altNickMatch[1]
+            await logToStorage(`[COSE] weibo Found nick via escaped regex: ${username}`)
+          } else {
+            await logToStorage(`[COSE] weibo Failed to find nick in HTML. Snip:`, html.substring(html.indexOf('nick') - 20, html.indexOf('nick') + 100))
+          }
         }
 
         // 从 HTML 中提取头像
         const avatarMatch = html.match(/"avatar_large"\s*:\s*"([^"]+)"/)
         if (avatarMatch) {
-          // 处理转义的 URL 并去掉签名参数
-          let rawAvatar = avatarMatch[1].replace(/\\\//g, '/')
-          // 去掉 URL 中的查询参数（签名参数有时效性，去掉后仍可访问）
-          if (rawAvatar.includes('sinaimg.cn')) {
-            avatar = rawAvatar.split('?')[0]
+          // 处理转义的 URL
+          let rawAvatar = avatarMatch[1].replace(/\\/g, '')
+          const avatarUrl = rawAvatar
+          try {
+            await logToStorage(`[COSE] weibo fetching avatar: ${avatarUrl}`)
+            const avatarRes = await fetch(avatarUrl)
+            if (avatarRes.ok) {
+              const blob = await avatarRes.blob()
+              avatar = await new Promise((resolve) => {
+                const reader = new FileReader()
+                reader.onloadend = () => resolve(reader.result)
+                reader.readAsDataURL(blob)
+              })
+              await logToStorage(`[COSE] weibo avatar converted successfully (length: ${avatar.length})`)
+            } else {
+              await logToStorage(`[COSE] weibo avatar fetch failed with status: ${avatarRes.status}`)
+              avatar = avatarUrl
+            }
+          } catch (e) {
+            await logToStorage(`[COSE] weibo avatar fetch failed: ${e.message}`)
+            avatar = avatarUrl
+          }
+        } else {
+          // 深度查找 avatar_large
+          const altAvatarMatch = html.match(/\\"avatar_large\\"\s*:\s*\\"([^\\"]+)\\"/)
+          if (altAvatarMatch) {
+            let rawAvatar = altAvatarMatch[1].replace(/\\\\\\\//g, '/')
+            if (rawAvatar.includes('sinaimg.cn')) {
+              avatar = rawAvatar.split('?')[0]
+            } else {
+              avatar = rawAvatar
+            }
+            await logToStorage(`[COSE] weibo Found avatar via escaped regex: ${avatar}`)
+
+            // Try fetching if it's not converted yet
+            if (avatar && avatar.startsWith('http')) {
+              try {
+                await logToStorage(`[COSE] weibo fetching avatar (alt): ${avatar}`)
+                const avatarRes = await fetch(avatar)
+                if (avatarRes.ok) {
+                  const blob = await avatarRes.blob()
+                  avatar = await new Promise((resolve) => {
+                    const reader = new FileReader()
+                    reader.onloadend = () => resolve(reader.result)
+                    reader.readAsDataURL(blob)
+                  })
+                  await logToStorage(`[COSE] weibo avatar converted successfully (alt) (length: ${avatar.length})`)
+                }
+              } catch (e) {
+                await logToStorage(`[COSE] weibo avatar fetch error (alt): ${e.message}`)
+              }
+            }
+          } else {
+            await logToStorage(`[COSE] weibo Failed to find avatar_large in HTML`)
           }
         }
 
-        console.log(`[COSE] weibo 用户信息:`, username, avatar ? '有头像' : '无头像')
+        await logToStorage(`[COSE] weibo 用户信息: ${username} ${avatar ? (avatar.startsWith('data:') ? 'Base64头像' : 'URL头像') : '无头像'}`)
       } catch (e) {
         console.log(`[COSE] weibo 获取用户详情失败:`, e.message)
       }
@@ -378,8 +525,134 @@ async function checkPlatformLogin(platform) {
     }
   }
 
+
+
+
+
+
+  console.log(`[COSE] checkPlatformLogin checking: '${platform.id}'`)
+
+  if (platform.id === 'twitter') {
+    console.log(`[COSE] Entering Twitter block for ${platform.id}`)
+    return await checkTwitterLogin(platform)
+  }
+
   if (config.useCookie) {
     return await checkLoginByCookie(platform.id, config)
+  }
+
+  // 微信公众号特殊处理：通过已打开的页面或 fetch 首页检测登录状态
+  if (platform.id === 'wechat') {
+    try {
+      // 先检查缓存
+      const stored = await chrome.storage.local.get('wechat_user')
+      const cachedUser = stored.wechat_user
+
+      if (cachedUser && cachedUser.loggedIn) {
+        const cacheAge = Date.now() - (cachedUser.cachedAt || 0)
+        const maxAge = 1 * 60 * 60 * 1000 // 1 hour
+
+        if (cacheAge < maxAge) {
+          console.log(`[COSE] wechat 从缓存读取:`, cachedUser.username)
+          return {
+            loggedIn: true,
+            username: cachedUser.username || '',
+            avatar: cachedUser.avatar || ''
+          }
+        } else {
+          await chrome.storage.local.remove('wechat_user')
+        }
+      }
+
+      // 优先尝试在已打开的微信公众号页面中检测
+      const tabs = await chrome.tabs.query({ url: 'https://mp.weixin.qq.com/*' })
+      if (tabs.length > 0) {
+        try {
+          const results = await chrome.scripting.executeScript({
+            target: { tabId: tabs[0].id },
+            func: () => {
+              // 从 window.wx.data 读取用户信息
+              const wxData = window.wx?.data
+              if (wxData && wxData.nick_name) {
+                return {
+                  loggedIn: true,
+                  username: wxData.nick_name || wxData.user_name || '',
+                  avatar: wxData.head_img || '',
+                  token: wxData.t || ''
+                }
+              }
+              return null
+            }
+          })
+
+          const result = results?.[0]?.result
+          if (result && result.loggedIn) {
+            // 缓存结果
+            const userInfo = {
+              ...result,
+              cachedAt: Date.now()
+            }
+            await chrome.storage.local.set({ wechat_user: userInfo })
+            console.log(`[COSE] wechat 从页面检测成功:`, userInfo.username)
+            return {
+              loggedIn: true,
+              username: userInfo.username || '',
+              avatar: userInfo.avatar || ''
+            }
+          }
+        } catch (e) {
+          console.log(`[COSE] wechat 页面脚本执行失败:`, e.message)
+        }
+      }
+
+      // 备用方案：fetch 首页并解析 HTML
+      try {
+        const response = await fetch('https://mp.weixin.qq.com/', {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Accept': 'text/html'
+          }
+        })
+        const html = await response.text()
+
+        // 检查是否需要登录
+        if (html.includes('请使用微信扫描') || html.includes('扫码登录')) {
+          console.log(`[COSE] wechat 未登录（需要扫码）`)
+          return { loggedIn: false }
+        }
+
+        // 尝试从 HTML 提取用户信息
+        const nickMatch = html.match(/nick_name\s*[:=]\s*["']([^"']+)["']/)
+        const avatarMatch = html.match(/head_img\s*[:=]\s*["']([^"']+)["']/)
+
+        if (nickMatch) {
+          const username = nickMatch[1]
+          const avatar = avatarMatch ? avatarMatch[1] : ''
+
+          // 缓存结果
+          await chrome.storage.local.set({
+            wechat_user: {
+              loggedIn: true,
+              username,
+              avatar,
+              cachedAt: Date.now()
+            }
+          })
+
+          console.log(`[COSE] wechat 从 HTML 检测成功:`, username)
+          return { loggedIn: true, username, avatar }
+        }
+      } catch (e) {
+        console.log(`[COSE] wechat fetch 失败:`, e.message)
+      }
+
+      console.log(`[COSE] wechat 未登录或检测失败`)
+      return { loggedIn: false }
+    } catch (e) {
+      console.log(`[COSE] wechat 检测失败:`, e.message)
+      return { loggedIn: false }
+    }
   }
 
   // 小红书特殊处理：直接使用 scripting API 检测登录状态
@@ -522,8 +795,166 @@ async function checkPlatformLogin(platform) {
     }
   }
 
+  // 少数派特殊处理：通过 localStorage 检测登录状态（类似 Sohu）
+  // 少数派特殊处理：通过 Cookie 获取 Token 调用 API
+  if (platform.id === 'sspai') {
+    try {
+      console.log(`[COSE] sspai 开始检测 via API`)
+      const cookie = await chrome.cookies.get({ url: 'https://sspai.com', name: 'sspai_jwt_token' })
+      if (cookie && cookie.value) {
+        const token = cookie.value
+        try {
+          const response = await fetch('https://sspai.com/api/v1/user/info/get', {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/json'
+            }
+          })
+
+          if (!response.ok) {
+            await logToStorage(`[COSE] sspai API 响应错误: ${response.status}`)
+            return { loggedIn: false }
+          }
+
+          const data = await response.json()
+          await logToStorage(`[COSE] sspai API 数据:`, data)
+
+          if (data && data.data && data.data.nickname) {
+            const userInfo = data.data
+            let avatar = userInfo.avatar || ''
+
+            // 获取头像并转为 base64 解决防盗链
+            if (avatar) {
+              try {
+                await logToStorage(`[COSE] sspai fetching avatar: ${avatar}`)
+                const avatarRes = await fetch(avatar)
+                if (avatarRes.ok) {
+                  const blob = await avatarRes.blob()
+                  avatar = await new Promise((resolve) => {
+                    const reader = new FileReader()
+                    reader.onloadend = () => resolve(reader.result)
+                    reader.readAsDataURL(blob)
+                  })
+                  await logToStorage(`[COSE] sspai avatar converted successfully (length: ${avatar.length})`)
+                }
+              } catch (e) {
+                await logToStorage(`[COSE] sspai avatar fetch failed: ${e.message}`)
+              }
+            }
+
+            await logToStorage(`[COSE] sspai API 检测成功: ${userInfo.nickname}`)
+            return {
+              loggedIn: true,
+              username: userInfo.nickname,
+              avatar: avatar
+            }
+          }
+        } catch (e) {
+          await logToStorage(`[COSE] sspai API fetch error: ${e.message}`)
+        }
+      }
+
+      console.log(`[COSE] sspai API 检测失败 (无有效 Token/Cookie)`)
+      return { loggedIn: false }
+    } catch (e) {
+      console.log(`[COSE] sspai 检测失败:`, e.message)
+      return { loggedIn: false }
+    }
+  }
+
+  // Twitter specialized detection
+  // Twitter specialized detection
+  async function checkTwitterLogin(platform) {
+    try {
+      await logToStorage(`[COSE] Twitter specialized detection started`)
+
+      // 1. Get ct0 cookie
+      const ct0Cookie = await chrome.cookies.get({ url: 'https://x.com', name: 'ct0' })
+      if (!ct0Cookie) {
+        await logToStorage(`[COSE] Twitter detection failed: ct0 cookie not found`)
+        return { loggedIn: false }
+      }
+
+      // 2. Constants
+      const bearerToken = 'Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA'
+
+      let screenName = null
+      let avatar = null
+
+      // 3. Try Login via settings API (Fast Path)
+      try {
+        const settingsResponse = await fetch('https://api.x.com/1.1/account/settings.json', {
+          headers: {
+            'authorization': bearerToken,
+            'x-csrf-token': ct0Cookie.value
+          }
+        })
+
+        if (settingsResponse.ok) {
+          const settingsData = await settingsResponse.json()
+          screenName = settingsData.screen_name
+          await logToStorage(`[COSE] Twitter settings API success: ${screenName}`)
+        } else {
+          await logToStorage(`[COSE] Twitter settings API failed: ${settingsResponse.status}, trying fallback`)
+        }
+      } catch (e) {
+        await logToStorage(`[COSE] Twitter API error: ${e.message}`)
+      }
+
+
+      // 4. Fallback / Avatar Scraping
+      // If we don't have screenName (API failed) or we just need avatar (API doesn't return it easily without more calls)
+      // We explicitly fetch home to scrape.
+
+      if (!screenName || !avatar) {
+        try {
+          const homeResponse = await fetch('https://x.com/home')
+          const homeText = await homeResponse.text()
+
+          // Scrape Avatar
+          const avatarMatch = homeText.match(/"profile_image_url_https":"([^"]+)"/)
+          if (avatarMatch && avatarMatch[1]) {
+            avatar = avatarMatch[1].replace(/\\/g, '')
+          }
+
+          // Scrape Screen Name if missing
+          if (!screenName) {
+            // Try to find screen_name in the initial state
+            // often format: "screen_name":"username"
+            const nameMatch = homeText.match(/"screen_name":"([^"]+)"/)
+            if (nameMatch && nameMatch[1]) {
+              screenName = nameMatch[1]
+            }
+          }
+        } catch (e) {
+          await logToStorage(`[COSE] Twitter scraping failed: ${e.message}`)
+        }
+      }
+
+      if (!screenName) {
+        await logToStorage(`[COSE] Twitter detection failed: screen_name not found via API or Scraping`)
+        return { loggedIn: false }
+      }
+
+      return {
+        loggedIn: true,
+        username: screenName,
+        avatar: avatar
+      }
+
+    } catch (error) {
+      await logToStorage(`[COSE] Twitter detection error: ${error.message}`)
+      return { loggedIn: false, error: error.message }
+    }
+  }
+
+  // Special handling for Twitter
+  if (platform.id === 'twitter') {
+    return await checkTwitterLogin(platform)
+  }
+
   try {
-    console.log(`[COSE] ${platform.id} 开始 API 检测:`, config.api)
+    await logToStorage(`[COSE] ${platform.id} 开始 API 检测: ${config.api}`)
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 8000)
     const response = await fetch(config.api, {
@@ -536,19 +967,21 @@ async function checkPlatformLogin(platform) {
       signal: controller.signal,
     })
     clearTimeout(timeoutId)
-    console.log(`[COSE] ${platform.id} API 响应状态:`, response.status)
+    await logToStorage(`[COSE] ${platform.id} API 响应状态: ${response.status}`)
 
     let data = null
     const contentType = response.headers.get('content-type') || ''
-    if (config.isHtml || contentType.includes('text/html')) {
+    if (config.isHtml) {
+      // 明确指定为 HTML 响应时，使用 text() 解析
       try { data = await response.text() } catch (e) { data = '' }
-    } else if (contentType.includes('application/json') || contentType.includes('text/plain')) {
+    } else {
+      // 其他情况尝试 JSON 解析
       try { data = await response.json() } catch (e) { data = null }
     }
-    console.log(`[COSE] ${platform.id} API 数据:`, data)
+    await logToStorage(`[COSE] ${platform.id} API 数据:`, data)
 
     const loggedIn = config.checkLogin(data)
-    console.log(`[COSE] ${platform.id} checkLogin 结果:`, loggedIn, 'type:', typeof loggedIn)
+    await logToStorage(`[COSE] ${platform.id} checkLogin 结果: ${loggedIn} type: ${typeof loggedIn}`)
     if (loggedIn && config.getUserInfo) {
       const userInfo = config.getUserInfo(data)
       console.log(`[COSE] ${platform.id} 用户信息:`, userInfo)
@@ -556,7 +989,7 @@ async function checkPlatformLogin(platform) {
     }
     return { loggedIn: !!loggedIn }
   } catch (error) {
-    console.log(`[COSE] ${platform.id} API 检测失败:`, error.message)
+    await logToStorage(`[COSE] ${platform.id} API 检测失败: ${error.message}`)
     return { loggedIn: false, error: error.message }
   }
 }
