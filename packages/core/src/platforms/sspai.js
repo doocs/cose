@@ -4,6 +4,7 @@ const SspaiPlatform = {
   name: 'Sspai',
   icon: 'https://cdn-static.sspai.com/favicon/sspai.ico',
   url: 'https://sspai.com',
+  loginUrl: 'https://sspai.com/write',
   publishUrl: 'https://sspai.com/write',
   title: '少数派',
   type: 'sspai',
@@ -16,7 +17,7 @@ async function fillSspaiContent(content, waitFor, setInputValue) {
 
   // 1. 填充标题 - 少数派使用 textbox
   await new Promise(resolve => setTimeout(resolve, 1000))
-  
+
   const titleInput = document.querySelector('textarea[placeholder*="标题"]') ||
     document.querySelector('input[placeholder*="标题"]')
 

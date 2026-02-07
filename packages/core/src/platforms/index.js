@@ -7,7 +7,7 @@ import { CSDNPlatform, syncCSDNContent } from './csdn.js'
 import { JuejinPlatform, syncJuejinContent } from './juejin.js'
 import { WechatPlatform, syncWechatContent } from './wechat.js'
 import { ZhihuPlatform, syncZhihuContent } from './zhihu.js'
-import { ToutiaoPlatform } from './toutiao.js'
+import { ToutiaoPlatform, syncToutiaoContent } from './toutiao.js'
 import { SegmentFaultPlatform } from './segmentfault.js'
 import { CnblogsPlatform } from './cnblogs.js'
 import { OSChinaPlatform } from './oschina.js'
@@ -108,6 +108,7 @@ const SYNC_HANDLERS = {
     juejin: syncJuejinContent,
     wechat: syncWechatContent,
     zhihu: syncZhihuContent,
+    toutiao: syncToutiaoContent,
 }
 
 // 导出

@@ -33,18 +33,13 @@ export const JuejinLoginConfig = {
 
 // 微信公众号
 export const WechatLoginConfig = {
-    api: 'https://mp.weixin.qq.com/',
+    api: 'https://mp.weixin.qq.com/cgi-bin/logininfo?action=logininfo&lang=zh_CN',
     method: 'GET',
-    isHtml: true,
-    checkLogin: (html) => !html.includes('请使用微信扫描'),
-    getUserInfo: (html) => {
-        const nickMatch = html.match(/nick_name\s*:\s*["']([^"']+)["']/)
-        const avatarMatch = html.match(/head_img\s*:\s*["']([^"']+)["']/)
-        return {
-            username: nickMatch?.[1]?.replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))),
-            avatar: avatarMatch?.[1],
-        }
-    },
+    checkLogin: (response) => response?.base_resp?.ret === 0 && response?.user_name,
+    getUserInfo: (response) => ({
+        username: response?.nick_name || response?.user_name,
+        avatar: response?.head_img,
+    }),
 }
 
 // 知乎
@@ -60,12 +55,12 @@ export const ZhihuLoginConfig = {
 
 // 头条号
 export const ToutiaoLoginConfig = {
-    api: 'https://mp.toutiao.com/auth/article/is_login/',
+    api: 'https://mp.toutiao.com/mp/agw/creator_center/user_info?app_id=1231',
     method: 'GET',
-    checkLogin: (response) => response?.data?.is_login,
+    checkLogin: (response) => response?.code === 0 && response?.name,
     getUserInfo: (response) => ({
-        username: response?.data?.name,
-        avatar: response?.data?.avatar,
+        username: response?.name,
+        avatar: response?.avatar_url,
     }),
 }
 
@@ -137,12 +132,12 @@ export const JianshuLoginConfig = {
 
 // 百家号
 export const BaijiahaoLoginConfig = {
-    api: 'https://baijiahao.baidu.com/pcui/profile/headerinfo',
+    api: 'https://baijiahao.baidu.com/builder/app/appinfo',
     method: 'GET',
-    checkLogin: (response) => response?.errno === 0 && response?.data?.name,
+    checkLogin: (response) => response?.errno === 0 && response?.data?.user?.name,
     getUserInfo: (response) => ({
-        username: response?.data?.name,
-        avatar: response?.data?.avatar,
+        username: response?.data?.user?.name,
+        avatar: response?.data?.user?.avatar,
     }),
 }
 
@@ -181,9 +176,9 @@ export const MediumLoginConfig = {
 
 // 少数派
 export const SspaiLoginConfig = {
-    api: 'https://sspai.com/api/v1/user/info',
+    api: 'https://sspai.com/api/v1/user/info/get',
     method: 'GET',
-    checkLogin: (response) => response?.error === 0 && response?.data?.id,
+    checkLogin: (response) => response?.error === 0 && response?.data?.nickname,
     getUserInfo: (response) => ({
         username: response?.data?.nickname,
         avatar: response?.data?.avatar,
@@ -192,21 +187,31 @@ export const SspaiLoginConfig = {
 
 // 搜狐号
 export const SohuLoginConfig = {
-    api: 'https://mp.sohu.com/main/home/mp/getLoginUserInfo',
+    api: 'https://mp.sohu.com/mpbp/bp/account/list',
     method: 'GET',
-    checkLogin: (response) => response?.code === 0 && response?.data?.nick,
-    getUserInfo: (response) => ({
-        username: response?.data?.nick,
-        avatar: response?.data?.logoUrl,
-    }),
+    checkLogin: (response) => response?.success === true && response?.data?.total > 0,
+    getUserInfo: (response) => {
+        const account = response?.data?.data?.[0]?.accounts?.[0]
+        let avatar = account?.avatar || ''
+        if (avatar && avatar.startsWith('//')) {
+            avatar = 'https:' + avatar
+        }
+        return {
+            username: account?.nickName,
+            avatar: avatar,
+        }
+    },
 }
 
 // B站
 export const BilibiliLoginConfig = {
-    api: 'https://member.bilibili.com/x/web/kv/list?type=5',
+    api: 'https://api.bilibili.com/x/web-interface/nav',
     method: 'GET',
-    checkLogin: (response) => response?.code === 0,
-    getUserInfo: () => ({ username: null, avatar: null }),
+    checkLogin: (response) => response?.code === 0 && response?.data?.isLogin === true,
+    getUserInfo: (response) => ({
+        username: response?.data?.uname,
+        avatar: response?.data?.face,
+    }),
 }
 
 // 微博
@@ -304,10 +309,10 @@ export const VolcengineLoginConfig = {
 export const DouyinLoginConfig = {
     api: 'https://creator.douyin.com/web/api/media/user/info/',
     method: 'GET',
-    checkLogin: (response) => response?.status_code === 0 && response?.user_info?.uid,
+    checkLogin: (response) => response?.status_code === 0 && (response?.user?.uid || response?.user_info?.uid),
     getUserInfo: (response) => ({
-        username: response?.user_info?.nickname,
-        avatar: response?.user_info?.avatar_url,
+        username: response?.user?.nickname || response?.user_info?.nickname,
+        avatar: (response?.user?.avatar_thumb?.url_list?.[0] || response?.user_info?.avatar_thumb?.url_list?.[0]),
     }),
 }
 
