@@ -1,0 +1,11 @@
+{
+    "name": "@cose/detection",
+    "version": "1.0.0",
+    "description": "Platform login detection for COSE",
+    "main": "index.js",
+    "type": "module",
+    "exports": {
+        ".": "./index.js",
+        "./platforms/*": "./src/platforms/*.js"
+    }
+}
