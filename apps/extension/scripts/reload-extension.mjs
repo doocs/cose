@@ -111,7 +111,7 @@ console.log('  2. chrome://extensions 页面已打开')
 console.log('  3. Developer mode 已开启')
 
 watch(distDir, { recursive: true }, (eventType, filename) => {
-    if (filename && !filename.includes('.DS_Store')) {
+    if (filename && !filename.includes('.DS_Store') && !filename.includes('_metadata')) {
         console.log(`[reload] 检测到变化: ${filename}`)
         debounceReload()
     }
