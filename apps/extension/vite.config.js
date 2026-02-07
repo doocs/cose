@@ -22,8 +22,8 @@ export default defineConfig({
                 inject: resolve(__dirname, 'src/inject.js'),
             },
             output: {
-                entryFileNames: 'src/[name].js',
-                chunkFileNames: 'src/chunks/[name].js',
+                entryFileNames: 'bundles/[name].js',
+                chunkFileNames: 'bundles/chunks/[name].js',
                 assetFileNames: 'assets/[name].[ext]',
                 format: 'es', // ES Modules，适配 Manifest V3
             },

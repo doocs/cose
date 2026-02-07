@@ -104,7 +104,7 @@ console.log('[COSE Content Script] Hostname:', window.location.hostname)
 
     // 注入脚本到页面主世界
     const script = document.createElement('script')
-    script.src = chrome.runtime.getURL('src/inject.js')
+    script.src = chrome.runtime.getURL('bundles/inject.js')
     script.onload = function () {
       this.remove()
     }
