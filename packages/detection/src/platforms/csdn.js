@@ -1,3 +1,5 @@
+import { convertAvatarToBase64 } from '../utils.js'
+
 /**
  * CSDN platform detection logic
  * Strategy:
@@ -35,6 +37,11 @@ export async function detectCSDNUser() {
                 }
             } catch (e) {
                 console.warn('[COSE] CSDN Avatar fetch failed:', e)
+            }
+
+            // Convert csdnimg.cn avatar to base64 data URL to bypass CORS/ORB
+            if (avatar && avatar.includes('csdnimg.cn')) {
+                avatar = await convertAvatarToBase64(avatar, 'https://blog.csdn.net/')
             }
 
             return {

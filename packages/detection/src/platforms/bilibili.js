@@ -1,3 +1,5 @@
+import { convertAvatarToBase64 } from '../utils.js'
+
 /**
  * Bilibili platform detection logic
  * Strategy:
@@ -26,25 +28,7 @@ export async function detectBilibiliUser() {
 
         // Convert hdslb.com avatar to base64 data URL to bypass CORS/ORB
         if (avatar && avatar.includes('hdslb.com')) {
-            try {
-                const imgResp = await fetch(avatar, {
-                    headers: { 'Referer': 'https://www.bilibili.com/' }
-                })
-                if (imgResp.ok) {
-                    const blob = await imgResp.blob()
-                    const buffer = await blob.arrayBuffer()
-                    const bytes = new Uint8Array(buffer)
-                    let binary = ''
-                    for (let i = 0; i < bytes.length; i++) {
-                        binary += String.fromCharCode(bytes[i])
-                    }
-                    const base64 = btoa(binary)
-                    const mime = blob.type || 'image/jpeg'
-                    avatar = `data:${mime};base64,${base64}`
-                }
-            } catch (e) {
-                console.log('[COSE] bilibili avatar base64 conversion failed:', e.message)
-            }
+            avatar = await convertAvatarToBase64(avatar, 'https://www.bilibili.com/')
         }
 
         return { loggedIn: true, username, avatar }
