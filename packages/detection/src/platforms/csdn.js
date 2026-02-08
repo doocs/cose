@@ -16,7 +16,7 @@ export async function detectCSDNUser() {
             const userId = userNameCookie.value
             console.log(`[COSE] CSDN UserName cookie found: ${userId}`)
 
-            // UserNick cookie contains the display name (e.g. 'timerring')
+            // UserNick cookie contains the display name (e.g. 'xxxxxx')
             const userNickCookie = await chrome.cookies.get({ url: 'https://www.csdn.net', name: 'UserNick' })
             const username = (userNickCookie && userNickCookie.value) ? decodeURIComponent(userNickCookie.value) : userId
             console.log(`[COSE] CSDN display name: ${username}`)
