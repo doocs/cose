@@ -82,6 +82,30 @@ export async function detectWeiboUser() {
             return { loggedIn: false }
         }
 
+        // Convert sinaimg.cn avatar to base64 data URL to bypass CORS
+        // The service worker can fetch with proper Referer header
+        if (avatar && avatar.includes('sinaimg.cn')) {
+            try {
+                const imgResp = await fetch(avatar, {
+                    headers: { 'Referer': 'https://weibo.com/' }
+                })
+                if (imgResp.ok) {
+                    const blob = await imgResp.blob()
+                    const buffer = await blob.arrayBuffer()
+                    const bytes = new Uint8Array(buffer)
+                    let binary = ''
+                    for (let i = 0; i < bytes.length; i++) {
+                        binary += String.fromCharCode(bytes[i])
+                    }
+                    const base64 = btoa(binary)
+                    const mime = blob.type || 'image/jpeg'
+                    avatar = `data:${mime};base64,${base64}`
+                }
+            } catch (e) {
+                console.log('[COSE] weibo avatar base64 conversion failed:', e.message)
+            }
+        }
+
         return { loggedIn: true, username, avatar }
     } catch (e) {
         console.log(`[COSE] weibo 检测失败:`, e.message)
