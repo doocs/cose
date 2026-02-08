@@ -26,11 +26,16 @@ export async function detectMediumUser() {
 
         if (profileMatch && profileMatch[1] && profileMatch[1] !== 'gmail' && profileMatch[1] !== 'medium') {
             const username = profileMatch[1]
-            const shortName = username.replace(/\d+$/, '')
-            const avatarPattern = new RegExp(`<img[^>]*alt="${shortName}"[^>]*src="([^"]+)"`)
-            const avatarMatch = html.match(avatarPattern) || html.match(new RegExp(`<img[^>]*src="([^"]+)"[^>]*alt="${shortName}"`))
 
-            return { loggedIn: true, username, avatar: avatarMatch ? avatarMatch[1] : '' }
+            // Extract avatar via imageId from JSON data near the username
+            let avatar = ''
+            const imageIdMatch = html.match(new RegExp(`"imageId"\\s*:\\s*"([^"]+)"[^}]*"username"\\s*:\\s*"${username}"`)) ||
+                html.match(new RegExp(`"username"\\s*:\\s*"${username}"[^}]*"imageId"\\s*:\\s*"([^"]+)"`))
+            if (imageIdMatch) {
+                avatar = `https://miro.medium.com/v2/resize:fill:64:64/${imageIdMatch[1]}`
+            }
+
+            return { loggedIn: true, username, avatar }
         } else {
             return { loggedIn: true, username: '', avatar: '' }
         }
