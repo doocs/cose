@@ -2,37 +2,47 @@ import { LOGIN_CHECK_CONFIG } from './configs.js'
 import { checkLoginByCookie, detectByApi } from './utils.js'
 import { detectCSDNUser } from './platforms/csdn.js'
 import { detectOSChinaUser } from './platforms/oschina.js'
-import * as specialDetectors from './detectors.js'
+import { detectAlipayUser } from './platforms/alipay.js'
+import { detectWeiboUser } from './platforms/weibo.js'
+import { detectWechatUser } from './platforms/wechat.js'
+import { detectXiaohongshuUser } from './platforms/xiaohongshu.js'
+import { detectElecfansUser } from './platforms/elecfans.js'
+import { detectHuaweiCloudUser } from './platforms/huaweicloud.js'
+import { detectHuaweiDevUser } from './platforms/huaweidev.js'
+import { detectSspaiUser } from './platforms/sspai.js'
+import { detectAliyunUser } from './platforms/aliyun.js'
+import { detectSohuUser } from './platforms/sohu.js'
+import { detectMediumUser } from './platforms/medium.js'
+import { detectTencentCloudUser } from './platforms/tencentcloud.js'
+import { detectQianfanUser } from './platforms/qianfan.js'
+import { detectTwitterUser } from './platforms/twitter.js'
+
+// Platform-specific detectors map
+const PLATFORM_DETECTORS = {
+    'csdn': detectCSDNUser,
+    'oschina': detectOSChinaUser,
+    'alipayopen': detectAlipayUser,
+    'weibo': detectWeiboUser,
+    'wechat': detectWechatUser,
+    'xiaohongshu': detectXiaohongshuUser,
+    'elecfans': detectElecfansUser,
+    'huaweicloud': detectHuaweiCloudUser,
+    'huaweidev': detectHuaweiDevUser,
+    'sspai': detectSspaiUser,
+    'aliyun': detectAliyunUser,
+    'sohu': detectSohuUser,
+    'medium': detectMediumUser,
+    'tencentcloud': detectTencentCloudUser,
+    'qianfan': detectQianfanUser,
+    'twitter': detectTwitterUser,
+}
 
 export async function detectUser(platformId) {
     console.log(`[COSE] Detection: Checking ${platformId}`)
 
-    // 1. Specialized Detectors
-    if (platformId === 'csdn') return detectCSDNUser()
-    if (platformId === 'oschina') return detectOSChinaUser()
-
-    // Detectors from bundled file
-    // Convention: detect{CapitalizedPlatformId}User
-    // Map platformId to function name
-    const specialMap = {
-        'alipayopen': specialDetectors.detectAlipayUser,
-        'weibo': specialDetectors.detectWeiboUser,
-        'wechat': specialDetectors.detectWechatUser,
-        'xiaohongshu': specialDetectors.detectXiaohongshuUser,
-        'elecfans': specialDetectors.detectElecfansUser,
-        'huaweicloud': specialDetectors.detectHuaweiCloudUser,
-        'huaweidev': specialDetectors.detectHuaweiDevUser,
-        'sspai': specialDetectors.detectSspaiUser,
-        'aliyun': specialDetectors.detectAliyunUser,
-        'sohu': specialDetectors.detectSohuUser,
-        'medium': specialDetectors.detectMediumUser,
-        'tencentcloud': specialDetectors.detectTencentCloudUser,
-        'qianfan': specialDetectors.detectQianfanUser,
-        'twitter': specialDetectors.detectTwitterUser,
-    }
-
-    if (specialMap[platformId]) {
-        return specialMap[platformId]()
+    // 1. Platform-specific Detectors
+    if (PLATFORM_DETECTORS[platformId]) {
+        return PLATFORM_DETECTORS[platformId]()
     }
 
     // 2. Generic Config-based Detection
