@@ -18,6 +18,7 @@ import { detectQianfanUser } from './platforms/qianfan.js'
 import { detectTwitterUser } from './platforms/twitter.js'
 import { detectBilibiliUser } from './platforms/bilibili.js'
 import { detectCTO51User } from './platforms/cto51.js'
+import { detectJianshuUser } from './platforms/jianshu.js'
 
 // Platform-specific detectors map
 const PLATFORM_DETECTORS = {
@@ -39,6 +40,7 @@ const PLATFORM_DETECTORS = {
     'twitter': detectTwitterUser,
     'bilibili': detectBilibiliUser,
     'cto51': detectCTO51User,
+    'jianshu': detectJianshuUser,
 }
 
 export async function detectUser(platformId) {
