@@ -17,6 +17,9 @@ importers:
       '@cose/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@cose/detection':
+        specifier: workspace:*
+        version: link:../../packages/detection
     devDependencies:
       cac:
         specifier: ^6.7.14
