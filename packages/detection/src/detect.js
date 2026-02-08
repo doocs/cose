@@ -17,6 +17,7 @@ import { detectTencentCloudUser } from './platforms/tencentcloud.js'
 import { detectQianfanUser } from './platforms/qianfan.js'
 import { detectTwitterUser } from './platforms/twitter.js'
 import { detectBilibiliUser } from './platforms/bilibili.js'
+import { detectCTO51User } from './platforms/cto51.js'
 
 // Platform-specific detectors map
 const PLATFORM_DETECTORS = {
@@ -37,6 +38,7 @@ const PLATFORM_DETECTORS = {
     'qianfan': detectQianfanUser,
     'twitter': detectTwitterUser,
     'bilibili': detectBilibiliUser,
+    'cto51': detectCTO51User,
 }
 
 export async function detectUser(platformId) {
