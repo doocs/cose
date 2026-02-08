@@ -1,3 +1,33 @@
+/**
+ * Convert an avatar URL to a base64 data URL to bypass CORS/ORB blocking.
+ * The service worker can fetch with a custom Referer header.
+ * @param {string} avatarUrl - The original avatar URL
+ * @param {string} referer - The Referer header to use for the fetch
+ * @returns {Promise<string>} - base64 data URL, or original URL if conversion fails
+ */
+export async function convertAvatarToBase64(avatarUrl, referer) {
+    try {
+        const imgResp = await fetch(avatarUrl, {
+            headers: { 'Referer': referer }
+        })
+        if (imgResp.ok) {
+            const blob = await imgResp.blob()
+            const buffer = await blob.arrayBuffer()
+            const bytes = new Uint8Array(buffer)
+            let binary = ''
+            for (let i = 0; i < bytes.length; i++) {
+                binary += String.fromCharCode(bytes[i])
+            }
+            const base64 = btoa(binary)
+            const mime = blob.type || 'image/jpeg'
+            return `data:${mime};base64,${base64}`
+        }
+    } catch (e) {
+        console.log('[COSE] avatar base64 conversion failed:', e.message)
+    }
+    return avatarUrl
+}
+
 export async function logToStorage(msg, data = null) {
     if (data) {
         console.log(msg, data)

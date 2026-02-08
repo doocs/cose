@@ -1,3 +1,5 @@
+import { convertAvatarToBase64 } from '../utils.js'
+
 /**
  * Weibo platform detection logic
  * Strategy:
@@ -82,28 +84,9 @@ export async function detectWeiboUser() {
             return { loggedIn: false }
         }
 
-        // Convert sinaimg.cn avatar to base64 data URL to bypass CORS
-        // The service worker can fetch with proper Referer header
+        // Convert sinaimg.cn avatar to base64 data URL to bypass CORS/ORB
         if (avatar && avatar.includes('sinaimg.cn')) {
-            try {
-                const imgResp = await fetch(avatar, {
-                    headers: { 'Referer': 'https://weibo.com/' }
-                })
-                if (imgResp.ok) {
-                    const blob = await imgResp.blob()
-                    const buffer = await blob.arrayBuffer()
-                    const bytes = new Uint8Array(buffer)
-                    let binary = ''
-                    for (let i = 0; i < bytes.length; i++) {
-                        binary += String.fromCharCode(bytes[i])
-                    }
-                    const base64 = btoa(binary)
-                    const mime = blob.type || 'image/jpeg'
-                    avatar = `data:${mime};base64,${base64}`
-                }
-            } catch (e) {
-                console.log('[COSE] weibo avatar base64 conversion failed:', e.message)
-            }
+            avatar = await convertAvatarToBase64(avatar, 'https://weibo.com/')
         }
 
         return { loggedIn: true, username, avatar }
