@@ -1,73 +1,66 @@
+import { convertAvatarToBase64 } from '../utils.js'
+
 /**
  * OSChina platform detection logic
  * Strategy:
- * 1. Fetch homepage, extract user ID or username
- * 2. If only ID found, fetch personal space to get username
+ * 1. Fetch homepage HTML (authenticated)
+ * 2. Extract username from current-user-avatar title or h3.header
+ * 3. Extract avatar from user profile page
  */
 export async function detectOSChinaUser() {
     try {
         console.log('[COSE] OSChina Detection: Starting')
         const response = await fetch('https://www.oschina.net/', {
             method: 'GET',
-            credentials: 'include'
+            credentials: 'include',
+            headers: { 'Accept': 'text/html' },
         })
         const html = await response.text()
 
-        // Extract User ID
-        const uidMatch = html.match(/href=["']https:\/\/my\.oschina\.net\/u\/(\d+)["']/i) ||
-            html.match(/space\.oschina\.net\/u\/(\d+)/i) ||
-            html.match(/data-user-id=["'](\d+)["']/i)
-
-        const userId = uidMatch ? uidMatch[1] : null
-
-        // Extract Username
-        let username = ''
-        const nameMatch = html.match(/<a[^>]*class="[^"]*user-name[^"]*"[^>]*>([^<]+)<\/a>/i) ||
-            html.match(/<span[^>]*class="[^"]*nick[^"]*"[^>]*>([^<]+)<\/span>/i) ||
-            html.match(/title="([^"]+)"[^>]*class="[^"]*avatar/i)
-
-        if (nameMatch) {
-            username = nameMatch[1].trim()
+        // Extract username and userId from current-user-avatar div
+        // Pattern: <div class="... current-user-avatar" title="username" data-user-id="12345">
+        const userMatch = html.match(/current-user-avatar[^"]*"[^>]*title="([^"]+)"[^>]*data-user-id="(\d+)"/)
+        if (!userMatch) {
+            console.log('[COSE] OSChina: Not logged in (no current-user-avatar found)')
+            return { loggedIn: false }
         }
 
-        // Fallback: Fetch personal space if only ID is known
-        if (!username && userId) {
-            console.log(`[COSE] OSChina: Fetching personal space for userId ${userId}`)
+        const username = userMatch[1].trim()
+        const userId = userMatch[2]
+        console.log(`[COSE] OSChina user: ${username}, id: ${userId}`)
+
+        // Extract avatar: look for img inside avatar-image__inner, or background-image on avatar div
+        let avatar = ''
+        const avatarImgMatch = html.match(/avatar-image__inner"[^>]*>[\s\S]*?<img[^>]*src="([^"]+)"/)
+        if (avatarImgMatch && !avatarImgMatch[1].includes('level/')) {
+            avatar = avatarImgMatch[1]
+        }
+
+        // Fallback: fetch user profile page for avatar
+        if (!avatar && userId) {
             try {
-                const userPageResp = await fetch(`https://my.oschina.net/u/${userId}`, {
+                const profileResp = await fetch(`https://my.oschina.net/u/${userId}`, {
                     method: 'GET',
-                    credentials: 'include'
+                    credentials: 'include',
+                    headers: { 'Accept': 'text/html' },
                 })
-                const userPageHtml = await userPageResp.text()
-                const userPageNameMatch = userPageHtml.match(/<h3[^>]*class="[^"]*header[^"]*"[^>]*>([^<]+)<\/h3>/i) ||
-                    userPageHtml.match(/<div[^>]*class="[^"]*user-name[^"]*"[^>]*>([^<]+)<\/div>/i) ||
-                    userPageHtml.match(/<title>([^<]+)的个人空间<\/title>/i)
-                if (userPageNameMatch) {
-                    username = userPageNameMatch[1].trim()
+                const profileHtml = await profileResp.text()
+                const profileAvatar = profileHtml.match(/current-user-avatar[^>]*style="[^"]*background-image:\s*url\(([^)]+)\)/) ||
+                    profileHtml.match(/<img[^>]*class="[^"]*avatar[^"]*"[^>]*src="([^"]+)"/) ||
+                    profileHtml.match(/<img[^>]*src="([^"]+)"[^>]*class="[^"]*avatar/)
+                if (profileAvatar) {
+                    avatar = profileAvatar[1].replace(/^['"]|['"]$/g, '')
                 }
             } catch (e) {
-                console.warn('[COSE] OSChina: Failed to fetch user page', e)
+                console.log('[COSE] OSChina profile fetch failed:', e.message)
             }
         }
 
-        // Fallback: Use ID as username if name still missing
-        if (!username && userId) {
-            username = userId
+        if (avatar && (avatar.includes('oschina.net') || avatar.includes('oscimg'))) {
+            avatar = await convertAvatarToBase64(avatar, 'https://www.oschina.net/')
         }
 
-        // Extract Avatar
-        let avatar = ''
-        const avatarMatch = html.match(/<img[^>]*src="([^"]+)"[^>]*class="[^"]*avatar/i) ||
-            html.match(/<img[^>]*class="[^"]*avatar[^"]*"[^>]*src="([^"]+)"/i)
-        if (avatarMatch) {
-            avatar = avatarMatch[1]
-        }
-
-        if (username) {
-            return { loggedIn: true, username, avatar }
-        }
-
-        return { loggedIn: false }
+        return { loggedIn: true, username, avatar }
     } catch (e) {
         console.error('[COSE] OSChina Detection Error:', e)
         return { loggedIn: false, error: e.message }
