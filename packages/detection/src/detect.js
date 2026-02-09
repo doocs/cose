@@ -20,6 +20,7 @@ import { detectBilibiliUser } from './platforms/bilibili.js'
 import { detectCTO51User } from './platforms/cto51.js'
 import { detectJianshuUser } from './platforms/jianshu.js'
 import { detectSegmentFaultUser } from './platforms/segmentfault.js'
+import { detectInfoQUser } from './platforms/infoq.js'
 
 // Platform-specific detectors map
 const PLATFORM_DETECTORS = {
@@ -43,6 +44,7 @@ const PLATFORM_DETECTORS = {
     'cto51': detectCTO51User,
     'jianshu': detectJianshuUser,
     'segmentfault': detectSegmentFaultUser,
+    'infoq': detectInfoQUser,
 }
 
 export async function detectUser(platformId) {
