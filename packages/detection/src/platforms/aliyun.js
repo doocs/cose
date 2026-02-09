@@ -1,8 +1,11 @@
+import { convertAvatarToBase64 } from '../utils.js'
+
 /**
  * Aliyun Developer platform detection logic
  * Strategy:
  * 1. Check login_aliyunid_ticket cookie
  * 2. Call getUser API for username/avatar
+ * 3. Convert avatar to base64 to bypass CORS/ORB
  */
 export async function detectAliyunUser() {
     try {
@@ -17,7 +20,11 @@ export async function detectAliyunUser() {
         const data = await response.json()
 
         if (data.success && data.data?.nickname) {
-            return { loggedIn: true, username: data.data.nickname, avatar: data.data.avatar || '' }
+            let avatar = data.data.avatar || ''
+            if (avatar) {
+                avatar = await convertAvatarToBase64(avatar, 'https://developer.aliyun.com/')
+            }
+            return { loggedIn: true, username: data.data.nickname, avatar }
         }
         return { loggedIn: false }
     } catch (e) { return { loggedIn: false } }
