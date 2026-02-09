@@ -1,3 +1,5 @@
+import { convertAvatarToBase64 } from '../utils.js'
+
 /**
  * Tencent Cloud platform detection logic
  * Strategy:
@@ -28,7 +30,11 @@ export async function detectTencentCloudUser() {
             html.match(/"avatar"\s*:\s*"(https?:\/\/[^"]+)"/)
 
         if (nicknameMatch && nicknameMatch[1]) {
-            return { loggedIn: true, username: nicknameMatch[1], avatar: avatarMatch ? avatarMatch[1] : '' }
+            let avatar = avatarMatch ? avatarMatch[1] : ''
+            if (avatar && avatar.includes('qcloudimg.com')) {
+                avatar = await convertAvatarToBase64(avatar, 'https://cloud.tencent.com/')
+            }
+            return { loggedIn: true, username: nicknameMatch[1], avatar }
         } else {
             if (html.includes('创作中心') || html.includes('我的文章')) return { loggedIn: true, username: '', avatar: '' }
             return { loggedIn: false }
