@@ -1,50 +1,54 @@
+import { convertAvatarToBase64 } from '../utils.js'
+
 /**
  * Huawei Cloud platform detection logic
  * Strategy:
- * 1. Find open Huawei Cloud tab
- * 2. Inject script to call personal info API with CSRF token
+ * 1. Read csrf-eco cookie via chrome.cookies API
+ * 2. Fetch personal info API directly with csrf header
  */
 export async function detectHuaweiCloudUser() {
-    const platformId = 'huaweicloud'
     try {
-        let tabs = await chrome.tabs.query({ url: 'https://bbs.huaweicloud.com/*' })
-        if (tabs.length === 0) tabs = await chrome.tabs.query({ url: 'https://*.huaweicloud.com/*' })
-        if (tabs.length === 0) return { loggedIn: false }
+        console.log('[COSE] HuaweiCloud Detection: Starting')
 
-        try {
-            const results = await chrome.scripting.executeScript({
-                target: { tabId: tabs[0].id },
-                func: () => {
-                    return new Promise((resolve) => {
-                        const csrf = document.cookie.match(/csrf=([^;]+)/)?.[1] || ''
-                        fetch('https://devdata.huaweicloud.com/rest/developer/fwdu/rest/developer/user/hdcommunityservice/v1/member/get-personal-info', {
-                            method: 'GET',
-                            credentials: 'include',
-                            headers: { 'Accept': 'application/json', 'csrf': csrf }
-                        })
-                            .then(response => response.ok ? response.json() : null)
-                            .then(data => {
-                                if (data && data.memName) {
-                                    resolve({ memName: data.memName, memAlias: data.memAlias, memPhoto: data.memPhoto })
-                                } else {
-                                    resolve(null)
-                                }
-                            })
-                            .catch(() => resolve(null))
-                    })
-                }
-            })
+        // Read csrf-eco cookie from huaweicloud.com domain
+        const csrfCookie = await chrome.cookies.get({ url: 'https://bbs.huaweicloud.com', name: 'csrf-eco' })
+        if (!csrfCookie || !csrfCookie.value) {
+            console.log('[COSE] HuaweiCloud: No csrf-eco cookie found')
+            return { loggedIn: false }
+        }
 
-            let data = results?.[0]?.result
-            if (data && typeof data.then === 'function') data = await data
+        const response = await fetch('https://devdata.huaweicloud.com/rest/developer/fwdu/rest/developer/user/hdcommunityservice/v1/member/get-personal-info', {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+                'Accept': 'application/json',
+                'csrf': csrfCookie.value,
+                'Origin': 'https://bbs.huaweicloud.com',
+                'Referer': 'https://bbs.huaweicloud.com/',
+            },
+        })
 
-            if (data && data.memName) {
-                return { loggedIn: true, username: data.memAlias || data.memName, avatar: data.memPhoto || '' }
-            }
-        } catch (e) { }
+        if (!response.ok) {
+            console.log('[COSE] HuaweiCloud: API response not ok', response.status)
+            return { loggedIn: false }
+        }
 
-        return { loggedIn: false }
+        const data = await response.json()
+        if (!data || !data.memName) {
+            console.log('[COSE] HuaweiCloud: No user data in response')
+            return { loggedIn: false }
+        }
+
+        const username = data.memAlias || data.memName || ''
+        let avatar = data.memPhoto || ''
+
+        if (avatar && avatar.includes('huaweicloud.com')) {
+            avatar = await convertAvatarToBase64(avatar, 'https://bbs.huaweicloud.com/')
+        }
+
+        return { loggedIn: true, username, avatar }
     } catch (e) {
-        return { loggedIn: false }
+        console.error('[COSE] HuaweiCloud Detection Error:', e)
+        return { loggedIn: false, error: e.message }
     }
 }
