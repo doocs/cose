@@ -52,6 +52,7 @@
     "https://*.modelscope.cn/*",
     "https://*.alicdn.com/*",
     "https://*.volcengine.com/*",
+    "https://*.byteacctimg.com/*",
     "https://*.douyin.com/*",
     "https://*.xiaohongshu.com/*",
     "https://*.elecfans.com/*"

@@ -272,27 +272,6 @@ export const AlipayOpenLoginConfig = {
     }),
 }
 
-// ModelScope
-export const ModelScopeLoginConfig = {
-    api: 'https://modelscope.cn/api/v1/user/current',
-    method: 'GET',
-    checkLogin: (response) => response?.Success && response?.Data?.Name,
-    getUserInfo: (response) => ({
-        username: response?.Data?.Name,
-        avatar: response?.Data?.Avatar,
-    }),
-}
-
-// 火山引擎
-export const VolcengineLoginConfig = {
-    api: 'https://developer.volcengine.com/api/console/user/info',
-    method: 'GET',
-    checkLogin: (response) => response?.code === 0 && response?.data?.display_name,
-    getUserInfo: (response) => ({
-        username: response?.data?.display_name,
-        avatar: null,
-    }),
-}
 
 // 抖音
 export const DouyinLoginConfig = {
@@ -353,8 +332,6 @@ export const LOGIN_CHECK_CONFIG = {
     twitter: TwitterLoginConfig,
     qianfan: QianfanLoginConfig,
     alipayopen: AlipayOpenLoginConfig,
-    modelscope: ModelScopeLoginConfig,
-    volcengine: VolcengineLoginConfig,
     douyin: DouyinLoginConfig,
     xiaohongshu: XiaohongshuLoginConfig,
     elecfans: ElecfansLoginConfig,

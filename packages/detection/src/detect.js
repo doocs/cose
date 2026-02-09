@@ -22,6 +22,7 @@ import { detectJianshuUser } from './platforms/jianshu.js'
 import { detectSegmentFaultUser } from './platforms/segmentfault.js'
 import { detectInfoQUser } from './platforms/infoq.js'
 import { detectModelScopeUser } from './platforms/modelscope.js'
+import { detectVolcengineUser } from './platforms/volcengine.js'
 
 // Platform-specific detectors map
 const PLATFORM_DETECTORS = {
@@ -47,6 +48,7 @@ const PLATFORM_DETECTORS = {
     'segmentfault': detectSegmentFaultUser,
     'infoq': detectInfoQUser,
     'modelscope': detectModelScopeUser,
+    'volcengine': detectVolcengineUser,
 }
 
 export async function detectUser(platformId) {
