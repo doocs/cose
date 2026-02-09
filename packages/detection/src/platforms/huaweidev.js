@@ -1,50 +1,61 @@
+import { convertAvatarToBase64 } from '../utils.js'
+
 /**
  * Huawei Developer platform detection logic
  * Strategy:
- * 1. Check developer_userinfo cookie for CSRF token
- * 2. Call delegate API with CSRF token to get user info
+ * 1. Check developer_userinfo cookie for login status
+ * 2. Find an open developer.huawei.com tab and inject script to extract
+ *    avatar (img#avatar-img) and username (span in .avatarArea) from rendered DOM
+ * 3. Convert avatar to base64 to bypass CORS/ORB
  */
 export async function detectHuaweiDevUser() {
-    const platformId = 'huaweidev'
     try {
         const userInfoCookie = await chrome.cookies.get({ url: 'https://developer.huawei.com', name: 'developer_userinfo' })
         if (!userInfoCookie || !userInfoCookie.value) return { loggedIn: false }
 
-        let csrfToken = ''
-        try {
-            const userInfoData = JSON.parse(decodeURIComponent(userInfoCookie.value))
-            csrfToken = userInfoData.csrftoken || ''
-        } catch (e) { }
+        let username = ''
+        let avatar = ''
 
-        if (!csrfToken) {
-            const csrfCookie = await chrome.cookies.get({ url: 'https://developer.huawei.com', name: 'csrfToken' })
-            csrfToken = csrfCookie?.value || ''
+        // Find an open Huawei Developer tab
+        const tabs = await chrome.tabs.query({ url: 'https://developer.huawei.com/*' })
+        if (tabs.length > 0) {
+            const tab = tabs[0]
+            try {
+                const results = await chrome.scripting.executeScript({
+                    target: { tabId: tab.id },
+                    func: () => {
+                        const avatarImg = document.getElementById('avatar-img')
+                        const avatarSrc = avatarImg ? avatarImg.src : ''
+                        let name = ''
+                        const area = document.querySelector('.avatarArea')
+                        if (area) {
+                            const spans = area.querySelectorAll('span')
+                            const skip = ['已认证', '我的发布', '我的回复', '我的关注', '我的粉丝',
+                                '管理中心', '个人中心', '我的学堂', '我的收藏', '我的活动',
+                                '我的工单', '退出登录', '我的']
+                            for (const span of spans) {
+                                const text = span.textContent.trim()
+                                if (text && !/^\d/.test(text) && !/^Lv\s/i.test(text) && !skip.includes(text)) {
+                                    name = text
+                                    break
+                                }
+                            }
+                        }
+                        return { username: name, avatar: avatarSrc }
+                    },
+                })
+                if (results?.[0]?.result) {
+                    username = results[0].result.username || ''
+                    avatar = results[0].result.avatar || ''
+                }
+            } catch (e) { }
         }
 
-        if (!csrfToken) return { loggedIn: true, username: '', avatar: '' }
-
-        const response = await fetch('https://svc-drcn.developer.huawei.com/codeserver/Common/v1/delegate', {
-            method: 'POST',
-            credentials: 'include',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json;charset=UTF-8',
-                'x-hd-csrf': csrfToken,
-            },
-            body: JSON.stringify({ svc: 'GOpen.User.getInfo', reqType: 0, reqJson: JSON.stringify({ getNickName: '1' }) })
-        })
-
-        const data = await response.json()
-        if (data.returnCode === '0' && data.resJson) {
-            const userInfo = JSON.parse(data.resJson)
-            return {
-                loggedIn: true,
-                username: userInfo.displayName || userInfo.loginID || '',
-                avatar: userInfo.headPictureURL || ''
-            }
-        } else {
-            return { loggedIn: true, username: '', avatar: '' }
+        if (avatar) {
+            avatar = await convertAvatarToBase64(avatar, 'https://developer.huawei.com/')
         }
+
+        return { loggedIn: true, username, avatar }
     } catch (e) {
         return { loggedIn: false }
     }
