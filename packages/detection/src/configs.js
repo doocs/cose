@@ -295,16 +295,6 @@ export const XiaohongshuLoginConfig = {
     }),
 }
 
-// 电子发烧友
-export const ElecfansLoginConfig = {
-    api: 'https://bbs.elecfans.com/api/login/check',
-    method: 'GET',
-    checkLogin: (response) => response?.status === 1,
-    getUserInfo: (response) => ({
-        username: response?.data?.username,
-        avatar: response?.data?.avatar,
-    }),
-}
 
 // 统一的 LOGIN_CHECK_CONFIG 对象（按平台 ID 索引）
 export const LOGIN_CHECK_CONFIG = {
@@ -334,5 +324,4 @@ export const LOGIN_CHECK_CONFIG = {
     alipayopen: AlipayOpenLoginConfig,
     douyin: DouyinLoginConfig,
     xiaohongshu: XiaohongshuLoginConfig,
-    elecfans: ElecfansLoginConfig,
 }

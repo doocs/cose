@@ -1,39 +1,50 @@
+import { convertAvatarToBase64 } from '../utils.js'
+
 /**
- * Elecfans platform detection logic
- * Strategy:
- * 1. Check auth/auth_www cookies
- * 2. Call checklogin API for username/avatar
+ * Elecfans (电子发烧友) detection logic
+ * API: /api/mobile/index.php?module=profile (Discuz standard mobile API)
+ * Response: { Variables: { member_uid, space: { username, realname }, member_avatar } }
+ * Uses chrome.cookies.getAll to attach cookies manually (SameSite workaround)
  */
 export async function detectElecfansUser() {
-    const platformId = 'elecfans'
     try {
-        const authCookie = await chrome.cookies.get({ url: 'https://www.elecfans.com', name: 'auth' })
-        const authWwwCookie = await chrome.cookies.get({ url: 'https://www.elecfans.com', name: 'auth_www' })
+        // Collect cookies for bbs.elecfans.com
+        const cookies = await chrome.cookies.getAll({ domain: '.elecfans.com' })
+        const bbsCookies = await chrome.cookies.getAll({ url: 'https://bbs.elecfans.com' })
+        const allCookies = [...cookies, ...bbsCookies]
+        const seen = new Set()
+        const uniqueCookies = allCookies.filter(c => {
+            const key = `${c.name}=${c.value}`
+            if (seen.has(key)) return false
+            seen.add(key)
+            return true
+        })
+        const cookieStr = uniqueCookies.map(c => `${c.name}=${c.value}`).join('; ')
 
-        if (!authCookie && !authWwwCookie) {
-            return { loggedIn: false }
-        }
+        if (!cookieStr) return { loggedIn: false }
 
-        try {
-            const response = await fetch('https://www.elecfans.com/webapi/passport/checklogin?_=' + Date.now(), {
-                method: 'GET',
-                credentials: 'include',
-                headers: { 'Accept': 'application/json, text/javascript, */*; q=0.01' }
-            })
+        const response = await fetch('https://bbs.elecfans.com/api/mobile/index.php?module=profile', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Cookie': cookieStr,
+            },
+        })
 
-            if (!response.ok) return { loggedIn: true, username: '', avatar: '' }
+        if (!response.ok) return { loggedIn: false }
 
-            const data = await response.json()
-            if (data && data.uid) {
-                const username = data.username || ''
-                const avatar = data.avatar || ''
-                return { loggedIn: true, username, avatar }
-            } else {
-                return { loggedIn: true, username: '', avatar: '' }
-            }
-        } catch (e) {
-            return { loggedIn: true, username: '', avatar: '' }
-        }
+        const data = await response.json()
+        if (!data?.Variables?.member_uid) return { loggedIn: false }
+
+        const username = data.Variables.space?.username
+            || data.Variables.space?.realname
+            || data.Variables.member_username || ''
+        let avatar = data.Variables.member_avatar || ''
+
+        if (!username) return { loggedIn: false }
+
+        if (avatar) avatar = await convertAvatarToBase64(avatar, 'https://bbs.elecfans.com/')
+        return { loggedIn: true, username, avatar }
     } catch (e) {
         return { loggedIn: false }
     }
