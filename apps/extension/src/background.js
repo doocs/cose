@@ -180,6 +180,9 @@ async function handleMessage(request, sender) {
       } else if (request.platform === 'alipayopen' && request.userInfo) {
         await chrome.storage.local.set({ alipayopen_user: request.userInfo })
         console.log('[COSE] 支付宝用户信息已缓存:', request.userInfo.username)
+      } else if (request.platform === 'huaweidev' && request.userInfo) {
+        await chrome.storage.local.set({ huaweidev_user: request.userInfo })
+        console.log('[COSE] 华为开发者用户信息已缓存:', request.userInfo.username)
       }
       return { success: true }
     default:

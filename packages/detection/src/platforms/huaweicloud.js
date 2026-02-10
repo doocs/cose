@@ -3,17 +3,17 @@ import { convertAvatarToBase64 } from '../utils.js'
 /**
  * Huawei Cloud platform detection logic
  * Strategy:
- * 1. Read csrf-eco cookie via chrome.cookies API
+ * 1. Read csrf cookie via chrome.cookies API
  * 2. Fetch personal info API directly with csrf header
  */
 export async function detectHuaweiCloudUser() {
     try {
         console.log('[COSE] HuaweiCloud Detection: Starting')
 
-        // Read csrf-eco cookie from huaweicloud.com domain
-        const csrfCookie = await chrome.cookies.get({ url: 'https://bbs.huaweicloud.com', name: 'csrf-eco' })
+        // Read csrf cookie from huaweicloud.com domain
+        const csrfCookie = await chrome.cookies.get({ url: 'https://bbs.huaweicloud.com', name: 'csrf' })
         if (!csrfCookie || !csrfCookie.value) {
-            console.log('[COSE] HuaweiCloud: No csrf-eco cookie found')
+            console.log('[COSE] HuaweiCloud: No csrf cookie found')
             return { loggedIn: false }
         }
 

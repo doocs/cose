@@ -102,6 +102,67 @@ console.log('[COSE Content Script] Hostname:', window.location.hostname)
       }
     }
 
+    // 华为开发者页面：自动获取并缓存用户信息
+    if (window.location.hostname.includes('developer.huawei.com')) {
+      const cacheHuaweiDevUserInfo = async () => {
+        try {
+          // Avatar: try id first (forum/blog), then class (homepage)
+          let avatarSrc = ''
+          const avatarById = document.getElementById('avatar-img')
+          if (avatarById) {
+            avatarSrc = avatarById.src || ''
+          } else {
+            const avatarByClass = document.querySelector('img.avatar-img')
+            if (avatarByClass) avatarSrc = avatarByClass.src || ''
+          }
+
+          // Username: try .username (homepage), then .avatarArea spans (forum/blog)
+          let name = ''
+          const usernameEl = document.querySelector('.username')
+          if (usernameEl) {
+            name = usernameEl.textContent.trim()
+          }
+          if (!name) {
+            const area = document.querySelector('.avatarArea')
+            if (area) {
+              const spans = area.querySelectorAll('span')
+              const skip = ['已认证', '我的发布', '我的回复', '我的关注', '我的粉丝',
+                '管理中心', '个人中心', '我的学堂', '我的收藏', '我的活动',
+                '我的工单', '退出登录', '我的']
+              for (const span of spans) {
+                const text = span.textContent.trim()
+                if (text && !/^\d/.test(text) && !/^Lv\s/i.test(text) && !skip.includes(text)) {
+                  name = text
+                  break
+                }
+              }
+            }
+          }
+          if (name) {
+            const userInfo = {
+              loggedIn: true,
+              username: name,
+              avatar: avatarSrc,
+              cachedAt: Date.now()
+            }
+            if (typeof chrome !== 'undefined' && chrome.runtime) {
+              chrome.runtime.sendMessage({
+                type: 'CACHE_USER_INFO',
+                platform: 'huaweidev',
+                userInfo
+              })
+            }
+            console.log('[COSE] 华为开发者用户信息已缓存:', name)
+          }
+        } catch (e) {
+          console.log('[COSE] 华为开发者用户信息缓存失败:', e.message)
+        }
+      }
+
+      // 页面加载完成后延迟获取（等待 DOM 渲染）
+      setTimeout(cacheHuaweiDevUserInfo, 3000)
+    }
+
     // 注入脚本到页面主世界
     const script = document.createElement('script')
     script.src = chrome.runtime.getURL('bundles/inject.js')
