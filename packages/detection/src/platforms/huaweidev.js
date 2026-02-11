@@ -10,9 +10,19 @@ import { convertAvatarToBase64 } from '../utils.js'
 export async function detectHuaweiDevUser() {
     try {
         // 检查 developer_userdata cookie 判断是否登录
-        const userInfoCookie = await chrome.cookies.get({ url: 'https://developer.huawei.com', name: 'developer_userdata' })
+        // SSO 登录流程可能需要时间设置 cookie，使用重试机制
+        let userInfoCookie = null
+        const retryDelays = [0, 500, 1000, 2000]
+        for (const delay of retryDelays) {
+            if (delay > 0) {
+                console.log(`[COSE] huaweidev: developer_userdata cookie not found, retrying in ${delay}ms...`)
+                await new Promise(resolve => setTimeout(resolve, delay))
+            }
+            userInfoCookie = await chrome.cookies.get({ url: 'https://developer.huawei.com', name: 'developer_userdata' })
+            if (userInfoCookie && userInfoCookie.value) break
+        }
         if (!userInfoCookie || !userInfoCookie.value) {
-            console.log('[COSE] huaweidev: No developer_userdata cookie found')
+            console.log('[COSE] huaweidev: No developer_userdata cookie found after retries')
             return { loggedIn: false }
         }
 
