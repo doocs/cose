@@ -3,28 +3,44 @@ import { convertAvatarToBase64 } from '../utils.js'
 /**
  * Huawei Cloud platform detection logic
  * Strategy:
- * 1. Read csrf-eco cookie via chrome.cookies API
+ * 1. Read csrf cookie via chrome.cookies API
  * 2. Fetch personal info API directly with csrf header
  */
 export async function detectHuaweiCloudUser() {
     try {
-        console.log('[COSE] HuaweiCloud Detection: Starting')
-
-        // Read csrf-eco cookie from huaweicloud.com domain
-        const csrfCookie = await chrome.cookies.get({ url: 'https://bbs.huaweicloud.com', name: 'csrf-eco' })
+        // 通过 get 获取 csrf cookie（getAll 可能无法返回该 cookie）
+        const csrfCookie = await chrome.cookies.get({ url: 'https://bbs.huaweicloud.com', name: 'csrf' })
         if (!csrfCookie || !csrfCookie.value) {
-            console.log('[COSE] HuaweiCloud: No csrf-eco cookie found')
+            console.log('[COSE] HuaweiCloud: No csrf cookie found')
             return { loggedIn: false }
         }
 
+        // 收集 cookies 用于 API 请求
+        const cookies = await chrome.cookies.getAll({ domain: '.huaweicloud.com' })
+        const bbsCookies = await chrome.cookies.getAll({ url: 'https://bbs.huaweicloud.com' })
+        const devdataCookies = await chrome.cookies.getAll({ url: 'https://devdata.huaweicloud.com' })
+        const allCookies = [...cookies, ...bbsCookies, ...devdataCookies]
+        const seen = new Set()
+        const uniqueCookies = allCookies.filter(c => {
+            const key = `${c.name}=${c.value}`
+            if (seen.has(key)) return false
+            seen.add(key)
+            return true
+        })
+        // 确保 csrf cookie 在列表中（getAll 可能遗漏）
+        if (!uniqueCookies.find(c => c.name === 'csrf')) {
+            uniqueCookies.push(csrfCookie)
+        }
+        const cookieStr = uniqueCookies.map(c => `${c.name}=${c.value}`).join('; ')
+
         const response = await fetch('https://devdata.huaweicloud.com/rest/developer/fwdu/rest/developer/user/hdcommunityservice/v1/member/get-personal-info', {
             method: 'GET',
-            credentials: 'include',
             headers: {
                 'Accept': 'application/json',
                 'csrf': csrfCookie.value,
                 'Origin': 'https://bbs.huaweicloud.com',
                 'Referer': 'https://bbs.huaweicloud.com/',
+                'Cookie': cookieStr,
             },
         })
 
