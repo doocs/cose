@@ -9,9 +9,19 @@ import { convertAvatarToBase64 } from '../utils.js'
 export async function detectHuaweiCloudUser() {
     try {
         // 通过 get 获取 csrf cookie（getAll 可能无法返回该 cookie）
-        const csrfCookie = await chrome.cookies.get({ url: 'https://bbs.huaweicloud.com', name: 'csrf' })
+        // SSO 登录流程可能需要时间设置 cookie，使用重试机制
+        let csrfCookie = null
+        const retryDelays = [0, 500, 1000, 2000]
+        for (const delay of retryDelays) {
+            if (delay > 0) {
+                console.log(`[COSE] HuaweiCloud: csrf cookie not found, retrying in ${delay}ms...`)
+                await new Promise(resolve => setTimeout(resolve, delay))
+            }
+            csrfCookie = await chrome.cookies.get({ url: 'https://bbs.huaweicloud.com', name: 'csrf' })
+            if (csrfCookie && csrfCookie.value) break
+        }
         if (!csrfCookie || !csrfCookie.value) {
-            console.log('[COSE] HuaweiCloud: No csrf cookie found')
+            console.log('[COSE] HuaweiCloud: No csrf cookie found after retries')
             return { loggedIn: false }
         }
 
