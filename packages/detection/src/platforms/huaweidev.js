@@ -3,35 +3,18 @@ import { convertAvatarToBase64 } from '../utils.js'
 /**
  * Huawei Developer platform detection logic
  * Strategy:
- * 1. Check chrome.storage.local cache (1 hour TTL)
- * 2. If cache miss, check developer_userdata cookie
- * 3. Fetch user info via API with manually attached cookies
+ * 1. Read developer_userdata cookie via chrome.cookies API
+ * 2. Parse csrftoken from cookie
+ * 3. Fetch user info via API with csrf header and cookies
  */
 export async function detectHuaweiDevUser() {
     try {
-        // 从 storage 读取缓存的用户信息
-        const stored = await chrome.storage.local.get('huaweidev_user')
-        const cachedUser = stored.huaweidev_user
-
-        if (cachedUser && cachedUser.loggedIn) {
-            const cacheAge = Date.now() - (cachedUser.cachedAt || 0)
-            const maxAge = 1 * 60 * 60 * 1000 // 1 hour
-
-            if (cacheAge < maxAge) {
-                console.log(`[COSE] huaweidev 从缓存读取用户信息:`, cachedUser.username)
-                return {
-                    loggedIn: true,
-                    username: cachedUser.username || '',
-                    avatar: cachedUser.avatar || ''
-                }
-            } else {
-                console.log(`[COSE] huaweidev 缓存已过期，保留作为 fallback`)
-            }
-        }
-
-        // 检查 cookie 判断是否登录
+        // 检查 developer_userdata cookie 判断是否登录
         const userInfoCookie = await chrome.cookies.get({ url: 'https://developer.huawei.com', name: 'developer_userdata' })
-        if (!userInfoCookie || !userInfoCookie.value) return { loggedIn: false }
+        if (!userInfoCookie || !userInfoCookie.value) {
+            console.log('[COSE] huaweidev: No developer_userdata cookie found')
+            return { loggedIn: false }
+        }
 
         // 从 cookie 中解析 csrftoken
         let csrftoken = ''
@@ -39,12 +22,12 @@ export async function detectHuaweiDevUser() {
             const cookieData = JSON.parse(decodeURIComponent(userInfoCookie.value))
             csrftoken = cookieData.csrftoken || ''
         } catch (e) {
-            console.log(`[COSE] huaweidev 解析 cookie 失败:`, e.message)
+            console.log(`[COSE] huaweidev: Failed to parse cookie:`, e.message)
         }
 
         if (!csrftoken) {
-            console.log(`[COSE] huaweidev 已登录（无 csrftoken）`)
-            return { loggedIn: true, username: '', avatar: '' }
+            console.log('[COSE] huaweidev: No csrftoken in cookie')
+            return { loggedIn: false }
         }
 
         // 收集 cookies 用于 API 请求
@@ -67,90 +50,46 @@ export async function detectHuaweiDevUser() {
         const hdDate = d.getUTCFullYear() + pad(d.getUTCMonth() + 1) + pad(d.getUTCDate()) + 'T' + pad(d.getUTCHours()) + pad(d.getUTCMinutes()) + pad(d.getUTCSeconds()) + 'Z'
 
         // 通过 API 获取用户信息
-        try {
-            const response = await fetch('https://svc-drcn.developer.huawei.com/codeserver/Common/v1/delegate', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json;charset=UTF-8',
-                    'x-hd-csrf': csrftoken,
-                    'x-hd-date': hdDate,
-                    'Origin': 'https://developer.huawei.com',
-                    'Referer': 'https://developer.huawei.com/',
-                    'Cookie': cookieStr,
-                },
-                body: JSON.stringify({
-                    svc: 'GOpen.User.getInfo',
-                    reqType: 0,
-                    reqJson: JSON.stringify({ queryRangeFlag: '00000000000001' }),
-                }),
-            })
+        const response = await fetch('https://svc-drcn.developer.huawei.com/codeserver/Common/v1/delegate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json;charset=UTF-8',
+                'x-hd-csrf': csrftoken,
+                'x-hd-date': hdDate,
+                'Origin': 'https://developer.huawei.com',
+                'Referer': 'https://developer.huawei.com/',
+                'Cookie': cookieStr,
+            },
+            body: JSON.stringify({
+                svc: 'GOpen.User.getInfo',
+                reqType: 0,
+                reqJson: JSON.stringify({ queryRangeFlag: '00000000000001' }),
+            }),
+        })
 
-            if (response.ok) {
-                const data = await response.json()
-                if (data?.returnCode === '0' && data?.resJson) {
-                    const userInfo = JSON.parse(data.resJson)
-                    const username = userInfo.loginID || userInfo.displayName || ''
-                    let avatar = userInfo.headPictureURL || ''
-
-                    if (avatar) {
-                        try {
-                            // 头像在 hicloud.com 域名，需要附带 cookies 才能访问
-                            const hicloudCookies = await chrome.cookies.getAll({ domain: '.hicloud.com' })
-                            const avatarCookieStr = hicloudCookies.map(c => `${c.name}=${c.value}`).join('; ')
-                            const imgResp = await fetch(avatar, {
-                                headers: {
-                                    'Referer': 'https://developer.huawei.com/',
-                                    ...(avatarCookieStr ? { 'Cookie': avatarCookieStr } : {}),
-                                },
-                            })
-                            if (imgResp.ok) {
-                                const blob = await imgResp.blob()
-                                const buffer = await blob.arrayBuffer()
-                                const bytes = new Uint8Array(buffer)
-                                let binary = ''
-                                for (let i = 0; i < bytes.length; i++) {
-                                    binary += String.fromCharCode(bytes[i])
-                                }
-                                const base64 = btoa(binary)
-                                const mime = blob.type || 'image/jpeg'
-                                avatar = `data:${mime};base64,${base64}`
-                            } else {
-                                // fetch 失败时尝试使用过期缓存中的头像
-                                avatar = cachedUser?.avatar || ''
-                            }
-                        } catch (e) {
-                            console.log(`[COSE] huaweidev 头像转换失败:`, e.message)
-                            avatar = cachedUser?.avatar || ''
-                        }
-                    }
-
-                    // 缓存用户信息
-                    await chrome.storage.local.set({
-                        huaweidev_user: {
-                            loggedIn: true,
-                            username,
-                            avatar,
-                            cachedAt: Date.now()
-                        }
-                    })
-
-                    console.log(`[COSE] huaweidev 用户信息:`, username)
-                    return { loggedIn: true, username, avatar }
-                }
-            }
-        } catch (e) {
-            console.log(`[COSE] huaweidev API 获取用户信息失败:`, e.message)
+        if (!response.ok) {
+            console.log('[COSE] huaweidev: API response not ok', response.status)
+            return { loggedIn: false }
         }
 
-        // cookie 存在即视为已登录，API 失败时使用过期缓存中的用户信息
-        console.log(`[COSE] huaweidev 已登录（通过 cookie 检测，使用缓存 fallback）`)
-        return {
-            loggedIn: true,
-            username: cachedUser?.username || '',
-            avatar: cachedUser?.avatar || ''
+        const data = await response.json()
+        if (!data || data.returnCode !== '0' || !data.resJson) {
+            console.log('[COSE] huaweidev: No user data in response')
+            return { loggedIn: false }
         }
+
+        const userInfo = JSON.parse(data.resJson)
+        const username = userInfo.loginID || userInfo.displayName || ''
+        let avatar = userInfo.headPictureURL || ''
+
+        if (avatar) {
+            avatar = await convertAvatarToBase64(avatar, 'https://developer.huawei.com/')
+        }
+
+        console.log(`[COSE] huaweidev 用户信息:`, username)
+        return { loggedIn: true, username, avatar }
     } catch (e) {
-        console.log(`[COSE] huaweidev 检测失败:`, e.message)
-        return { loggedIn: false }
+        console.error('[COSE] huaweidev Detection Error:', e)
+        return { loggedIn: false, error: e.message }
     }
 }
