@@ -25,8 +25,7 @@ export async function detectHuaweiDevUser() {
                     avatar: cachedUser.avatar || ''
                 }
             } else {
-                console.log(`[COSE] huaweidev 缓存已过期`)
-                await chrome.storage.local.remove('huaweidev_user')
+                console.log(`[COSE] huaweidev 缓存已过期，保留作为 fallback`)
             }
         }
 
@@ -115,9 +114,13 @@ export async function detectHuaweiDevUser() {
                                 const base64 = btoa(binary)
                                 const mime = blob.type || 'image/jpeg'
                                 avatar = `data:${mime};base64,${base64}`
+                            } else {
+                                // fetch 失败时尝试使用过期缓存中的头像
+                                avatar = cachedUser?.avatar || ''
                             }
                         } catch (e) {
                             console.log(`[COSE] huaweidev 头像转换失败:`, e.message)
+                            avatar = cachedUser?.avatar || ''
                         }
                     }
 
@@ -139,9 +142,13 @@ export async function detectHuaweiDevUser() {
             console.log(`[COSE] huaweidev API 获取用户信息失败:`, e.message)
         }
 
-        // cookie 存在即视为已登录，即使 API 调用失败
-        console.log(`[COSE] huaweidev 已登录（通过 cookie 检测）`)
-        return { loggedIn: true, username: '', avatar: '' }
+        // cookie 存在即视为已登录，API 失败时使用过期缓存中的用户信息
+        console.log(`[COSE] huaweidev 已登录（通过 cookie 检测，使用缓存 fallback）`)
+        return {
+            loggedIn: true,
+            username: cachedUser?.username || '',
+            avatar: cachedUser?.avatar || ''
+        }
     } catch (e) {
         console.log(`[COSE] huaweidev 检测失败:`, e.message)
         return { loggedIn: false }
