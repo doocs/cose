@@ -24,6 +24,7 @@ import { detectInfoQUser } from './platforms/infoq.js'
 import { detectModelScopeUser } from './platforms/modelscope.js'
 import { detectVolcengineUser } from './platforms/volcengine.js'
 import { detectCnblogsUser } from './platforms/cnblogs.js'
+import { detectWangyihaoUser } from './platforms/wangyihao.js'
 
 // Platform-specific detectors map
 const PLATFORM_DETECTORS = {
@@ -51,6 +52,7 @@ const PLATFORM_DETECTORS = {
     'modelscope': detectModelScopeUser,
     'volcengine': detectVolcengineUser,
     'cnblogs': detectCnblogsUser,
+    'wangyihao': detectWangyihaoUser,
 }
 
 export async function detectUser(platformId) {

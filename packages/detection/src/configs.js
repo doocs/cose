@@ -42,17 +42,6 @@ export const ToutiaoLoginConfig = {
     }),
 }
 
-// 博客园
-export const CnblogsLoginConfig = {
-    api: 'https://www.cnblogs.com/api/users/current',
-    method: 'GET',
-    checkLogin: (response) => response?.UserId,
-    getUserInfo: (response) => ({
-        username: response?.DisplayName,
-        avatar: response?.Avatar,
-    }),
-}
-
 // 百家号
 export const BaijiahaoLoginConfig = {
     api: 'https://baijiahao.baidu.com/builder/app/appinfo',
@@ -61,17 +50,6 @@ export const BaijiahaoLoginConfig = {
     getUserInfo: (response) => ({
         username: response?.data?.user?.name,
         avatar: response?.data?.user?.avatar,
-    }),
-}
-
-// 网易号
-export const WangyihaoLoginConfig = {
-    api: 'https://mp.163.com/api/account/info',
-    method: 'GET',
-    checkLogin: (response) => response?.code === 1000 && response?.data?.nickname,
-    getUserInfo: (response) => ({
-        username: response?.data?.nickname,
-        avatar: response?.data?.headImg,
     }),
 }
 
@@ -93,6 +71,5 @@ export const LOGIN_CHECK_CONFIG = {
     toutiao: ToutiaoLoginConfig,
 
     baijiahao: BaijiahaoLoginConfig,
-    wangyihao: WangyihaoLoginConfig,
     douyin: DouyinLoginConfig,
 }
