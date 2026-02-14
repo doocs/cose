@@ -91,7 +91,7 @@ export const LOGIN_CHECK_CONFIG = {
     juejin: JuejinLoginConfig,
     zhihu: ZhihuLoginConfig,
     toutiao: ToutiaoLoginConfig,
-    cnblogs: CnblogsLoginConfig,
+
     baijiahao: BaijiahaoLoginConfig,
     wangyihao: WangyihaoLoginConfig,
     douyin: DouyinLoginConfig,
