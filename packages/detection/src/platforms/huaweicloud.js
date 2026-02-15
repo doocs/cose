@@ -17,8 +17,15 @@ export async function detectHuaweiCloudUser() {
             const cacheAge = Date.now() - (cachedUser.cachedAt || 0)
             const maxAge = 7 * 24 * 60 * 60 * 1000 // 7 days
             if (cacheAge < maxAge) {
-                console.log('[COSE] HuaweiCloud: using cached user info:', cachedUser.username)
-                return { loggedIn: true, username: cachedUser.username || '', avatar: cachedUser.avatar || '' }
+                // 验证 cookie 是否仍然存在，防止用户已登出但缓存未过期的误判
+                const uaCookie = await chrome.cookies.get({ url: 'https://bbs.huaweicloud.com', name: 'ua' })
+                if (uaCookie && uaCookie.value) {
+                    console.log('[COSE] HuaweiCloud: using cached user info:', cachedUser.username)
+                    return { loggedIn: true, username: cachedUser.username || '', avatar: cachedUser.avatar || '' }
+                }
+                // cookie 已失效，清除缓存
+                console.log('[COSE] HuaweiCloud: cache exists but ua cookie gone, clearing cache')
+                await chrome.storage.local.remove('huaweicloud_user')
             } else {
                 await chrome.storage.local.remove('huaweicloud_user')
             }
