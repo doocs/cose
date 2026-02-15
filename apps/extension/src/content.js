@@ -8,6 +8,46 @@ console.log('[COSE Content Script] Hostname:', window.location.hostname)
   ; (function () {
     'use strict'
 
+    // 华为云开发者博客页面：自动获取并缓存用户信息
+    if (window.location.hostname.includes('huaweicloud.com')) {
+      console.log('[COSE] 检测到华为云页面')
+
+      setTimeout(async () => {
+        try {
+          const response = await fetch('https://devdata.huaweicloud.com/rest/developer/fwdu/rest/developer/user/hdcommunityservice/v1/member/get-personal-info', {
+            method: 'GET',
+            credentials: 'include',
+            headers: { 'Accept': 'application/json' },
+          })
+          if (!response.ok) return
+
+          const data = await response.json()
+          if (data && data.memName) {
+            const userInfo = {
+              loggedIn: true,
+              username: data.memAlias || data.memName || '',
+              avatar: data.memPhoto || '',
+              cachedAt: Date.now(),
+            }
+
+            if (typeof chrome !== 'undefined' && chrome.runtime) {
+              chrome.runtime.sendMessage({
+                type: 'CACHE_USER_INFO',
+                platform: 'huaweicloud',
+                userInfo,
+              }).then(() => {
+                console.log('[COSE] 华为云用户信息已缓存:', userInfo.username)
+              }).catch(e => {
+                console.log('[COSE] 缓存失败:', e.message)
+              })
+            }
+          }
+        } catch (e) {
+          console.log('[COSE] 华为云用户信息缓存失败:', e.message)
+        }
+      }, 3000) // 华为云 SSO 登录需要几秒延迟
+    }
+
     // 小红书页面：自动获取并缓存用户信息
     if (window.location.hostname.includes('xiaohongshu.com')) {
       console.log('[COSE] 检测到小红书页面')
