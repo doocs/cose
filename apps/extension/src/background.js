@@ -180,6 +180,9 @@ async function handleMessage(request, sender) {
       } else if (request.platform === 'alipayopen' && request.userInfo) {
         await chrome.storage.local.set({ alipayopen_user: request.userInfo })
         console.log('[COSE] 支付宝用户信息已缓存:', request.userInfo.username)
+      } else if (request.platform === 'huaweicloud' && request.userInfo) {
+        await chrome.storage.local.set({ huaweicloud_user: request.userInfo })
+        console.log('[COSE] 华为云用户信息已缓存:', request.userInfo.username)
       }
       return { success: true }
     default:
@@ -1771,13 +1774,10 @@ async function syncToPlatform(platformId, content) {
       const switchResult = await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: () => {
-          // 检查当前是否已经是 Markdown 编辑器
           if (window.tinymceModal?.currentEditorType === 'markdown') {
             console.log('[COSE] 华为云已经是 Markdown 编辑器')
             return { alreadyMarkdown: true }
           }
-
-          // 查找 "Markdown格式编辑" 标签并点击
           const allElements = document.querySelectorAll('*')
           for (const el of allElements) {
             if (el.textContent === 'Markdown格式编辑' && el.children.length === 0) {
@@ -1793,14 +1793,10 @@ async function syncToPlatform(platformId, content) {
 
       // 如果点击了切换按钮，需要等待确认对话框并点击确定
       if (switchResult[0]?.result?.clicked) {
-        // 等待确认对话框出现
         await new Promise(resolve => setTimeout(resolve, 500))
-
-        // 点击确认对话框的"确定"按钮
         await chrome.scripting.executeScript({
           target: { tabId: tab.id },
           func: () => {
-            // 查找确认对话框中的"确定"按钮
             const allElements = document.querySelectorAll('*')
             for (const el of allElements) {
               if (el.textContent === '确定' && el.children.length === 0) {
@@ -1813,16 +1809,14 @@ async function syncToPlatform(platformId, content) {
           },
           world: 'MAIN',
         })
-
         // 等待编辑器切换完成
         await new Promise(resolve => setTimeout(resolve, 3000))
       }
 
-      // 填充标题和内容
-      const fillResult = await chrome.scripting.executeScript({
+      // 填充标题
+      await chrome.scripting.executeScript({
         target: { tabId: tab.id },
-        func: (title, markdown) => {
-          // 填充标题
+        func: (title) => {
           const titleInput = document.querySelector('input[placeholder*="标题"]')
           if (titleInput && title) {
             titleInput.focus()
@@ -1831,18 +1825,125 @@ async function syncToPlatform(platformId, content) {
             titleInput.dispatchEvent(new Event('change', { bubbles: true }))
             console.log('[COSE] 华为云开发者博客标题填充成功')
           }
+        },
+        args: [content.title],
+        world: 'MAIN',
+      })
 
-          // 使用 tinymceModal.currentEditor.setContent() 填充 Markdown 内容
-          const editor = window.tinymceModal?.currentEditor
-          if (editor && typeof editor.setContent === 'function') {
-            editor.setContent(markdown)
-            console.log('[COSE] 华为云开发者博客内容填充成功，长度:', markdown.length)
-            return { success: true, method: 'tinymceModal', length: markdown.length }
+      // 等待 Markdown 编辑器 iframe 完全就绪，然后填充内容
+      // 使用 MutationObserver 监听 iframe 出现，message 事件监听内容确认
+      const fillResult = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: async (markdown) => {
+          // 工具函数：使用 MutationObserver 等待 iframe 元素出现并加载
+          const waitForEditorReady = (timeout = 15000) => {
+            return new Promise((resolve) => {
+              const check = () => {
+                const editor = window.tinymceModal?.currentEditor
+                if (editor && typeof editor.setContent === 'function') {
+                  const iframe = document.getElementById(editor.editor_id)
+                  if (iframe && iframe.contentWindow) {
+                    return { editor, iframe }
+                  }
+                }
+                return null
+              }
+
+              // 先立即检查一次
+              const immediate = check()
+              if (immediate) return resolve(immediate)
+
+              // 使用 MutationObserver 监听 DOM 变化（iframe 插入）
+              let resolved = false
+              const observer = new MutationObserver(() => {
+                if (resolved) return
+                const result = check()
+                if (result) {
+                  resolved = true
+                  observer.disconnect()
+                  resolve(result)
+                }
+              })
+              observer.observe(document.body, { childList: true, subtree: true })
+
+              // 超时兜底
+              setTimeout(() => {
+                if (!resolved) {
+                  resolved = true
+                  observer.disconnect()
+                  resolve(null)
+                }
+              }, timeout)
+            })
           }
 
-          return { success: false, error: 'tinymceModal.currentEditor not found' }
+          // 工具函数：使用 message 事件监听 setContent 确认（setMdDataSucc）
+          const setContentWithConfirm = (editor, iframe, content, timeout = 3000) => {
+            return new Promise((resolve) => {
+              let resolved = false
+
+              const onMessage = (event) => {
+                try {
+                  const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data
+                  if (data.mdEventAction === 'setMdDataSucc' || data.mdEventAction === 'mdContent') {
+                    if (!resolved) {
+                      resolved = true
+                      window.removeEventListener('message', onMessage)
+                      resolve({ confirmed: true })
+                    }
+                  }
+                } catch (e) { /* 忽略非 JSON 消息 */ }
+              }
+
+              window.addEventListener('message', onMessage)
+              editor.setContent(content)
+
+              // 超时兜底
+              setTimeout(() => {
+                if (!resolved) {
+                  resolved = true
+                  window.removeEventListener('message', onMessage)
+                  resolve({ confirmed: false })
+                }
+              }, timeout)
+            })
+          }
+
+          // 1. 等待编辑器和 iframe 就绪
+          console.log('[COSE] 华为云：等待 Markdown 编辑器 iframe 就绪...')
+          const ready = await waitForEditorReady()
+          if (!ready) {
+            console.log('[COSE] 华为云：编辑器等待超时')
+            return { success: false, error: '编辑器 iframe 等待超时' }
+          }
+          console.log('[COSE] 华为云：编辑器 iframe 已就绪')
+
+          // 2. 带重试的内容填充，通过 message 事件确认
+          const maxRetries = 6
+          for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            console.log(`[COSE] 华为云内容填充尝试 ${attempt}/${maxRetries}`)
+
+            const result = await setContentWithConfirm(ready.editor, ready.iframe, markdown)
+            if (result.confirmed) {
+              console.log(`[COSE] 华为云内容填充成功（第${attempt}次），已收到 iframe 确认`)
+              return { success: true, method: 'message-confirm', attempt, length: markdown.length }
+            }
+
+            console.log(`[COSE] 华为云：未收到 iframe 确认，等待后重试...`)
+            // iframe 内部应用可能还在初始化，等待后重试
+            await new Promise(r => setTimeout(r, 2000))
+          }
+
+          // 3. 所有重试失败，直接 postMessage 作为最后手段
+          console.log('[COSE] 重试耗尽，尝试直接 postMessage')
+          ready.iframe.contentWindow.postMessage(JSON.stringify({
+            mdEditorEventAction: 'setMdEditorContent',
+            data: encodeURIComponent(markdown)
+          }), '*')
+          await new Promise(r => setTimeout(r, 1000))
+          return { success: true, method: 'direct-postMessage', length: markdown.length }
         },
-        args: [content.title, markdownContent],
+        args: [markdownContent],
         world: 'MAIN',
       })
 

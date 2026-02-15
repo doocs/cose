@@ -23,6 +23,7 @@ import { SohuPlatform } from './sohu.js'
 import { BilibiliPlatform } from './bilibili.js'
 import { WeiboPlatform } from './weibo.js'
 import { AliyunPlatform } from './aliyun.js'
+import { HuaweiCloudPlatform } from './huaweicloud.js'
 import { HuaweiDevPlatform } from './huaweidev.js'
 import { TwitterPlatform } from './twitter.js'
 import { QianfanPlatform } from './qianfan.js'
@@ -55,6 +56,7 @@ const PLATFORMS = [
     BilibiliPlatform,
     WeiboPlatform,
     AliyunPlatform,
+    HuaweiCloudPlatform,
     HuaweiDevPlatform,
     TwitterPlatform,
     QianfanPlatform,
@@ -88,6 +90,7 @@ function getPlatformFiller(hostname) {
     if (hostname.includes('member.bilibili.com')) return 'bilibili'
     if (hostname.includes('card.weibo.com')) return 'weibo'
     if (hostname.includes('developer.aliyun.com')) return 'aliyun'
+    if (hostname.includes('bbs.huaweicloud.com')) return 'huaweicloud'
     if (hostname.includes('developer.huawei.com')) return 'huaweidev'
     if (hostname.includes('x.com') || hostname.includes('twitter.com')) return 'twitter'
     if (hostname.includes('qianfan.cloud.baidu.com')) return 'qianfan'

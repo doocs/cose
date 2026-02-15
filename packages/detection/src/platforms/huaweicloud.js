@@ -3,76 +3,80 @@ import { convertAvatarToBase64 } from '../utils.js'
 /**
  * Huawei Cloud platform detection logic
  * Strategy:
- * 1. Read csrf cookie via chrome.cookies API
- * 2. Fetch personal info API directly with csrf header
+ * 1. Check chrome.storage.local cache (7 days TTL)
+ * 2. Try executeScript on open bbs.huaweicloud.com tab to call API with credentials
+ * 3. Content script auto-caches user info when visiting huaweicloud pages
  */
 export async function detectHuaweiCloudUser() {
     try {
-        // 通过 get 获取 csrf cookie（getAll 可能无法返回该 cookie）
-        // SSO 登录流程可能需要时间设置 cookie，使用重试机制
-        let csrfCookie = null
-        const retryDelays = [0, 500, 1000, 2000]
-        for (const delay of retryDelays) {
-            if (delay > 0) {
-                console.log(`[COSE] HuaweiCloud: csrf cookie not found, retrying in ${delay}ms...`)
-                await new Promise(resolve => setTimeout(resolve, delay))
+        // 1. 先检查缓存
+        const stored = await chrome.storage.local.get('huaweicloud_user')
+        const cachedUser = stored.huaweicloud_user
+
+        if (cachedUser && cachedUser.loggedIn) {
+            const cacheAge = Date.now() - (cachedUser.cachedAt || 0)
+            const maxAge = 7 * 24 * 60 * 60 * 1000 // 7 days
+            if (cacheAge < maxAge) {
+                // 验证 cookie 是否仍然存在，防止用户已登出但缓存未过期的误判
+                const uaCookie = await chrome.cookies.get({ url: 'https://bbs.huaweicloud.com', name: 'ua' })
+                if (uaCookie && uaCookie.value) {
+                    console.log('[COSE] HuaweiCloud: using cached user info:', cachedUser.username)
+                    return { loggedIn: true, username: cachedUser.username || '', avatar: cachedUser.avatar || '' }
+                }
+                // cookie 已失效，清除缓存
+                console.log('[COSE] HuaweiCloud: cache exists but ua cookie gone, clearing cache')
+                await chrome.storage.local.remove('huaweicloud_user')
+            } else {
+                await chrome.storage.local.remove('huaweicloud_user')
             }
-            csrfCookie = await chrome.cookies.get({ url: 'https://bbs.huaweicloud.com', name: 'csrf' })
-            if (csrfCookie && csrfCookie.value) break
-        }
-        if (!csrfCookie || !csrfCookie.value) {
-            console.log('[COSE] HuaweiCloud: No csrf cookie found after retries')
-            return { loggedIn: false }
         }
 
-        // 收集 cookies 用于 API 请求
-        const cookies = await chrome.cookies.getAll({ domain: '.huaweicloud.com' })
-        const bbsCookies = await chrome.cookies.getAll({ url: 'https://bbs.huaweicloud.com' })
-        const devdataCookies = await chrome.cookies.getAll({ url: 'https://devdata.huaweicloud.com' })
-        const allCookies = [...cookies, ...bbsCookies, ...devdataCookies]
-        const seen = new Set()
-        const uniqueCookies = allCookies.filter(c => {
-            const key = `${c.name}=${c.value}`
-            if (seen.has(key)) return false
-            seen.add(key)
-            return true
-        })
-        // 确保 csrf cookie 在列表中（getAll 可能遗漏）
-        if (!uniqueCookies.find(c => c.name === 'csrf')) {
-            uniqueCookies.push(csrfCookie)
-        }
-        const cookieStr = uniqueCookies.map(c => `${c.name}=${c.value}`).join('; ')
+        // 2. 尝试在已打开的华为云页面中检测
+        const tabs = await chrome.tabs.query({ url: 'https://bbs.huaweicloud.com/*' })
+        if (tabs.length > 0) {
+            const results = await chrome.scripting.executeScript({
+                target: { tabId: tabs[0].id },
+                func: async () => {
+                    try {
+                        const resp = await fetch('https://devdata.huaweicloud.com/rest/developer/fwdu/rest/developer/user/hdcommunityservice/v1/member/get-personal-info', {
+                            method: 'GET',
+                            credentials: 'include',
+                            headers: { 'Accept': 'application/json' },
+                        })
+                        if (!resp.ok) return null
+                        const data = await resp.json()
+                        if (data && data.memName) {
+                            return {
+                                loggedIn: true,
+                                username: data.memAlias || data.memName || '',
+                                avatar: data.memPhoto || '',
+                            }
+                        }
+                        return null
+                    } catch (e) { return null }
+                },
+            })
 
-        const response = await fetch('https://devdata.huaweicloud.com/rest/developer/fwdu/rest/developer/user/hdcommunityservice/v1/member/get-personal-info', {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                'csrf': csrfCookie.value,
-                'Origin': 'https://bbs.huaweicloud.com',
-                'Referer': 'https://bbs.huaweicloud.com/',
-                'Cookie': cookieStr,
-            },
-        })
-
-        if (!response.ok) {
-            console.log('[COSE] HuaweiCloud: API response not ok', response.status)
-            return { loggedIn: false }
-        }
-
-        const data = await response.json()
-        if (!data || !data.memName) {
-            console.log('[COSE] HuaweiCloud: No user data in response')
-            return { loggedIn: false }
+            const result = results?.[0]?.result
+            if (result && result.loggedIn) {
+                let avatar = result.avatar || ''
+                if (avatar && avatar.includes('huaweicloud.com')) {
+                    avatar = await convertAvatarToBase64(avatar, 'https://bbs.huaweicloud.com/')
+                }
+                const userInfo = { ...result, avatar, cachedAt: Date.now() }
+                await chrome.storage.local.set({ huaweicloud_user: userInfo })
+                return { loggedIn: true, username: userInfo.username, avatar }
+            }
         }
 
-        const username = data.memAlias || data.memName || ''
-        let avatar = data.memPhoto || ''
-
-        if (avatar && avatar.includes('huaweicloud.com')) {
-            avatar = await convertAvatarToBase64(avatar, 'https://bbs.huaweicloud.com/')
+        // 3. 没有打开的华为云页面，检查 ua cookie 作为基本登录判断
+        const uaCookie = await chrome.cookies.get({ url: 'https://bbs.huaweicloud.com', name: 'ua' })
+        if (uaCookie && uaCookie.value) {
+            console.log('[COSE] HuaweiCloud: ua cookie found but no open tab for full detection')
+            return { loggedIn: true, username: '', avatar: '' }
         }
 
-        return { loggedIn: true, username, avatar }
+        return { loggedIn: false }
     } catch (e) {
         console.error('[COSE] HuaweiCloud Detection Error:', e)
         return { loggedIn: false, error: e.message }
