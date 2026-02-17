@@ -107,12 +107,37 @@ export async function detectByApi(platformId, config) {
         const controller = new AbortController()
         const timeoutId = setTimeout(() => controller.abort(), 8000)
 
+        // Collect cookies via chrome.cookies.getAll for MV3 service worker compatibility
+        let cookieStr = ''
+        try {
+            const apiUrl = new URL(config.api)
+            const domain = apiUrl.hostname.split('.').slice(-2).join('.')
+            const domainCookies = await chrome.cookies.getAll({ domain: `.${domain}` })
+            const urlCookies = await chrome.cookies.getAll({ url: config.api })
+            const allCookies = [...domainCookies, ...urlCookies]
+            const seen = new Set()
+            const uniqueCookies = allCookies.filter(c => {
+                const key = `${c.name}=${c.value}`
+                if (seen.has(key)) return false
+                seen.add(key)
+                return true
+            })
+            cookieStr = uniqueCookies.map(c => `${c.name}=${c.value}`).join('; ')
+        } catch (e) {
+            console.log(`[COSE] ${platformId} cookie 收集失败:`, e.message)
+        }
+
+        const apiUrl = new URL(config.api)
+        const origin = apiUrl.origin
+
         const fetchOptions = {
             method: config.method || 'GET',
-            credentials: 'include',
             headers: {
                 'Accept': config.isHtml ? 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' : 'application/json',
                 'Cache-Control': 'no-cache',
+                ...(cookieStr ? { 'Cookie': cookieStr } : {}),
+                'Origin': origin,
+                'Referer': origin + '/',
                 ...(config.headers || {})
             },
             signal: controller.signal,

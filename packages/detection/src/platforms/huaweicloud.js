@@ -21,7 +21,13 @@ export async function detectHuaweiCloudUser() {
                 const uaCookie = await chrome.cookies.get({ url: 'https://bbs.huaweicloud.com', name: 'ua' })
                 if (uaCookie && uaCookie.value) {
                     console.log('[COSE] HuaweiCloud: using cached user info:', cachedUser.username)
-                    return { loggedIn: true, username: cachedUser.username || '', avatar: cachedUser.avatar || '' }
+                    let avatar = cachedUser.avatar || ''
+                    // 如果缓存中的头像还是原始 URL（旧缓存），转换为 base64 并更新缓存
+                    if (avatar && avatar.startsWith('http')) {
+                        avatar = await convertAvatarToBase64(avatar, 'https://bbs.huaweicloud.com/')
+                        await chrome.storage.local.set({ huaweicloud_user: { ...cachedUser, avatar } })
+                    }
+                    return { loggedIn: true, username: cachedUser.username || '', avatar }
                 }
                 // cookie 已失效，清除缓存
                 console.log('[COSE] HuaweiCloud: cache exists but ua cookie gone, clearing cache')
