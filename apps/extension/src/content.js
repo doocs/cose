@@ -48,6 +48,87 @@ console.log('[COSE Content Script] Hostname:', window.location.hostname)
       }, 3000) // 华为云 SSO 登录需要几秒延迟
     }
 
+    // 华为开发者页面：自动获取并缓存用户信息
+    if (window.location.hostname.includes('developer.huawei.com')) {
+      console.log('[COSE] 检测到华为开发者页面')
+
+      setTimeout(async () => {
+        try {
+          // 1. 从 DOM 获取社区用户名（真实昵称，非脱敏手机号）
+          const userNameEl = document.querySelector('.user_name')
+          const domUsername = userNameEl ? userNameEl.textContent.trim() : ''
+
+          // 2. 从 API 获取头像
+          const cookies = document.cookie.split(';').map(c => c.trim())
+          const udCookie = cookies.find(c => c.startsWith('developer_userdata='))
+          if (!udCookie && !domUsername) return
+
+          let avatar = ''
+          if (udCookie) {
+            const udValue = decodeURIComponent(udCookie.split('=').slice(1).join('='))
+            let csrfToken = ''
+            try {
+              const udJson = JSON.parse(udValue)
+              csrfToken = udJson.csrf || udJson.csrftoken || ''
+            } catch (e) { /* ignore */ }
+
+            if (csrfToken) {
+              const now = new Date()
+              const hdDate = now.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
+
+              try {
+                const response = await fetch('https://svc-drcn.developer.huawei.com/codeserver/Common/v1/delegate', {
+                  method: 'POST',
+                  credentials: 'include',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'x-hd-csrf': csrfToken,
+                    'x-hd-date': hdDate,
+                  },
+                  body: JSON.stringify({
+                    svc: 'GOpen.User.getInfo',
+                    reqType: 0,
+                    reqJson: JSON.stringify({ queryRangeFlag: '00000000000001' }),
+                  }),
+                })
+                if (response.ok) {
+                  const data = await response.json()
+                  if (data && data.returnCode === '0' && data.resJson) {
+                    const userRes = JSON.parse(data.resJson)
+                    avatar = userRes.headPictureURL || ''
+                  }
+                }
+              } catch (e) { /* avatar fetch failed, continue */ }
+            }
+          }
+
+          if (domUsername || avatar) {
+            const userInfo = {
+              loggedIn: true,
+              username: domUsername,
+              avatar,
+              cachedAt: Date.now(),
+            }
+
+            if (typeof chrome !== 'undefined' && chrome.runtime) {
+              chrome.runtime.sendMessage({
+                type: 'CACHE_USER_INFO',
+                platform: 'huaweidev',
+                userInfo,
+              }).then(() => {
+                console.log('[COSE] 华为开发者用户信息已缓存:', userInfo.username)
+              }).catch(e => {
+                console.log('[COSE] 缓存失败:', e.message)
+              })
+            }
+          }
+        } catch (e) {
+          console.log('[COSE] 华为开发者用户信息缓存失败:', e.message)
+        }
+      }, 3000)
+    }
+
     // 小红书页面：自动获取并缓存用户信息
     if (window.location.hostname.includes('xiaohongshu.com')) {
       console.log('[COSE] 检测到小红书页面')
