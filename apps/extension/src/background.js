@@ -1,5 +1,6 @@
 // 平台配置
 import { PLATFORMS, LOGIN_CHECK_CONFIG, SYNC_HANDLERS } from '@cose/core/src/platforms/index.js'
+import { convertAvatarToBase64 } from '@cose/detection/src/utils.js'
 // [DISABLED] import { fillAlipayOpenContent } from '@cose/core/src/platforms/alipayopen.js'
 
 // 初始化动态规则：为 sinaimg 和 sspai 头像添加 CORS 头
@@ -181,8 +182,19 @@ async function handleMessage(request, sender) {
         await chrome.storage.local.set({ alipayopen_user: request.userInfo })
         console.log('[COSE] 支付宝用户信息已缓存:', request.userInfo.username)
       } else if (request.platform === 'huaweicloud' && request.userInfo) {
-        await chrome.storage.local.set({ huaweicloud_user: request.userInfo })
-        console.log('[COSE] 华为云用户信息已缓存:', request.userInfo.username)
+        const hwcInfo = { ...request.userInfo }
+        if (hwcInfo.avatar && hwcInfo.avatar.startsWith('http')) {
+          hwcInfo.avatar = await convertAvatarToBase64(hwcInfo.avatar, 'https://bbs.huaweicloud.com/')
+        }
+        await chrome.storage.local.set({ huaweicloud_user: hwcInfo })
+        console.log('[COSE] 华为云用户信息已缓存:', hwcInfo.username)
+      } else if (request.platform === 'huaweidev' && request.userInfo) {
+        const hwdInfo = { ...request.userInfo }
+        if (hwdInfo.avatar && hwdInfo.avatar.startsWith('http')) {
+          hwdInfo.avatar = await convertAvatarToBase64(hwdInfo.avatar, 'https://developer.huawei.com/')
+        }
+        await chrome.storage.local.set({ huaweidev_user: hwdInfo })
+        console.log('[COSE] 华为开发者用户信息已缓存:', hwdInfo.username)
       }
       return { success: true }
     default:
