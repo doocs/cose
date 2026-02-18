@@ -1173,7 +1173,7 @@ async function syncToPlatform(platformId, content) {
 
       return { success: true, message: '已同步到支付宝开放平台', tabId: tab.id }
     } else [DISABLED] */
-    if (platformId !== 'wechat') {
+    if (platformId !== 'wechat' && !tab) {
       // 其他平台（排除微信，因为微信在上面已经处理）
       let targetUrl = platform.publishUrl
 
@@ -3367,17 +3367,35 @@ function fillContentOnPage(content, platformId) {
 }
 
 // 等待标签页加载
-function waitForTab(tabId, timeout = 300000) {
+function waitForTab(tabId, timeout = 60000) {
   return new Promise((resolve, reject) => {
     const start = Date.now()
+    let urlReady = false
+    let urlReadyTime = 0
     const check = () => {
       chrome.tabs.get(tabId, tab => {
         if (chrome.runtime.lastError) {
           reject(new Error(chrome.runtime.lastError.message))
-        } else if (tab.status === 'complete') {
+          return
+        }
+        if (tab.status === 'complete') {
           setTimeout(resolve, 1500)
-        } else if (Date.now() - start > timeout) {
-          reject(new Error('页面加载超时'))
+          return
+        }
+        // 如果 URL 已经不是 about:blank/chrome:// 且处于 loading 状态超过 10 秒，
+        // 说明主文档已加载但第三方资源可能超时，提前 resolve
+        if (!urlReady && tab.url && !tab.url.startsWith('about:') && !tab.url.startsWith('chrome:')) {
+          urlReady = true
+          urlReadyTime = Date.now()
+        }
+        if (urlReady && Date.now() - urlReadyTime > 10000) {
+          console.log('[COSE] waitForTab: 页面 URL 已就绪但 status 仍为 loading，提前继续')
+          setTimeout(resolve, 1500)
+          return
+        }
+        if (Date.now() - start > timeout) {
+          console.log('[COSE] waitForTab: 超时，继续执行')
+          resolve()
         } else {
           setTimeout(check, 300)
         }
