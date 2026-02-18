@@ -11,7 +11,8 @@
     "debugger",
     "clipboardRead",
     "storage",
-    "declarativeNetRequest"
+    "declarativeNetRequest",
+    "offscreen"
   ],
   "host_permissions": [
     "https://*.csdn.net/*",

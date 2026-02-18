@@ -123,11 +123,87 @@ export async function detectHuaweiDevUser() {
             }
         }
 
-        // 3. 没有打开的华为开发者页面，检查 developer_userdata cookie 作为基本登录判断
+        // 3. 没有打开的华为开发者页面，检查 developer_userdata cookie 并通过 offscreen fetch 获取用户信息
         const userCookie = await chrome.cookies.get({ url: 'https://developer.huawei.com', name: 'developer_userdata' })
         if (userCookie && userCookie.value) {
-            console.log('[COSE] HuaweiDev: developer_userdata cookie found but no open tab for full detection')
-            return { loggedIn: true, username: '', avatar: '' }
+            console.log('[COSE] HuaweiDev: developer_userdata cookie found, trying offscreen fetch for user info')
+            let username = ''
+            let avatar = ''
+            let apiSuccess = false
+            try {
+                const udValue = decodeURIComponent(userCookie.value)
+                const udJson = JSON.parse(udValue)
+                const csrfToken = udJson.csrftoken || udJson.csrf || ''
+                if (csrfToken) {
+                    const now = new Date()
+                    const hdDate = now.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
+
+                    // 确保 offscreen document 存在
+                    try {
+                        await chrome.offscreen.createDocument({
+                            url: 'offscreen.html',
+                            reasons: ['DOM_SCRAPING'],
+                            justification: 'Fetch Huawei Developer user info with cookies',
+                        })
+                    } catch (e) {
+                        // 已存在则忽略
+                        if (!e.message.includes('Only a single offscreen')) {
+                            throw e
+                        }
+                    }
+
+                    const response = await chrome.runtime.sendMessage({
+                        type: 'OFFSCREEN_FETCH',
+                        payload: {
+                            url: 'https://svc-drcn.developer.huawei.com/codeserver/Common/v1/delegate',
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'x-hd-csrf': csrfToken,
+                                'x-hd-date': hdDate,
+                            },
+                            body: {
+                                svc: 'GOpen.User.getInfo',
+                                reqType: 0,
+                                reqJson: JSON.stringify({ queryRangeFlag: '00000000000001' }),
+                            },
+                        },
+                    })
+
+                    if (response?.success && response.data) {
+                        const data = response.data
+                        if (data.returnCode === '0' && data.resJson) {
+                            const userInfo = JSON.parse(data.resJson)
+                            username = userInfo.displayName || ''
+                            avatar = userInfo.headPictureURL || ''
+                            if (avatar && avatar.startsWith('http')) {
+                                avatar = await convertAvatarToBase64(avatar, 'https://developer.huawei.com/')
+                            }
+                            apiSuccess = true
+                        }
+                    }
+
+                    // 关闭 offscreen document
+                    try { await chrome.offscreen.closeDocument() } catch (e) { /* ignore */ }
+                }
+            } catch (e) {
+                console.log('[COSE] HuaweiDev: offscreen fetch failed:', e.message)
+            }
+
+            // API 成功才认为已登录，否则视为登录过期
+            if (apiSuccess) {
+                if (username) {
+                    const userInfo = { loggedIn: true, username, avatar, cachedAt: Date.now() }
+                    await chrome.storage.local.set({ huaweidev_user: userInfo })
+                }
+                return { loggedIn: true, username, avatar }
+            } else {
+                // API 失败，清除可能残留的缓存
+                await chrome.storage.local.remove('huaweidev_user')
+                console.log('[COSE] HuaweiDev: API verification failed, treating as logged out')
+                return { loggedIn: false }
+            }
         }
 
         return { loggedIn: false }
