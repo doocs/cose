@@ -1,5 +1,6 @@
 // 平台配置
 import { PLATFORMS, LOGIN_CHECK_CONFIG, SYNC_HANDLERS } from '@cose/core/src/platforms/index.js'
+import { qianfanIntercept } from '@cose/core/src/platforms/qianfan.js'
 import { convertAvatarToBase64 } from '@cose/detection/src/utils.js'
 // [DISABLED] import { fillAlipayOpenContent } from '@cose/core/src/platforms/alipayopen.js'
 
@@ -980,112 +981,168 @@ async function syncToPlatform(platformId, content) {
     }
 
     // 百度千帆开发者社区：注入 Markdown 并确认转换
+    // 注意：千帆编辑器有自动保存机制，会触发 POST /api/community/topic
+    // 该 API 被 OpenRASP WAF 拦截，返回"校验错误，可能是跨站点攻击"，导致前端跳转登录页
+    // 解决方案：
+    // 1. 使用 declarativeNetRequest 阻止千帆 tab 导航到登录页（网络层拦截）
+    // 2. 内容脚本 qianfan-intercept.js 拦截 fetch/XHR/sendBeacon/location 跳转（JS 层拦截）
+    // 3. 监听 tab 的 URL 变化，如果跳转到登录页则导航回编辑器
     if (platformId === 'qianfan') {
-      // 先打开发布页面
+      // 添加 declarativeNetRequest 规则：阻止千帆 tab 导航到登录页
+      const QIANFAN_BLOCK_RULE_ID = 9999
+      try {
+        await chrome.declarativeNetRequest.updateDynamicRules({
+          removeRuleIds: [QIANFAN_BLOCK_RULE_ID],
+          addRules: [{
+            id: QIANFAN_BLOCK_RULE_ID,
+            priority: 1000,
+            action: { type: 'block' },
+            condition: {
+              urlFilter: '*login.bce.baidu.com*',
+              initiatorDomains: ['qianfan.cloud.baidu.com'],
+              resourceTypes: ['main_frame', 'sub_frame']
+            }
+          }]
+        })
+        console.log('[COSE] 千帆登录页阻止规则已添加')
+      } catch (e) {
+        console.warn('[COSE] 千帆登录页阻止规则添加失败:', e)
+      }
+
+      // 打开发布页面
       tab = await chrome.tabs.create({ url: platform.publishUrl, active: false })
       await addTabToSyncGroup(tab.id, tab.windowId)
-      await waitForTab(tab.id)
 
-      // 等待页面加载（缩短为1秒，后续用 waitForElement 确保元素就绪）
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // 动态注入千帆拦截脚本（MAIN world，尽早执行）
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: qianfanIntercept,
+          world: 'MAIN',
+          injectImmediately: true,
+        })
+        console.log('[COSE] 千帆拦截脚本已动态注入')
+      } catch (e) {
+        console.warn('[COSE] 千帆拦截脚本注入失败:', e)
+      }
 
-      const markdownContent = content.markdown || content.body || ''
-      console.log('[COSE] 百度千帆 Markdown 内容长度:', markdownContent?.length || 0)
+      // 监听 tab URL 变化，如果跳转到登录页则导航回编辑器
+      const tabUpdateListener = (tabId, changeInfo) => {
+        if (tabId === tab.id && changeInfo.url && changeInfo.url.includes('login.bce.baidu.com')) {
+          console.log('[COSE] 检测到千帆 tab 跳转到登录页，导航回编辑器')
+          chrome.tabs.update(tabId, { url: platform.publishUrl })
+        }
+      }
+      chrome.tabs.onUpdated.addListener(tabUpdateListener)
 
-      // 填充标题和内容
-      const fillResult = await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        func: async (title, markdown) => {
-          const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
+      try {
+        // 等待页面加载
+        await waitForTab(tab.id)
+        await new Promise(resolve => setTimeout(resolve, 2000))
 
-          // 等待元素出现（带超时）
-          const waitForElement = (selector, timeout = 5000) => {
-            return new Promise((resolve) => {
-              const el = document.querySelector(selector)
-              if (el) return resolve(el)
+        const markdownContent = content.markdown || content.body || ''
+        console.log('[COSE] 百度千帆 Markdown 内容长度:', markdownContent?.length || 0)
 
-              const observer = new MutationObserver(() => {
+        // 填充标题和内容
+        const fillResult = await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: async (title, markdown) => {
+            const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
+
+            const waitForElement = (selector, timeout = 5000) => {
+              return new Promise((resolve) => {
                 const el = document.querySelector(selector)
-                if (el) {
-                  observer.disconnect()
-                  resolve(el)
-                }
+                if (el) return resolve(el)
+                const observer = new MutationObserver(() => {
+                  const el = document.querySelector(selector)
+                  if (el) { observer.disconnect(); resolve(el) }
+                })
+                observer.observe(document.body, { childList: true, subtree: true })
+                setTimeout(() => { observer.disconnect(); resolve(null) }, timeout)
               })
-              observer.observe(document.body, { childList: true, subtree: true })
-              setTimeout(() => {
-                observer.disconnect()
-                resolve(null)
-              }, timeout)
-            })
-          }
-
-          try {
-            // 填充标题
-            const titleInput = await waitForElement('textarea[placeholder="请输入文章标题"]')
-            if (titleInput && title) {
-              titleInput.focus()
-              const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
-              nativeSetter.call(titleInput, title)
-              titleInput.dispatchEvent(new Event('input', { bubbles: true }))
-              console.log('[COSE] 百度千帆标题填充成功')
             }
 
-            await sleep(200)
-
-            // 填充内容 - 使用 paste 事件注入
-            const contentEditor = await waitForElement('.mp-editor-container[contenteditable="true"]')
-            if (contentEditor && markdown) {
-              contentEditor.focus()
-              await sleep(100)
-
-              // 使用 ClipboardEvent 模拟粘贴
-              const dt = new DataTransfer()
-              dt.setData('text/plain', markdown)
-
-              const pasteEvent = new ClipboardEvent('paste', {
-                bubbles: true,
-                cancelable: true,
-                clipboardData: dt
-              })
-
-              contentEditor.dispatchEvent(pasteEvent)
-              console.log('[COSE] 百度千帆内容填充成功')
-
-              // 等待并点击确认按钮（轮询检测，最多等待3秒）
-              let confirmed = false
-              for (let i = 0; i < 15; i++) {
-                await sleep(200)
-                const pageText = document.body.innerText
-                if (pageText.includes('检测到 Markdown')) {
-                  const confirmBtn = document.querySelector('.mp-modal-enter-btn')
-                  if (confirmBtn) {
-                    confirmBtn.click()
-                    confirmed = true
-                    console.log('[COSE] 百度千帆已确认 Markdown 转换')
-                    break
-                  }
-                }
+            try {
+              // 填充标题
+              const titleInput = await waitForElement('textarea[placeholder="请输入文章标题"]')
+              if (titleInput && title) {
+                titleInput.focus()
+                const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
+                nativeSetter.call(titleInput, title)
+                titleInput.dispatchEvent(new Event('input', { bubbles: true }))
+                console.log('[COSE] 百度千帆标题填充成功')
               }
 
-              return { success: true, confirmed }
+              await sleep(300)
+
+              // 填充内容 - 使用 paste 事件注入 Markdown
+              const contentEditor = await waitForElement('.mp-editor-container[contenteditable="true"]')
+              if (contentEditor && markdown) {
+                contentEditor.focus()
+                await sleep(100)
+
+                const dt = new DataTransfer()
+                dt.setData('text/plain', markdown)
+                const pasteEvent = new ClipboardEvent('paste', {
+                  bubbles: true, cancelable: true, clipboardData: dt
+                })
+                contentEditor.dispatchEvent(pasteEvent)
+                console.log('[COSE] 百度千帆内容填充成功')
+
+                // 等待并点击 Markdown 转换确认按钮
+                let confirmed = false
+                for (let i = 0; i < 15; i++) {
+                  await sleep(200)
+                  if (document.body.innerText.includes('检测到 Markdown')) {
+                    const confirmBtn = document.querySelector('.mp-modal-enter-btn')
+                    if (confirmBtn) {
+                      confirmBtn.click()
+                      confirmed = true
+                      console.log('[COSE] 百度千帆已确认 Markdown 转换')
+                      break
+                    }
+                  }
+                }
+
+                await sleep(1000)
+                return { success: true, confirmed }
+              }
+
+              return { success: false, error: 'Editor not found' }
+            } catch (e) {
+              console.error('[COSE] 百度千帆同步失败:', e)
+              return { success: false, error: e.message }
             }
+          },
+          args: [content.title, markdownContent],
+          world: 'MAIN',
+        })
 
-            return { success: false, error: 'Editor not found' }
-          } catch (e) {
-            console.error('[COSE] 百度千帆同步失败:', e)
-            return { success: false, error: e.message }
-          }
-        },
-        args: [content.title, markdownContent],
-        world: 'MAIN',
-      })
+        console.log('[COSE] 百度千帆填充结果:', fillResult[0]?.result)
 
-      console.log('[COSE] 百度千帆填充结果:', fillResult[0]?.result)
+        // 等待内容稳定
+        await new Promise(resolve => setTimeout(resolve, 2000))
 
-      // 等待内容处理完成
-      await new Promise(resolve => setTimeout(resolve, 2000))
+        // 清理：移除 tab 监听器和 declarativeNetRequest 规则
+        chrome.tabs.onUpdated.removeListener(tabUpdateListener)
+        try {
+          await chrome.declarativeNetRequest.updateDynamicRules({
+            removeRuleIds: [QIANFAN_BLOCK_RULE_ID]
+          })
+          console.log('[COSE] 千帆登录页阻止规则已移除')
+        } catch (_) {}
 
-      return { success: true, message: '已同步到百度云千帆', tabId: tab.id }
+        return { success: true, message: '已同步到百度云千帆，请手动点击发布', tabId: tab.id }
+      } catch (e) {
+        console.error('[COSE] 千帆同步失败:', e)
+        chrome.tabs.onUpdated.removeListener(tabUpdateListener)
+        try {
+          await chrome.declarativeNetRequest.updateDynamicRules({
+            removeRuleIds: [QIANFAN_BLOCK_RULE_ID]
+          })
+        } catch (_) {}
+        return { success: false, message: '千帆同步失败: ' + e.message }
+      }
     }
 
     /* [DISABLED] 支付宝开放平台：使用 ne-engine 富文本编辑器，支持 Markdown 转换
