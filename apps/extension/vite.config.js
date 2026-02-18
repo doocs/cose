@@ -20,6 +20,7 @@ export default defineConfig({
                 background: resolve(__dirname, 'src/background.js'),
                 content: resolve(__dirname, 'src/content.js'),
                 inject: resolve(__dirname, 'src/inject.js'),
+                offscreen: resolve(__dirname, 'src/offscreen.js'),
             },
             output: {
                 entryFileNames: 'bundles/[name].js',
@@ -38,6 +39,10 @@ export default defineConfig({
                 },
                 {
                     src: 'icons',
+                    dest: '.',
+                },
+                {
+                    src: 'src/offscreen.html',
                     dest: '.',
                 },
                 {
