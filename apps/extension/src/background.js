@@ -4,6 +4,187 @@ import { qianfanIntercept } from '@cose/core/src/platforms/qianfan.js'
 import { convertAvatarToBase64 } from '@cose/detection/src/utils.js'
 // [DISABLED] import { fillAlipayOpenContent } from '@cose/core/src/platforms/alipayopen.js'
 
+// ===== Offscreen warm-up helper =====
+// Used to trigger cookie restoration for platforms that need a real document context fetch
+let _offscreenCreated = false
+
+async function ensureOffscreen() {
+  if (_offscreenCreated) return
+  try {
+    const existing = await chrome.offscreen.hasDocument()
+    if (!existing) {
+      await chrome.offscreen.createDocument({
+        url: 'offscreen.html',
+        reasons: ['DOM_SCRAPING'],
+        justification: 'Warm-up fetch with credentials to restore session cookies',
+      })
+    }
+    _offscreenCreated = true
+  } catch (e) {
+    // Already exists or other error
+    _offscreenCreated = true
+  }
+}
+
+/**
+ * Warm-up fetch via offscreen document.
+ * This triggers the browser's cookie restoration (SSO, session cookies)
+ * by making a fetch with credentials: 'include' in a document context.
+ */
+async function warmUpFetch(url) {
+  try {
+    await ensureOffscreen()
+    const result = await chrome.runtime.sendMessage({
+      type: 'OFFSCREEN_WARM_FETCH',
+      payload: { url },
+    })
+    console.log(`[COSE] Warm-up fetch ${url}: status=${result?.data?.status}`)
+    return result
+  } catch (e) {
+    console.log(`[COSE] Warm-up fetch failed for ${url}:`, e.message)
+    return null
+  }
+}
+
+/**
+ * API fetch via offscreen document.
+ * Makes a fetch with credentials: 'include' in a document context,
+ * so cookies are automatically attached (unlike service worker fetch which strips Cookie headers).
+ */
+async function offscreenApiFetch(url, options = {}) {
+  try {
+    await ensureOffscreen()
+    const result = await chrome.runtime.sendMessage({
+      type: 'OFFSCREEN_API_FETCH',
+      payload: { url, ...options },
+    })
+    console.log(`[COSE] Offscreen API fetch ${url}: status=${result?.data?.status}`)
+    return result?.data || null
+  } catch (e) {
+    console.log(`[COSE] Offscreen API fetch failed for ${url}:`, e.message)
+    return null
+  }
+}
+
+// Export for use by detection modules
+globalThis.__coseWarmUpFetch = warmUpFetch
+globalThis.__coseOffscreenApiFetch = offscreenApiFetch
+
+/**
+ * Execute a fetch in the context of a target site's tab.
+ * This is needed for sites whose auth cookies are SameSite=Lax (default),
+ * which won't be sent from cross-site contexts like offscreen documents.
+ * 
+ * Strategy: find an existing tab for the domain, or create a temporary one,
+ * then inject a script that makes the fetch with credentials: 'include'.
+ */
+async function tabContextFetch(siteUrl, apiUrl, options = {}) {
+  const { responseType = 'json', timeout = 15000 } = options
+  let createdTabId = null
+  try {
+    const urlObj = new URL(siteUrl)
+    const pattern = `*://*.${urlObj.hostname.replace(/^www\./, '')}/*`
+    console.log(`[COSE] tabContextFetch: looking for tabs matching ${pattern}`)
+
+    // Find existing tab
+    let tabs = await chrome.tabs.query({ url: pattern })
+    let tab = tabs.find(t => t.id && !t.discarded)
+    console.log(`[COSE] tabContextFetch: found ${tabs.length} tabs, usable: ${tab ? tab.id : 'none'}`)
+
+    if (!tab) {
+      // Create a background tab (not active, for other platforms that need it)
+      const newTab = await chrome.tabs.create({ url: siteUrl, active: false })
+      tab = newTab
+      createdTabId = tab.id
+      console.log(`[COSE] tabContextFetch: created background tab ${tab.id}`)
+      // Wait for the tab to finish loading
+      const currentTab = await chrome.tabs.get(tab.id)
+      if (currentTab.status !== 'complete') {
+        await new Promise((resolve, reject) => {
+          const timer = setTimeout(() => {
+            chrome.tabs.onUpdated.removeListener(listener)
+            reject(new Error('Tab load timeout'))
+          }, timeout)
+          const listener = (tabId, info) => {
+            if (tabId === tab.id && info.status === 'complete') {
+              chrome.tabs.onUpdated.removeListener(listener)
+              clearTimeout(timer)
+              resolve()
+            }
+          }
+          chrome.tabs.onUpdated.addListener(listener)
+        })
+      }
+    }
+
+    // Inject script to make the fetch in the page's main world
+    // so that credentials: 'include' sends the page's cookies
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: async (fetchUrl, respType) => {
+        try {
+          const resp = await fetch(fetchUrl, {
+            method: 'GET',
+            credentials: 'include',
+            headers: { 'Accept': respType === 'json' ? 'application/json' : 'text/html' },
+          })
+          const status = resp.status
+          const finalUrl = resp.url
+          let body = null
+          if (respType === 'json') {
+            try { body = await resp.json() } catch (e) { body = null }
+          } else {
+            body = await resp.text()
+          }
+          return { status, url: finalUrl, body }
+        } catch (e) {
+          return { error: e.message }
+        }
+      },
+      args: [apiUrl, responseType],
+      world: 'MAIN',
+    })
+
+    // Clean up created tab
+    if (createdTabId) {
+      try { await chrome.tabs.remove(createdTabId) } catch (e) { /* ignore */ }
+    }
+
+    console.log(`[COSE] tabContextFetch result:`, JSON.stringify(results?.[0]?.result).substring(0, 200))
+    return results?.[0]?.result || null
+  } catch (e) {
+    // Clean up on error
+    if (createdTabId) {
+      try { await chrome.tabs.remove(createdTabId) } catch (e2) { /* ignore */ }
+    }
+    console.log(`[COSE] tabContextFetch failed for ${apiUrl}:`, e.message)
+    return null
+  }
+}
+
+globalThis.__coseTabContextFetch = tabContextFetch
+
+/**
+ * 51CTO detection via offscreen document (爱贝壳 approach).
+ * Offscreen has document context so DOMParser is available.
+ */
+async function detectCto51ViaOffscreen() {
+  try {
+    await ensureOffscreen()
+    console.log('[COSE] 51CTO: Sending OFFSCREEN_DETECT_CTO51 message...')
+    const result = await chrome.runtime.sendMessage({
+      type: 'OFFSCREEN_DETECT_CTO51',
+    })
+    console.log('[COSE] 51CTO: Offscreen response:', JSON.stringify(result))
+    return result?.data || null
+  } catch (e) {
+    console.log('[COSE] 51CTO offscreen detection failed:', e.message)
+    return null
+  }
+}
+
+globalThis.__coseDetectCto51 = detectCto51ViaOffscreen
+
 // 初始化动态规则：为 sinaimg 和 sspai 头像添加 CORS 头
 async function initDynamicRules() {
   try {
@@ -138,6 +319,12 @@ async function logToStorage(msg, data = null) {
 
 // 消息监听
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  // Let OFFSCREEN_* messages pass through to the offscreen document listener.
+  // If we handle them here, sendResponse fires before the offscreen doc can reply.
+  if (request.type && request.type.startsWith('OFFSCREEN_')) {
+    return false
+  }
+
   if (request.type === 'GET_DEBUG_LOGS') {
     chrome.storage.local.get('debug_logs', (result) => {
       sendResponse({ logs: result.debug_logs || [] })
