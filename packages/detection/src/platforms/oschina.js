@@ -31,6 +31,7 @@ export async function detectOSChinaUser() {
         // Best-effort: try to get username and avatar via API
         let username = ''
         let avatar = ''
+        let userId = ''
         try {
             const response = await fetch('https://apiv1.oschina.net/oschinapi/user/myDetails', {
                 method: 'GET',
@@ -44,6 +45,7 @@ export async function detectOSChinaUser() {
                 if (data?.success && data?.result?.userVo) {
                     username = data.result.userVo.name || ''
                     avatar = data.result.userVo.portraitUrl || ''
+                    userId = String(data.result.userVo.id || '')
                 }
             }
         } catch (e) {
@@ -54,7 +56,12 @@ export async function detectOSChinaUser() {
             avatar = await convertAvatarToBase64(avatar, 'https://www.oschina.net/')
         }
 
-        return { loggedIn: true, username, avatar }
+        // Store userId for sync URL construction
+        if (userId) {
+            try { await chrome.storage.local.set({ oschina_userId: userId }) } catch (e) { /* ignore */ }
+        }
+
+        return { loggedIn: true, username, avatar, userId }
     } catch (e) {
         console.error('[COSE] OSChina Detection Error:', e)
         return { loggedIn: false, error: e.message }

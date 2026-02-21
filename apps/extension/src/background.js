@@ -1442,12 +1442,13 @@ async function syncToPlatform(platformId, content) {
       // 其他平台（排除微信，因为微信在上面已经处理）
       let targetUrl = platform.publishUrl
 
-      // 开源中国：尝试使用动态用户 ID
+      // 开源中国：使用 ai-write 编辑器，需要用户 ID
       if (platformId === 'oschina') {
-        const userId = PLATFORM_USER_INFO['oschina']?.userId
+        const stored = await chrome.storage.local.get('oschina_userId')
+        const userId = stored?.oschina_userId
         if (userId) {
-          targetUrl = `https://my.oschina.net/u/${userId}/blog/write`
-          console.log('[COSE] 使用 OSChina 动态 URL:', targetUrl)
+          targetUrl = `https://my.oschina.net/u/${userId}/blog/ai-write`
+          console.log('[COSE] 使用 OSChina AI 写作 URL:', targetUrl)
         } else {
           console.warn('[COSE] 未找到 OSChina 用户 ID，使用默认 URL')
         }
@@ -3201,48 +3202,75 @@ function fillContentOnPage(content, platformId) {
         }
       }
     }
-    // 开源中国 OSChina
+    // 开源中国 OSChina (AI 写作平台 - 切换到 Markdown 编辑器)
     else if (host.includes('oschina.net')) {
-      // 填充标题
-      const titleInput = await waitFor('input[name="title"], .title input, input[placeholder*="标题"]')
+      // 1. 切换到 MD 编辑器（如果当前不是）
+      const switchText = document.querySelector('.editor-switch-text')
+      if (switchText && switchText.textContent.includes('切换到MD编辑器')) {
+        // Click the switch button to trigger confirmation dialog
+        const switchBtn = document.querySelector('.editor-switch-btn') || switchText.parentElement
+        if (switchBtn) {
+          switchBtn.click()
+          console.log('[COSE] OSChina 已点击切换按钮')
+          // Poll for the confirmation button (Ant Design Modal animation)
+          let confirmBtn = null
+          for (let i = 0; i < 20; i++) {
+            await new Promise(resolve => setTimeout(resolve, 200))
+            confirmBtn = Array.from(document.querySelectorAll('button'))
+              .find(btn => btn.textContent.trim() === '确定切换')
+            if (confirmBtn) break
+          }
+          if (confirmBtn) {
+            confirmBtn.click()
+            console.log('[COSE] OSChina 已确认切换到MD编辑器')
+          } else {
+            console.log('[COSE] OSChina 未找到确认切换按钮')
+          }
+          // Wait for MD editor to load after switch
+          await new Promise(resolve => setTimeout(resolve, 2000))
+        }
+      } else {
+        console.log('[COSE] OSChina 已在MD编辑器模式')
+      }
+
+      // 2. 填充标题
+      const titleInput = await waitFor('input[placeholder*="标题"]')
       if (titleInput) {
-        setInputValue(titleInput, title)
+        titleInput.focus()
+        const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
+        if (nativeSetter) {
+          nativeSetter.call(titleInput, title)
+        } else {
+          titleInput.value = title
+        }
+        titleInput.dispatchEvent(new Event('input', { bubbles: true }))
+        titleInput.dispatchEvent(new Event('change', { bubbles: true }))
         console.log('[COSE] OSChina 标题填充成功')
       }
 
-      // 等待 CKEditor 加载
-      await new Promise(resolve => setTimeout(resolve, 1500))
-
-      // 尝试通过 CKEditor API 设置内容
-      const success = await new Promise(resolve => {
-        let count = 0
-        const check = () => {
-          if (window.CKEDITOR && window.CKEDITOR.instances) {
-            const keys = Object.keys(window.CKEDITOR.instances)
-            if (keys.length > 0) {
-              window.CKEDITOR.instances[keys[0]].setData(body || contentToFill)
-              resolve(true)
-              return
-            }
-          }
-          if (++count < 10) {
-            setTimeout(check, 500)
-          } else {
-            resolve(false)
-          }
-        }
-        check()
-      })
-
-      if (!success) {
-        // 降级：如果 CKEditor 没找到，尝试填充隐藏的 textarea
-        const textarea = document.querySelector('textarea[name="content"]') || document.querySelector('#blogContent')
-        if (textarea) {
-          setInputValue(textarea, body || contentToFill)
-          console.log('[COSE] OSChina textarea 填充成功')
+      // 3. 填充 Markdown 内容到 textarea
+      await new Promise(resolve => setTimeout(resolve, 500))
+      const mdContent = markdown || contentToFill
+      // Poll for textarea (may take time after editor switch)
+      let textarea = null
+      for (let i = 0; i < 10; i++) {
+        textarea = document.querySelector('textarea')
+        if (textarea) break
+        await new Promise(resolve => setTimeout(resolve, 300))
+      }
+      if (textarea) {
+        textarea.focus()
+        const textareaSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set
+        if (textareaSetter) {
+          textareaSetter.call(textarea, mdContent)
         } else {
-          console.log('[COSE] OSChina 未找到编辑器')
+          textarea.value = mdContent
         }
+        textarea.dispatchEvent(new Event('input', { bubbles: true }))
+        textarea.dispatchEvent(new Event('change', { bubbles: true }))
+        console.log('[COSE] OSChina Markdown 内容填充成功，长度:', mdContent.length)
+      } else {
+        console.log('[COSE] OSChina 未找到 Markdown textarea')
       }
     }
     // 博客园
