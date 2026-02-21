@@ -41,6 +41,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       .catch(err => sendResponse({ success: false, error: err.message }))
     return true
   }
+
+  if (message.type === 'OFFSCREEN_DETECT_XIAOHONGSHU') {
+    handleDetectXiaohongshu()
+      .then(result => sendResponse({ success: true, data: result }))
+      .catch(err => sendResponse({ success: false, error: err.message }))
+    return true
+  }
 })
 
 async function handleFetch(payload) {
@@ -174,6 +181,35 @@ async function handleDetectCnblogs() {
     }
 
     return { loggedIn: true, username, avatar }
+  } catch (e) {
+    return { loggedIn: false, error: e.message }
+  }
+}
+
+
+/**
+ * Xiaohongshu detection: fetch creator API in document context.
+ * Cookies are sent automatically with credentials: 'include'.
+ */
+async function handleDetectXiaohongshu() {
+  try {
+    const resp = await fetch('https://creator.xiaohongshu.com/api/galaxy/user/info', {
+      method: 'GET',
+      credentials: 'include',
+      headers: { 'Accept': 'application/json' },
+    })
+    if (!resp.ok) return { loggedIn: false }
+
+    const data = await resp.json()
+    if (data?.success === true && data?.code === 0 && data?.data?.userId) {
+      return {
+        loggedIn: true,
+        username: data.data.userName || data.data.redId || '',
+        avatar: data.data.userAvatar || '',
+        userId: data.data.userId,
+      }
+    }
+    return { loggedIn: false }
   } catch (e) {
     return { loggedIn: false, error: e.message }
   }

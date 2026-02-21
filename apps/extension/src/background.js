@@ -263,6 +263,26 @@ async function detectCnblogsViaOffscreen() {
 
 globalThis.__coseDetectCnblogs = detectCnblogsViaOffscreen
 
+/**
+ * Xiaohongshu detection via offscreen document.
+ * Offscreen has document context so cookies are sent automatically.
+ */
+async function detectXiaohongshuViaOffscreen() {
+  try {
+    console.log('[COSE] Xiaohongshu: Sending OFFSCREEN_DETECT_XIAOHONGSHU message...')
+    const result = await sendOffscreenMessage({
+      type: 'OFFSCREEN_DETECT_XIAOHONGSHU',
+    })
+    console.log('[COSE] Xiaohongshu: Offscreen response:', JSON.stringify(result))
+    return result?.data || null
+  } catch (e) {
+    console.log('[COSE] Xiaohongshu offscreen detection failed:', e.message)
+    return null
+  }
+}
+
+globalThis.__coseDetectXiaohongshu = detectXiaohongshuViaOffscreen
+
 // 初始化动态规则：为 sinaimg 和 sspai 头像添加 CORS 头
 async function initDynamicRules() {
   try {
