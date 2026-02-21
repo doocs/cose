@@ -19,6 +19,11 @@ export async function detectCTO51User() {
                 console.log('[COSE] 51CTO: Logged in:', result.username)
                 return { loggedIn: true, username: result.username || '', avatar }
             }
+            // Pass through debug info if present
+            if (result && result._debug) {
+                console.log('[COSE] 51CTO: Not logged in, debug:', JSON.stringify(result._debug))
+                return { loggedIn: false, _debug: result._debug }
+            }
         }
 
         console.log('[COSE] 51CTO: Not logged in')
