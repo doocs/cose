@@ -2,6 +2,11 @@
 // This runs in a document context where credentials: 'include' actually works
 // (unlike the service worker where cookies are not sent/received automatically)
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'OFFSCREEN_PING') {
+    sendResponse({ pong: true })
+    return false
+  }
+
   if (message.type === 'OFFSCREEN_FETCH') {
     handleFetch(message.payload)
       .then(result => sendResponse({ success: true, data: result }))
@@ -25,6 +30,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.type === 'OFFSCREEN_DETECT_CTO51') {
     handleDetectCto51()
+      .then(result => sendResponse({ success: true, data: result }))
+      .catch(err => sendResponse({ success: false, error: err.message }))
+    return true
+  }
+
+  if (message.type === 'OFFSCREEN_DETECT_CNBLOGS') {
+    handleDetectCnblogs()
       .then(result => sendResponse({ success: true, data: result }))
       .catch(err => sendResponse({ success: false, error: err.message }))
     return true
@@ -105,7 +117,9 @@ async function handleApiFetch(payload) {
  */
 async function handleDetectCto51() {
   try {
-    const resp = await fetch('https://home.51cto.com/space')
+    const resp = await fetch('https://home.51cto.com/space', {
+      credentials: 'include',
+    })
     const html = await resp.text()
     const doc = new DOMParser().parseFromString(html, 'text/html')
 
@@ -125,10 +139,41 @@ async function handleDetectCto51() {
     const username = nameEl ? nameEl.textContent.trim() : ''
 
     if (!username && !uid) {
-      return { loggedIn: false }
+      // Return debug info to help diagnose
+      const title = doc.querySelector('title')?.textContent || ''
+      return { loggedIn: false, _debug: { status: resp.status, url: resp.url, htmlLen: html.length, title } }
     }
 
     return { loggedIn: true, username, avatar, uid }
+  } catch (e) {
+    return { loggedIn: false, error: e.message }
+  }
+}
+
+
+/**
+ * Cnblogs detection: fetch account.cnblogs.com/user/userinfo in document context.
+ * Cookies are sent automatically (unlike service worker fetch which strips Cookie headers).
+ */
+async function handleDetectCnblogs() {
+  try {
+    const resp = await fetch('https://account.cnblogs.com/user/userinfo', {
+      method: 'GET',
+      credentials: 'include',
+      headers: { 'Accept': 'application/json' },
+    })
+    if (!resp.ok) return { loggedIn: false }
+
+    const data = await resp.json()
+    if (!data?.spaceUserId) return { loggedIn: false }
+
+    const username = data.displayName || ''
+    let avatar = data.iconName || ''
+    if (avatar && !avatar.startsWith('http')) {
+      avatar = 'https:' + avatar
+    }
+
+    return { loggedIn: true, username, avatar }
   } catch (e) {
     return { loggedIn: false, error: e.message }
   }

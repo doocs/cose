@@ -4,26 +4,46 @@ import { qianfanIntercept } from '@cose/core/src/platforms/qianfan.js'
 import { convertAvatarToBase64 } from '@cose/detection/src/utils.js'
 // [DISABLED] import { fillAlipayOpenContent } from '@cose/core/src/platforms/alipayopen.js'
 
-// ===== Offscreen warm-up helper =====
-// Used to trigger cookie restoration for platforms that need a real document context fetch
-let _offscreenCreated = false
+// ===== Offscreen helper =====
+// Used for login detection in document context (cookies sent automatically)
 
 async function ensureOffscreen() {
-  if (_offscreenCreated) return
   try {
     const existing = await chrome.offscreen.hasDocument()
     if (!existing) {
       await chrome.offscreen.createDocument({
         url: 'offscreen.html',
         reasons: ['DOM_SCRAPING'],
-        justification: 'Warm-up fetch with credentials to restore session cookies',
+        justification: 'Fetch with credentials in document context for login detection',
       })
+      // Wait for the offscreen document's scripts to load and register listeners.
+      // createDocument resolves when the document is created, but scripts may not
+      // have executed yet. Ping until the offscreen listener responds.
+      const ready = await _waitForOffscreenReady(3000)
+      if (!ready) {
+        console.warn('[COSE] ensureOffscreen: offscreen document did not become ready in time')
+      }
     }
-    _offscreenCreated = true
   } catch (e) {
-    // Already exists or other error
-    _offscreenCreated = true
+    console.log('[COSE] ensureOffscreen error:', e.message)
   }
+}
+
+/**
+ * Ping the offscreen document until it responds, confirming its listener is active.
+ */
+async function _waitForOffscreenReady(timeoutMs = 3000) {
+  const start = Date.now()
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const resp = await chrome.runtime.sendMessage({ type: 'OFFSCREEN_PING' })
+      if (resp && resp.pong) return true
+    } catch (e) {
+      // listener not ready yet
+    }
+    await new Promise(r => setTimeout(r, 50))
+  }
+  return false
 }
 
 /**
@@ -33,8 +53,7 @@ async function ensureOffscreen() {
  */
 async function warmUpFetch(url) {
   try {
-    await ensureOffscreen()
-    const result = await chrome.runtime.sendMessage({
+    const result = await sendOffscreenMessage({
       type: 'OFFSCREEN_WARM_FETCH',
       payload: { url },
     })
@@ -53,8 +72,7 @@ async function warmUpFetch(url) {
  */
 async function offscreenApiFetch(url, options = {}) {
   try {
-    await ensureOffscreen()
-    const result = await chrome.runtime.sendMessage({
+    const result = await sendOffscreenMessage({
       type: 'OFFSCREEN_API_FETCH',
       payload: { url, ...options },
     })
@@ -69,6 +87,31 @@ async function offscreenApiFetch(url, options = {}) {
 // Export for use by detection modules
 globalThis.__coseWarmUpFetch = warmUpFetch
 globalThis.__coseOffscreenApiFetch = offscreenApiFetch
+
+/**
+ * Serialized message sender for offscreen document.
+ * chrome.runtime.sendMessage is broadcast-based; when multiple OFFSCREEN_*
+ * messages are sent concurrently, responses can get mixed up or lost.
+ * This queue ensures only one offscreen message is in-flight at a time.
+ * Includes a timeout to prevent the queue from getting stuck if the offscreen
+ * document is garbage-collected or fails to respond.
+ */
+let _offscreenQueue = Promise.resolve()
+function sendOffscreenMessage(msg, timeoutMs = 15000) {
+  const p = _offscreenQueue.then(async () => {
+    await ensureOffscreen()
+    // Race the actual message against a timeout so the queue never gets stuck
+    return Promise.race([
+      chrome.runtime.sendMessage(msg),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error(`Offscreen message timeout (${msg.type})`)), timeoutMs)
+      ),
+    ])
+  })
+  // Chain but don't let errors break the queue
+  _offscreenQueue = p.catch(() => {})
+  return p
+}
 
 /**
  * Execute a fetch in the context of a target site's tab.
@@ -167,23 +210,58 @@ globalThis.__coseTabContextFetch = tabContextFetch
 /**
  * 51CTO detection via offscreen document (爱贝壳 approach).
  * Offscreen has document context so DOMParser is available.
+ * Includes retry logic in case the offscreen document wasn't ready on first attempt.
  */
 async function detectCto51ViaOffscreen() {
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      console.log(`[COSE] 51CTO: Sending OFFSCREEN_DETECT_CTO51 (attempt ${attempt})...`)
+      const result = await sendOffscreenMessage({
+        type: 'OFFSCREEN_DETECT_CTO51',
+      })
+      console.log('[COSE] 51CTO: Offscreen response:', JSON.stringify(result))
+      if (result === undefined || result === null) {
+        // No listener responded — offscreen might not be ready
+        console.warn('[COSE] 51CTO: Got empty response, offscreen may not be ready')
+        if (attempt < 2) {
+          await new Promise(r => setTimeout(r, 500))
+          continue
+        }
+      }
+      return result?.data || null
+    } catch (e) {
+      console.log(`[COSE] 51CTO offscreen detection failed (attempt ${attempt}):`, e.message)
+      if (attempt < 2) {
+        await new Promise(r => setTimeout(r, 500))
+        continue
+      }
+      return null
+    }
+  }
+  return null
+}
+
+globalThis.__coseDetectCto51 = detectCto51ViaOffscreen
+
+/**
+ * Cnblogs detection via offscreen document.
+ * Offscreen has document context so cookies are sent automatically.
+ */
+async function detectCnblogsViaOffscreen() {
   try {
-    await ensureOffscreen()
-    console.log('[COSE] 51CTO: Sending OFFSCREEN_DETECT_CTO51 message...')
-    const result = await chrome.runtime.sendMessage({
-      type: 'OFFSCREEN_DETECT_CTO51',
+    console.log('[COSE] Cnblogs: Sending OFFSCREEN_DETECT_CNBLOGS message...')
+    const result = await sendOffscreenMessage({
+      type: 'OFFSCREEN_DETECT_CNBLOGS',
     })
-    console.log('[COSE] 51CTO: Offscreen response:', JSON.stringify(result))
+    console.log('[COSE] Cnblogs: Offscreen response:', JSON.stringify(result))
     return result?.data || null
   } catch (e) {
-    console.log('[COSE] 51CTO offscreen detection failed:', e.message)
+    console.log('[COSE] Cnblogs offscreen detection failed:', e.message)
     return null
   }
 }
 
-globalThis.__coseDetectCto51 = detectCto51ViaOffscreen
+globalThis.__coseDetectCnblogs = detectCnblogsViaOffscreen
 
 // 初始化动态规则：为 sinaimg 和 sspai 头像添加 CORS 头
 async function initDynamicRules() {

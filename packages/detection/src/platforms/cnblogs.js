@@ -1,53 +1,28 @@
 import { convertAvatarToBase64 } from '../utils.js'
 
 /**
- * Cnblogs (博客园) detection logic
- * Strategy:
- * 1. Collect cookies via chrome.cookies.getAll (MV3 service worker compatible)
- * 2. Fetch user info via account.cnblogs.com/user/userinfo with cookies attached manually
- * 3. Extract username and avatar from API response
+ * Cnblogs (博客园) detection logic (offscreen approach)
+ * Fetch https://account.cnblogs.com/user/userinfo via offscreen document,
+ * where cookies are sent automatically in document context.
  */
 export async function detectCnblogsUser() {
     try {
-        const cookies = await chrome.cookies.getAll({ domain: '.cnblogs.com' })
-        const wwwCookies = await chrome.cookies.getAll({ url: 'https://www.cnblogs.com' })
-        const accountCookies = await chrome.cookies.getAll({ url: 'https://account.cnblogs.com' })
-        const allCookies = [...cookies, ...wwwCookies, ...accountCookies]
-        const seen = new Set()
-        const uniqueCookies = allCookies.filter(c => {
-            const key = `${c.name}=${c.value}`
-            if (seen.has(key)) return false
-            seen.add(key)
-            return true
-        })
-        const cookieStr = uniqueCookies.map(c => `${c.name}=${c.value}`).join('; ')
+        console.log('[COSE] Cnblogs Detection: Starting (offscreen)')
 
-        if (!cookieStr) return { loggedIn: false }
-
-        const response = await fetch('https://account.cnblogs.com/user/userinfo', {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                'Cookie': cookieStr,
-            },
-        })
-
-        if (!response.ok) return { loggedIn: false }
-
-        const data = await response.json()
-        if (!data?.spaceUserId) return { loggedIn: false }
-
-        const username = data.displayName || ''
-        let avatar = data.iconName || ''
-
-        if (avatar && !avatar.startsWith('http')) {
-            avatar = 'https:' + avatar
-        }
-        if (avatar && avatar.includes('cnblogs.com')) {
-            avatar = await convertAvatarToBase64(avatar, 'https://www.cnblogs.com/')
+        if (typeof globalThis.__coseDetectCnblogs === 'function') {
+            const result = await globalThis.__coseDetectCnblogs()
+            if (result && result.loggedIn) {
+                let avatar = result.avatar || ''
+                if (avatar && avatar.includes('cnblogs.com')) {
+                    avatar = await convertAvatarToBase64(avatar, 'https://www.cnblogs.com/')
+                }
+                console.log('[COSE] Cnblogs: Logged in:', result.username)
+                return { loggedIn: true, username: result.username || '', avatar }
+            }
         }
 
-        return { loggedIn: true, username, avatar }
+        console.log('[COSE] Cnblogs: Not logged in')
+        return { loggedIn: false }
     } catch (e) {
         console.error('[COSE] Cnblogs Detection Error:', e)
         return { loggedIn: false, error: e.message }
