@@ -38,13 +38,24 @@ function fillZhihuContent(title, markdown) {
   }
 
   async function uploadMarkdown() {
-    // 先填充标题（使用注入的 window.waitFor，基于 MutationObserver）
-    const titleInput = await window.waitFor('textarea[placeholder*="标题"]')
-    if (titleInput && title) {
-      titleInput.focus()
-      titleInput.value = title
-      titleInput.dispatchEvent(new Event('input', { bubbles: true }))
-      console.log('[COSE] 知乎标题填充成功')
+    // 辅助函数：填充标题
+    async function fillTitle() {
+      const titleInput = await window.waitFor('textarea[placeholder*="标题"]')
+      if (titleInput && title) {
+        titleInput.focus()
+        // 使用 nativeInputValueSetter 确保 React 识别变更
+        const nativeSetter = Object.getOwnPropertyDescriptor(
+          window.HTMLTextAreaElement.prototype, 'value'
+        )?.set
+        if (nativeSetter) {
+          nativeSetter.call(titleInput, title)
+        } else {
+          titleInput.value = title
+        }
+        titleInput.dispatchEvent(new Event('input', { bubbles: true }))
+        titleInput.dispatchEvent(new Event('change', { bubbles: true }))
+        console.log('[COSE] 知乎标题填充成功')
+      }
     }
 
     // 第一步：点击工具栏的"导入"按钮，打开子菜单
@@ -93,6 +104,22 @@ function fillZhihuContent(title, markdown) {
           })
           dropZone.dispatchEvent(dropEvent)
           console.log('[COSE] 已触发拖放事件')
+
+          // 等待导入完成（监听编辑器 DOM 稳定后再填充标题）
+          // 导入过程会产生多次 DOM 变更并清空标题，需等所有变更结束
+          const editorContent = document.querySelector('.public-DraftEditor-content') || document.querySelector('[contenteditable="true"]')
+          if (editorContent) {
+            await new Promise(resolve => {
+              let timer
+              const obs = new MutationObserver(() => {
+                clearTimeout(timer)
+                timer = setTimeout(() => { obs.disconnect(); resolve() }, 300)
+              })
+              obs.observe(editorContent, { childList: true, subtree: true, characterData: true })
+            })
+          }
+          await fillTitle()
+
           return { success: true, method: 'import-document' }
         } else {
           console.log('[COSE] 未找到文件输入框')
