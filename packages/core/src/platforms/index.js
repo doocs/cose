@@ -15,7 +15,7 @@ import { CTO51Platform } from './cto51.js'
 import { InfoQPlatform } from './infoq.js'
 import { JianshuPlatform } from './jianshu.js'
 import { BaijiahaoPlatform } from './baijiahao.js'
-import { WangyihaoPlatform } from './wangyihao.js'
+import { WangyihaoPlatform, syncWangyihaoContent } from './wangyihao.js'
 import { TencentCloudPlatform } from './tencentcloud.js'
 import { MediumPlatform } from './medium.js'
 import { SspaiPlatform } from './sspai.js'
@@ -112,6 +112,7 @@ const SYNC_HANDLERS = {
     wechat: syncWechatContent,
     zhihu: syncZhihuContent,
     toutiao: syncToutiaoContent,
+    wangyihao: syncWangyihaoContent,
 }
 
 // 导出
