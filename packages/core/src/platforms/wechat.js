@@ -14,47 +14,78 @@ const WechatPlatform = {
 
 // 微信公众号内容填充函数（在页面主世界中执行）
 // 注意：需要先调用 injectUtils 注入 window.waitFor
-function fillWechatContent(title, htmlBody) {
+async function fillWechatContent(title, htmlBody) {
+  try {
+    // 等待编辑器加载完成
+    const editor = await window.waitFor('.ProseMirror', 15000)
+    if (!editor) {
+      return { success: false, error: '未找到编辑器' }
+    }
 
-  async function fill() {
-    try {
-      // 等待编辑器加载完成
-      const editor = await window.waitFor('.ProseMirror', 15000)
-      if (!editor) {
-        return { success: false, error: '未找到编辑器' }
+    // 等待标题输入框
+    const titleInput = await window.waitFor('#title')
+
+    // 填充标题
+    if (titleInput && title) {
+      titleInput.focus()
+      // 使用 native setter 确保 React/Vue 等框架能检测到变化
+      const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set
+      if (nativeSetter) {
+        nativeSetter.call(titleInput, title)
+      }
+      else {
+        titleInput.value = title
+      }
+      titleInput.dispatchEvent(new Event('input', { bubbles: true }))
+      titleInput.dispatchEvent(new Event('change', { bubbles: true }))
+      console.log('[COSE] 微信标题已填充:', title)
+    }
+
+    // 稍等一下让标题生效
+    await new Promise(r => setTimeout(r, 300))
+
+    // 填充正文内容
+    if (editor && htmlBody) {
+      editor.focus()
+
+      // 清空现有占位符内容
+      if (editor.textContent.includes('从这里开始写正文')) {
+        editor.innerHTML = ''
       }
 
-      // 等待标题输入框
-      const titleInput = await window.waitFor('#title')
+      // 使用真实剪贴板 API 写入 HTML，然后模拟 Ctrl+V
+      try {
+        // 创建 ClipboardItem 并写入剪贴板
+        const blob = new Blob([htmlBody], { type: 'text/html' })
+        const plainBlob = new Blob([htmlBody.replace(/<[^>]*>/g, '')], { type: 'text/plain' })
+        const clipboardItem = new ClipboardItem({
+          'text/html': blob,
+          'text/plain': plainBlob,
+        })
+        await navigator.clipboard.write([clipboardItem])
+        console.log('[COSE] HTML 已写入真实剪贴板')
 
-      // 填充标题
-      if (titleInput && title) {
-        titleInput.focus()
-        // 使用 native setter 确保 React/Vue 等框架能检测到变化
-        const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set
-        if (nativeSetter) {
-          nativeSetter.call(titleInput, title)
-        } else {
-          titleInput.value = title
-        }
-        titleInput.dispatchEvent(new Event('input', { bubbles: true }))
-        titleInput.dispatchEvent(new Event('change', { bubbles: true }))
-        console.log('[COSE] 微信标题已填充:', title)
+        // 模拟 Ctrl+V 粘贴
+        editor.dispatchEvent(new KeyboardEvent('keydown', {
+          key: 'v',
+          code: 'KeyV',
+          ctrlKey: true,
+          bubbles: true,
+        }))
+        editor.dispatchEvent(new KeyboardEvent('keyup', {
+          key: 'v',
+          code: 'KeyV',
+          ctrlKey: true,
+          bubbles: true,
+        }))
+        console.log('[COSE] 已模拟 Ctrl+V 粘贴')
+
+        // 等待内容渲染
+        await new Promise(r => setTimeout(r, 800))
       }
-
-      // 稍等一下让标题生效
-      await new Promise(r => setTimeout(r, 300))
-
-      // 填充正文内容
-      if (editor && htmlBody) {
-        editor.focus()
-
-        // 清空现有占位符内容
-        if (editor.textContent.includes('从这里开始写正文')) {
-          editor.innerHTML = ''
-        }
-
-        // 使用 ClipboardEvent + DataTransfer 注入 HTML
+      catch (clipboardErr) {
+        console.log('[COSE] 真实剪贴板失败，降级到 DataTransfer:', clipboardErr.message)
+        // 降级到 DataTransfer 方案
         const dt = new DataTransfer()
         dt.setData('text/html', htmlBody)
         dt.setData('text/plain', htmlBody.replace(/<[^>]*>/g, ''))
@@ -62,38 +93,37 @@ function fillWechatContent(title, htmlBody) {
         const pasteEvent = new ClipboardEvent('paste', {
           bubbles: true,
           cancelable: true,
-          clipboardData: dt
+          clipboardData: dt,
         })
 
         editor.dispatchEvent(pasteEvent)
-        console.log('[COSE] 微信内容已通过 paste 事件注入')
+        console.log('[COSE] 微信内容已通过 paste 事件注入（降级方案）')
 
         // 等待内容渲染
         await new Promise(r => setTimeout(r, 500))
-
-        // 验证内容是否注入成功
-        const wordCount = editor.textContent?.length || 0
-        if (wordCount === 0) {
-          // 备用方案：直接设置 innerHTML
-          console.log('[COSE] paste 事件未生效，尝试备用方案')
-          editor.innerHTML = htmlBody
-          editor.dispatchEvent(new Event('input', { bubbles: true }))
-        }
-
-        return { 
-          success: true, 
-          wordCount: editor.textContent?.length || 0,
-          titleFilled: titleInput?.value === title
-        }
       }
 
-      return { success: false, error: '内容为空' }
-    } catch (err) {
-      return { success: false, error: err.message }
-    }
-  }
+      // 验证内容是否注入成功
+      const wordCount = editor.textContent?.length || 0
+      if (wordCount === 0) {
+        // 备用方案：直接设置 innerHTML
+        console.log('[COSE] 粘贴未生效，尝试直接设置 innerHTML')
+        editor.innerHTML = htmlBody
+        editor.dispatchEvent(new Event('input', { bubbles: true }))
+      }
 
-  return fill()
+      return {
+        success: true,
+        wordCount: editor.textContent?.length || 0,
+        titleFilled: titleInput?.value === title,
+      }
+    }
+
+    return { success: false, error: '内容为空' }
+  }
+  catch (err) {
+    return { success: false, error: err.message }
+  }
 }
 
 // 微信公众号保存草稿函数（在页面主世界中执行）
