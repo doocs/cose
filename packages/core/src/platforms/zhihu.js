@@ -12,7 +12,7 @@ const ZhihuPlatform = {
 import { injectUtils } from './common.js'
 
 // 知乎内容填充函数（在页面主世界中执行）
-// 知乎使用导入文档功能上传 md 文件
+// 知乎现在支持直接粘贴 Markdown，然后弹窗提示转换
 // 注意：需要先调用 injectUtils 注入 window.waitFor
 function fillZhihuContent(title, markdown) {
   // 等待满足条件的元素出现（使用 MutationObserver）
@@ -37,8 +37,25 @@ function fillZhihuContent(title, markdown) {
     })
   }
 
-  async function uploadMarkdown() {
-    // 辅助函数：填充标题
+  // 等待按钮出现并点击
+  async function waitAndClickButton(textMatcher, timeout = 5000) {
+    const startTime = Date.now()
+    while (Date.now() - startTime < timeout) {
+      const buttons = document.querySelectorAll('button')
+      for (const btn of buttons) {
+        if (textMatcher(btn.textContent)) {
+          btn.click()
+          console.log('[COSE] 已点击按钮:', btn.textContent)
+          return true
+        }
+      }
+      await new Promise(resolve => setTimeout(resolve, 200))
+    }
+    return false
+  }
+
+  async function fillContent() {
+    // 第一步：填充标题
     async function fillTitle() {
       const titleInput = await window.waitFor('textarea[placeholder*="标题"]')
       if (titleInput && title) {
@@ -58,105 +75,144 @@ function fillZhihuContent(title, markdown) {
       }
     }
 
-    // 第一步：点击工具栏的"导入"按钮，打开子菜单
-    // 注意：按钮文本可能包含零宽字符，使用 includes 匹配
-    const importBtn = Array.from(document.querySelectorAll('button'))
-      .find(el => el.innerText.includes('导入') && !el.innerText.includes('导入文档') && !el.innerText.includes('导入链接'))
+    // 第二步：找到并激活知乎编辑器
+    const editorSelectors = [
+      '.public-DraftEditor-content',
+      '[contenteditable="true"]',
+      '.DraftEditor-root'
+    ]
+    
+    let editor = null
+    for (const selector of editorSelectors) {
+      editor = document.querySelector(selector)
+      if (editor) break
+    }
+    
+    if (!editor) {
+      console.log('[COSE] 未找到知乎编辑器')
+      return { success: false, error: 'Editor not found' }
+    }
 
-    if (importBtn) {
-      importBtn.click()
-      console.log('[COSE] 已点击导入按钮')
+    // 激活编辑器：模拟真实点击序列
+    const rect = editor.getBoundingClientRect()
+    const centerX = rect.left + rect.width / 2
+    const centerY = rect.top + rect.height / 2
+    
+    // 触发鼠标事件序列激活编辑器
+    for (const eventType of ['mousedown', 'mouseup', 'click']) {
+      const event = new MouseEvent(eventType, {
+        bubbles: true,
+        cancelable: true,
+        view: window,
+        clientX: centerX,
+        clientY: centerY,
+        button: 0
+      })
+      editor.dispatchEvent(event)
+    }
+    
+    // 聚焦编辑器
+    editor.focus()
+    
+    // 清空现有内容
+    document.execCommand('selectAll', false)
+    document.execCommand('delete', false)
+    
+    // 等待编辑器状态更新
+    await new Promise(resolve => setTimeout(resolve, 100))
 
-      // 等待子菜单中的"导入文档"按钮出现（使用 MutationObserver）
-      const importDocBtn = await waitForElement(() => 
-        Array.from(document.querySelectorAll('button'))
-          .find(el => el.innerText.includes('导入文档'))
+    // 第三步：通过剪贴板 + 键盘事件模拟真实粘贴
+    // 这是触发知乎 Markdown 检测弹窗的关键方法
+    const contentToFill = markdown || ''
+    
+    if (!contentToFill) {
+      console.log('[COSE] 没有 Markdown 内容需要填充')
+      await fillTitle()
+      return { success: true, method: 'empty' }
+    }
+
+    try {
+      // 使用 ClipboardEvent 模拟粘贴 - 这是触发 Markdown 检测弹窗的关键
+      // execCommand('insertText') 不会触发弹窗
+      
+      // 检查浏览器兼容性
+      if (typeof DataTransfer === 'undefined' || typeof ClipboardEvent === 'undefined') {
+        throw new Error('浏览器不支持 DataTransfer 或 ClipboardEvent')
+      }
+      
+      const dt = new DataTransfer()
+      dt.setData('text/plain', contentToFill)
+      
+      const pasteEvent = new ClipboardEvent('paste', {
+        bubbles: true,
+        cancelable: true,
+        clipboardData: dt
+      })
+      
+      editor.focus()
+      const dispatched = editor.dispatchEvent(pasteEvent)
+      console.log('[COSE] 已触发 ClipboardEvent，dispatched:', dispatched)
+      
+      // 等待 Markdown 检测弹窗出现并点击"确认并解析"
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      const parseClicked = await waitAndClickButton(
+        text => text.includes('确认并解析'),
+        5000
       )
-
-      if (importDocBtn) {
-        importDocBtn.click()
-        console.log('[COSE] 已点击导入文档按钮')
-
-        // 等待文件输入框出现（使用 MutationObserver）
-        const fileInput = await window.waitFor('input[type="file"][accept*=".md"]')
-        if (fileInput) {
-          // 创建 md 文件（使用 text/plain 类型，更通用）
-          const mdContent = markdown || ''
-          const fileName = (title || 'article').replace(/[\\/：:*?"<>|]/g, '_') + '.md'
-          const file = new File([mdContent], fileName, { type: 'text/plain' })
-
-          // 创建 DataTransfer 并设置文件
-          const dt = new DataTransfer()
-          dt.items.add(file)
-          fileInput.files = dt.files
-
-          // 触发 input 和 change 事件
-          fileInput.dispatchEvent(new Event('input', { bubbles: true }))
-          fileInput.dispatchEvent(new Event('change', { bubbles: true }))
-          console.log('[COSE] 已上传 md 文件:', fileName)
-
-          // 同时触发拖放事件作为备用方案
-          const dropZone = document.querySelector('[class*="Modal"]') || document.body
-          const dropEvent = new DragEvent('drop', {
-            bubbles: true,
-            cancelable: true,
-            dataTransfer: dt
-          })
-          dropZone.dispatchEvent(dropEvent)
-          console.log('[COSE] 已触发拖放事件')
-
-          // 等待导入完成（监听编辑器 DOM 稳定后再填充标题）
-          // 导入过程会产生多次 DOM 变更并清空标题，需等所有变更结束
-          const editorContent = document.querySelector('.public-DraftEditor-content') || document.querySelector('[contenteditable="true"]')
-          if (editorContent) {
-            await new Promise(resolve => {
-              let timer
-              const obs = new MutationObserver(() => {
-                clearTimeout(timer)
-                timer = setTimeout(() => { obs.disconnect(); resolve() }, 300)
-              })
-              obs.observe(editorContent, { childList: true, subtree: true, characterData: true })
-            })
-          }
-          await fillTitle()
-
-          return { success: true, method: 'import-document' }
-        } else {
-          console.log('[COSE] 未找到文件输入框')
-          return { success: false, error: 'File input not found' }
+      
+      if (parseClicked) {
+        console.log('[COSE] 已点击"确认并解析"')
+        
+        // 等待解析完成并点击"确认"
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        const confirmClicked = await waitAndClickButton(
+          text => text === '确认',
+          5000
+        )
+        
+        if (confirmClicked) {
+          console.log('[COSE] 已点击"确认"，Markdown 解析完成')
         }
       } else {
-        console.log('[COSE] 未找到导入文档按钮')
-        return { success: false, error: 'Import document button not found' }
+        console.log('[COSE] 未检测到 Markdown 弹窗')
       }
-    } else {
-      console.log('[COSE] 未找到导入按钮')
-      return { success: false, error: 'Import button not found' }
+    } catch (err) {
+      console.log('[COSE] 内容插入失败:', err.message || err)
     }
+
+    // 等待内容渲染
+    await new Promise(resolve => setTimeout(resolve, 300))
+
+    // 填充标题
+    await fillTitle()
+
+    return { success: true, method: 'paste-markdown' }
   }
 
-  return uploadMarkdown()
+  return fillContent()
 }
 
 /**
  * 知乎同步处理器
- * 知乎使用导入文档功能上传 md 文件
+ * 知乎现在支持直接粘贴 Markdown，然后弹窗提示转换
  * @param {object} tab - Chrome tab 对象
  * @param {object} content - 内容对象 { title, body, markdown }
  * @param {object} helpers - 帮助函数 { chrome, waitForTab, addTabToSyncGroup }
  * @returns {Promise<{success: boolean, message?: string, tabId?: number}>}
  */
 async function syncZhihuContent(tab, content, helpers) {
-  const { chrome, waitForTab } = helpers
+  const { waitForTab } = helpers
 
   // 等待页面加载完成（waitForTab 使用 chrome.tabs.onUpdated 监听）
   await waitForTab(tab.id)
 
   // 先注入公共工具函数（waitFor 使用 MutationObserver）
-  await injectUtils(chrome, tab.id)
+  await injectUtils(globalThis.chrome, tab.id)
 
-  // 在页面中执行：点击导入文档并上传 md 文件
-  const result = await chrome.scripting.executeScript({
+  // 在页面中执行内容填充
+  const result = await globalThis.chrome.scripting.executeScript({
     target: { tabId: tab.id },
     func: fillZhihuContent,
     args: [content.title, content.markdown],
@@ -165,9 +221,24 @@ async function syncZhihuContent(tab, content, helpers) {
 
   const fillResult = result?.[0]?.result
   if (fillResult?.success) {
-    return { success: true, message: '已打开知乎并导入文档', tabId: tab.id }
+    // 等待 2 秒确保内容已保存
+    await new Promise(resolve => setTimeout(resolve, 2000))
+    
+    // 模拟用户刷新页面
+    try {
+      if (chrome?.tabs && tab?.id) {
+        await chrome.tabs.reload(tab.id, { bypassCache: false })
+        console.log('[COSE] 已模拟用户刷新知乎页面')
+      } else {
+        console.log('[COSE] chrome.tabs 或 tab.id 不可用，跳过刷新')
+      }
+    } catch (err) {
+      console.log('[COSE] 刷新页面失败:', err.message || err)
+    }
+    
+    return { success: true, message: '已打开知乎并同步内容', tabId: tab.id }
   } else {
-    return { success: false, message: fillResult?.error || '导入文档失败', tabId: tab.id }
+    return { success: false, message: fillResult?.error || '内容同步失败', tabId: tab.id }
   }
 }
 
