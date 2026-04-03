@@ -3026,6 +3026,168 @@ async function syncToPlatform(platformId, content) {
       return { success: true, message: '已同步到电子发烧友', tabId: tab.id }
     }
 
+    // 豆瓣：向首页分享框注入内容
+    if (platformId === 'douban') {
+      // 使用纯文本内容（豆瓣分享框不支持富文本）
+      const textContent = content.markdown || content.body || ''
+      console.log('[COSE] 豆瓣文本内容长度:', textContent?.length || 0)
+
+      // 等待页面加载
+      await new Promise(resolve => setTimeout(resolve, 2000))
+
+      // 填充分享框
+      const fillResult = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: async (title, text) => {
+          try {
+            console.log('[COSE] 豆瓣开始填充内容...')
+
+            if (!text) {
+              return { success: false, error: 'Empty content' }
+            }
+
+            const fullText = title ? `${title}\n\n${text}` : text
+
+            // 豆瓣当前输入框：Lexical contenteditable
+            const editable = document.querySelector('div.DRE-inputor.DRE-root[contenteditable="true"]')
+              || document.querySelector('[contenteditable="true"][role="textbox"]')
+
+            if (editable) {
+              editable.focus()
+
+              // 优先使用 Lexical 编辑器 API（豆瓣当前实现）
+              const lexicalEditor = editable.__lexicalEditor
+              if (lexicalEditor?.parseEditorState && lexicalEditor?.setEditorState) {
+                try {
+                  const lines = fullText.split('\n')
+                  const makeParagraph = (lineText) => ({
+                    children: lineText
+                      ? [{ detail: 0, format: 0, mode: 'normal', style: '', text: lineText, type: 'text', version: 1 }]
+                      : [],
+                    direction: 'ltr',
+                    format: '',
+                    indent: 0,
+                    type: 'paragraph',
+                    version: 1,
+                    textFormat: 0,
+                    textStyle: '',
+                  })
+
+                  const nextState = {
+                    root: {
+                      children: lines.map(makeParagraph),
+                      direction: 'ltr',
+                      format: '',
+                      indent: 0,
+                      type: 'root',
+                      version: 1,
+                    },
+                  }
+
+                  const parsedState = lexicalEditor.parseEditorState(JSON.stringify(nextState))
+                  lexicalEditor.setEditorState(parsedState)
+                  lexicalEditor.focus()
+
+                  const lexicalLength = (editable.textContent || '').trim().length
+                  if (lexicalLength > 0) {
+                    console.log('[COSE] 豆瓣 lexical API 内容已填充，长度:', lexicalLength)
+                    return { success: true, length: lexicalLength, mode: 'lexical-api' }
+                  }
+                } catch (e) {
+                  console.log('[COSE] 豆瓣 lexical API 填充失败，回退 execCommand:', e.message)
+                }
+              }
+
+              // Lexical 编辑器对 direct textContent 赋值不稳定，优先使用 execCommand 输入
+              try {
+                const selection = window.getSelection()
+                const range = document.createRange()
+                range.selectNodeContents(editable)
+                selection?.removeAllRanges()
+                selection?.addRange(range)
+              } catch (_) {}
+
+              try {
+                document.execCommand('selectAll', false)
+              } catch (_) {}
+              try {
+                document.execCommand('delete', false)
+              } catch (_) {}
+
+              let inserted = false
+              try {
+                inserted = document.execCommand('insertText', false, fullText)
+              } catch (_) {
+                inserted = false
+              }
+
+              if (!inserted) {
+                // 回退：直接赋值并触发输入事件
+                editable.textContent = fullText
+                editable.dispatchEvent(new InputEvent('input', {
+                  bubbles: true,
+                  inputType: 'insertText',
+                  data: fullText,
+                }))
+              }
+
+              editable.dispatchEvent(new Event('change', { bubbles: true }))
+
+              const actualLength = (editable.textContent || '').trim().length
+              if (actualLength === 0) {
+                return { success: false, error: 'Editor accepted no text' }
+              }
+
+              console.log('[COSE] 豆瓣 contenteditable 内容已填充，长度:', actualLength)
+              return { success: true, length: actualLength, mode: 'contenteditable' }
+            }
+
+            // 兼容旧版 textarea 结构
+            const textarea = document.querySelector('textarea[placeholder*="此刻你想要分享"]')
+              || document.querySelector('textarea[placeholder*="分享"]')
+              || document.querySelector('textarea')
+
+            if (textarea) {
+              textarea.focus()
+              const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set
+              if (nativeSetter) {
+                nativeSetter.call(textarea, fullText)
+              } else {
+                textarea.value = fullText
+              }
+              textarea.dispatchEvent(new Event('input', { bubbles: true }))
+              textarea.dispatchEvent(new Event('change', { bubbles: true }))
+              console.log('[COSE] 豆瓣 textarea 内容已填充，长度:', fullText.length)
+              return { success: true, length: fullText.length, mode: 'textarea' }
+            }
+
+            return { success: false, error: 'Editor not found' }
+          } catch (e) {
+            console.error('[COSE] 豆瓣同步失败:', e)
+            return { success: false, error: e.message }
+          }
+        },
+        args: [content.title, textContent],
+        world: 'MAIN',
+      })
+
+      const doubanResult = fillResult[0]?.result
+      console.log('[COSE] 豆瓣填充结果:', doubanResult)
+
+      if (!doubanResult?.success) {
+        return {
+          success: false,
+          message: doubanResult?.error || '豆瓣内容填充失败',
+          tabId: tab.id,
+        }
+      }
+
+      // 等待内容注入完成
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      return { success: true, message: '已同步到豆瓣，请手动点击发布', tabId: tab.id }
+    }
+
     // 其他平台使用 scripting API 直接注入填充脚本
     // 使用 MAIN world 才能访问页面的 CodeMirror 实例
     await chrome.scripting.executeScript({

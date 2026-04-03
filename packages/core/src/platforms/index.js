@@ -33,6 +33,7 @@ import { VolcenginePlatform } from './volcengine.js'
 import { DouyinPlatform } from './douyin.js'
 import { XiaohongshuPlatform } from './xiaohongshu.js'
 import { ElecfansPlatform } from './elecfans.js'
+import { DoubanPlatform } from './douban.js'
 
 // 合并平台配置
 const PLATFORMS = [
@@ -66,6 +67,7 @@ const PLATFORMS = [
     DouyinPlatform,
     XiaohongshuPlatform,
     ElecfansPlatform,
+    DoubanPlatform,
 ]
 
 // 根据 hostname 获取平台填充函数
@@ -100,6 +102,7 @@ function getPlatformFiller(hostname) {
     if (hostname.includes('creator.douyin.com')) return 'douyin'
     if (hostname.includes('creator.xiaohongshu.com')) return 'xiaohongshu'
     if (hostname.includes('elecfans.com')) return 'elecfans'
+    if (hostname.includes('douban.com')) return 'douban'
     return 'generic'
 }
 
