@@ -342,8 +342,13 @@ async function initDynamicRules() {
   }
 }
 
-// 扩展启动时初始化规则
-initDynamicRules()
+// 扩展安装/更新/启动时初始化规则
+chrome.runtime.onInstalled.addListener(() => {
+  initDynamicRules()
+})
+chrome.runtime.onStartup.addListener(() => {
+  initDynamicRules()
+})
 
 // 点击扩展图标时打开 md.doocs.org
 chrome.action.onClicked.addListener(() => {
