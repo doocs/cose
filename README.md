@@ -73,12 +73,12 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 <img src="https://cdn.simpleicons.org/zhihu" alt="知乎" width="60" height="60" />
 <img src="https://cdn.simpleicons.org/tiktok" alt="抖音文章" width="60" height="60" />
 <img src="https://cdn.simpleicons.org/xiaohongshu" alt="小红书" width="60" height="60" />
-<img src="https://cdn.simpleicons.org/douban" alt="豆瓣" width="60" height="60" />
 <img src="https://cdn.simpleicons.org/baidu" alt="百家号" width="60" height="60" />
 <img src="https://cdn.simpleicons.org/neteasecloudmusic" alt="网易号" width="60" height="60" />
 <img src="https://favicon.im/sohu.com?larger=true" alt="搜狐号" width="60" height="60" />
 <img src="https://cdn.simpleicons.org/sinaweibo" alt="微博文章" width="60" height="60" />
 <img src="https://cdn.simpleicons.org/bilibili" alt="B站专栏" width="60" height="60" />
+<img src="https://cdn.simpleicons.org/douban" alt="豆瓣" width="55" height="60" />
 <img src="https://favicon.im/sspai.com?larger=true" alt="少数派" width="60" height="60" />
 <img src="https://cdn.simpleicons.org/x" alt="X(Formerly Twitter) Articles" width="50" height="60" />
 </div>
