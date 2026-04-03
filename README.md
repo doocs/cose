@@ -47,7 +47,7 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 > | A | 阿里云社区 |
 > | B | B站专栏、百度云千帆、百家号、博客园 |
 > | C | CSDN |
-> | D | 电子发烧友、抖音文章 |
+> | D | 豆瓣、电子发烧友、抖音文章 |
 > | H | 华为开发者文章、华为云博客、火山引擎社区 |
 > | I | InfoQ |
 > | J | 简书、掘金、今日头条 |
@@ -73,6 +73,7 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 <img src="https://cdn.simpleicons.org/zhihu" alt="知乎" width="60" height="60" />
 <img src="https://cdn.simpleicons.org/tiktok" alt="抖音文章" width="60" height="60" />
 <img src="https://cdn.simpleicons.org/xiaohongshu" alt="小红书" width="60" height="60" />
+<img src="https://cdn.simpleicons.org/douban" alt="豆瓣" width="60" height="60" />
 <img src="https://cdn.simpleicons.org/baidu" alt="百家号" width="60" height="60" />
 <img src="https://cdn.simpleicons.org/neteasecloudmusic" alt="网易号" width="60" height="60" />
 <img src="https://favicon.im/sohu.com?larger=true" alt="搜狐号" width="60" height="60" />
