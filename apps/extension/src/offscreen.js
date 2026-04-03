@@ -214,3 +214,4 @@ async function handleDetectXiaohongshu() {
     return { loggedIn: false, error: e.message }
   }
 }
+

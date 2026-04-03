@@ -33,10 +33,7 @@ export default defineConfig({
     plugins: [
         viteStaticCopy({
             targets: [
-                {
-                    src: 'manifest.json',
-                    dest: '.',
-                },
+                // manifest.json 由 scripts/cli.ts 生成
                 {
                     src: 'icons',
                     dest: '.',
