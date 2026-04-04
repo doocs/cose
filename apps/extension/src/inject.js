@@ -220,15 +220,28 @@
     addTask(taskData, onProgress, onComplete) {
       const { post, accounts } = taskData
       const selectedAccounts = accounts.filter(a => a.checked)
+      const seenPlatformIds = new Set()
+      const syncAccounts = []
 
-      if (selectedAccounts.length === 0) {
+      for (const account of selectedAccounts) {
+        const platformId = account.uid || account.type
+        if (!platformId) continue
+        if (seenPlatformIds.has(platformId)) {
+          console.log('[COSE] 跳过重复同步平台:', platformId)
+          continue
+        }
+        seenPlatformIds.add(platformId)
+        syncAccounts.push(account)
+      }
+
+      if (syncAccounts.length === 0) {
         if (typeof onComplete === 'function') onComplete()
         return
       }
 
       // 初始化状态
       const status = {
-        accounts: selectedAccounts.map(a => ({
+        accounts: syncAccounts.map(a => ({
           ...a,
           status: 'pending',
           msg: '等待中',
@@ -245,14 +258,14 @@
         await sendMessage('START_SYNC_BATCH', {})
 
         // 检查是否需要同步到微信公众号或百家号或网易号或 Medium 或少数派或B站专栏或微博头条或小红书（需要使用剪贴板 HTML）
-        const hasWechat = selectedAccounts.some(a => (a.uid || a.type) === 'wechat')
-        const hasBaijiahao = selectedAccounts.some(a => (a.uid || a.type) === 'baijiahao')
-        const hasWangyihao = selectedAccounts.some(a => (a.uid || a.type) === 'wangyihao')
-        const hasMedium = selectedAccounts.some(a => (a.uid || a.type) === 'medium')
-        const hasSspai = selectedAccounts.some(a => (a.uid || a.type) === 'sspai')
-        const hasBilibili = selectedAccounts.some(a => (a.uid || a.type) === 'bilibili')
-        const hasWeibo = selectedAccounts.some(a => (a.uid || a.type) === 'weibo')
-        const hasXiaohongshu = selectedAccounts.some(a => (a.uid || a.type) === 'xiaohongshu')
+        const hasWechat = syncAccounts.some(a => (a.uid || a.type) === 'wechat')
+        const hasBaijiahao = syncAccounts.some(a => (a.uid || a.type) === 'baijiahao')
+        const hasWangyihao = syncAccounts.some(a => (a.uid || a.type) === 'wangyihao')
+        const hasMedium = syncAccounts.some(a => (a.uid || a.type) === 'medium')
+        const hasSspai = syncAccounts.some(a => (a.uid || a.type) === 'sspai')
+        const hasBilibili = syncAccounts.some(a => (a.uid || a.type) === 'bilibili')
+        const hasWeibo = syncAccounts.some(a => (a.uid || a.type) === 'weibo')
+        const hasXiaohongshu = syncAccounts.some(a => (a.uid || a.type) === 'xiaohongshu')
         let clipboardHtmlContent = null
         if (hasWechat || hasBaijiahao || hasWangyihao || hasMedium || hasSspai || hasBilibili || hasWeibo || hasXiaohongshu) {
           // 先点击复制按钮，将带样式的内容复制到剪贴板
@@ -282,8 +295,8 @@
           }
         }
 
-        for (let i = 0; i < selectedAccounts.length; i++) {
-          const account = selectedAccounts[i]
+        for (let i = 0; i < syncAccounts.length; i++) {
+          const account = syncAccounts[i]
           status.accounts[i].status = 'uploading'
           status.accounts[i].msg = '同步中...'
           if (typeof onProgress === 'function') onProgress({ ...status })
