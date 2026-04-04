@@ -67,6 +67,7 @@ export async function detectDoubanUser() {
         let username = ''
         let avatar = ''
         let uid = ''
+        let loginConfirmed = false
 
         // 2. Parse /mine/ HTML to get user info
         try {
@@ -83,7 +84,17 @@ export async function detectDoubanUser() {
             })
 
             if (response.ok) {
+                const finalUrl = response.url || ''
                 const html = await response.text()
+                const redirectedToLogin = /\/accounts\/login/i.test(finalUrl)
+                    || /name=["']form_email["']/i.test(html)
+                    || /登录豆瓣|扫码登录/i.test(html)
+                const hasUserSignals = /的账号</.test(html)
+                    || /https?:\/\/www\.douban\.com\/people\/([^/"?#]+)\/?/.test(html)
+                    || /\/people\/([^/"?#]+)\/?/.test(html)
+                    || /doubanio\.com\/icon\//i.test(html)
+
+                loginConfirmed = !redirectedToLogin && hasUserSignals
 
                 if (!username) {
                     const accountMatch = html.match(/>([^<\n]+)的账号</)
@@ -125,11 +136,16 @@ export async function detectDoubanUser() {
         }
 
         // 3. Fallback: derive uid from dbcl2 cookie as username placeholder
-        if (!username && !uid && dbcl2Cookie.value) {
+        if (loginConfirmed && !username && !uid && dbcl2Cookie.value) {
             const uidFromCookie = dbcl2Cookie.value.match(/"?([^:"]+):/)
             if (uidFromCookie?.[1]) {
                 uid = uidFromCookie[1]
             }
+        }
+
+        if (!loginConfirmed) {
+            console.log('[COSE] douban 仅有 cookie，未确认登录态，按未登录处理')
+            return { loggedIn: false }
         }
 
         if (!username && uid) {
