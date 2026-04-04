@@ -55,7 +55,10 @@ function fillZhihuContent(title, markdown) {
   }
 
   async function fillContent() {
-    // 第一步：填充标题
+    // 第一步：等待知乎编辑器完全加载（避免"草稿加载中"提示）
+    await new Promise(resolve => setTimeout(resolve, 2000))
+    
+    // 第二步：填充标题
     async function fillTitle() {
       const titleInput = await window.waitFor('textarea[placeholder*="标题"]')
       if (titleInput && title) {
@@ -74,8 +77,14 @@ function fillZhihuContent(title, markdown) {
         console.log('[COSE] 知乎标题填充成功')
       }
     }
+    
+    // 先填充标题
+    await fillTitle()
+    
+    // 再等待一下确保标题已保存
+    await new Promise(resolve => setTimeout(resolve, 500))
 
-    // 第二步：找到并激活知乎编辑器
+    // 第三步：找到并激活知乎编辑器
     const editorSelectors = [
       '.public-DraftEditor-content',
       '[contenteditable="true"]',
@@ -185,9 +194,6 @@ function fillZhihuContent(title, markdown) {
     // 等待内容渲染
     await new Promise(resolve => setTimeout(resolve, 300))
 
-    // 填充标题
-    await fillTitle()
-
     return { success: true, method: 'paste-markdown' }
   }
 
@@ -207,6 +213,16 @@ async function syncZhihuContent(tab, content, helpers) {
 
   // 等待页面加载完成（waitForTab 使用 chrome.tabs.onUpdated 监听）
   await waitForTab(tab.id)
+
+  // 激活知乎标签页（避免后台标签页限制导致填充失败）
+  try {
+    await chrome.tabs.update(tab.id, { active: true })
+    console.log('[COSE] 已激活知乎标签页')
+    // 等待标签页激活完成
+    await new Promise(resolve => setTimeout(resolve, 500))
+  } catch (err) {
+    console.log('[COSE] 激活标签页失败:', err.message || err)
+  }
 
   // 先注入公共工具函数（waitFor 使用 MutationObserver）
   await injectUtils(globalThis.chrome, tab.id)
