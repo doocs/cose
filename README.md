@@ -66,64 +66,58 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 
 ### 媒体平台
 
-<div align="center">
-<div>
-<img src="https://cdn.simpleicons.org/wechat" alt="微信公众号" width="60" height="60" />
-<img src="https://api.iconify.design/icon-park-solid/jinritoutiao.svg?color=%23ED1C24" alt="今日头条" width="60" height="60" />
-<img src="https://cdn.simpleicons.org/zhihu" alt="知乎" width="60" height="60" />
-<img src="https://cdn.simpleicons.org/tiktok" alt="抖音文章" width="60" height="60" />
-<img src="https://cdn.simpleicons.org/xiaohongshu" alt="小红书" width="60" height="60" />
-<img src="https://cdn.simpleicons.org/baidu" alt="百家号" width="60" height="60" />
-<img src="https://cdn.simpleicons.org/neteasecloudmusic" alt="网易号" width="60" height="60" />
-<img src="https://favicon.im/sohu.com?larger=true" alt="搜狐号" width="60" height="60" />
-<img src="https://cdn.simpleicons.org/sinaweibo" alt="微博文章" width="60" height="60" />
-<img src="https://cdn.simpleicons.org/bilibili" alt="B站专栏" width="60" height="60" />
-<img src="https://cdn.simpleicons.org/douban" alt="豆瓣" width="55" height="60" />
-<img src="https://favicon.im/sspai.com?larger=true" alt="少数派" width="60" height="60" />
-<img src="https://cdn.simpleicons.org/x" alt="X(Formerly Twitter) Articles" width="50" height="60" />
-</div>
-</div>
+<p align="center">
+<img src="https://cdn.simpleicons.org/wechat" alt="微信公众号" width="60" />
+<img src="https://api.iconify.design/icon-park-solid/jinritoutiao.svg?color=%23ED1C24" alt="今日头条" width="60" />
+<img src="https://cdn.simpleicons.org/zhihu" alt="知乎" width="60" />
+<img src="https://cdn.simpleicons.org/tiktok" alt="抖音文章" width="60"/>
+<img src="https://cdn.simpleicons.org/xiaohongshu" alt="小红书" width="60" />
+<img src="https://cdn.simpleicons.org/baidu" alt="百家号" width="60" />
+<img src="https://cdn.simpleicons.org/neteasecloudmusic" alt="网易号" width="60" />
+<img src="https://favicon.im/sohu.com?larger=true" alt="搜狐号" width="60" />
+<img src="https://cdn.simpleicons.org/sinaweibo" alt="微博文章" width="60" />
+<img src="https://cdn.simpleicons.org/bilibili" alt="B站专栏" width="60" />
+<img src="https://cdn.simpleicons.org/douban" alt="豆瓣" width="55" />
+<img src="https://favicon.im/sspai.com?larger=true" alt="少数派" width="60" />
+<img src="https://cdn.simpleicons.org/x" alt="X(Formerly Twitter) Articles" width="50" />
+</p>
 
 
 ### 博客平台
-<div align="center">
-<div>
-<img src="https://cdn.simpleicons.org/csdn/FC5531" alt="CSDN" width="80" height="60" />
-<img src="https://favicon.im/cnblogs.com?larger=true" alt="博客园" width="60" height="60" />
-<img src="https://cdn.simpleicons.org/juejin/1E80FF" alt="掘金" width="60" height="60" />
-<img src="https://favicon.im/medium.com?larger=true" alt="Medium" width="60" height="60" />
-<img src="https://cdn.brandfetch.io/id5v32DsU5/w/400/h/400/theme/dark/icon.png?c=1bxid64Mup7aczewSAYMX&t=1767149702768" alt="思否" width="60" height="60" />
-  <img src="https://www.google.com/s2/favicons?domain=infoq.cn&sz=128" alt="InfoQ" width="60" height="60" />
-<img src="https://favicon.im/jianshu.com?larger=true" alt="简书" width="60" height="60" />
-<img src="https://static.oschina.net/new-osc/img/logo_osc.svg" alt="开源中国" width="120" height="60" />
-<img src="https://cdn.brandfetch.io/id4vYQbdaC/w/168/h/62/theme/dark/logo.png?c=1bxid64Mup7aczewSAYMX&t=1743144928777" alt="51CTO" width="80" height="60" />
-</div>
-</div>
+<p align="center">
+<img src="https://cdn.simpleicons.org/csdn/FC5531" alt="CSDN" width="80" />
+<img src="https://favicon.im/cnblogs.com?larger=true" alt="博客园" width="60" />
+<img src="https://cdn.simpleicons.org/juejin/1E80FF" alt="掘金" width="60" />
+<img src="https://favicon.im/medium.com?larger=true" alt="Medium" width="60" />
+<img src="https://cdn.brandfetch.io/id5v32DsU5/w/400/h/400/theme/dark/icon.png?c=1bxid64Mup7aczewSAYMX&t=1767149702768" alt="思否" width="60" />
+<img src="https://www.google.com/s2/favicons?domain=infoq.cn&sz=128" alt="InfoQ" width="60" />
+<img src="https://favicon.im/jianshu.com?larger=true" alt="简书" width="60" />
+<img src="https://static.oschina.net/new-osc/img/logo_osc.svg" alt="开源中国" width="120" />
+<img src="https://cdn.brandfetch.io/id4vYQbdaC/w/168/h/62/theme/dark/logo.png?c=1bxid64Mup7aczewSAYMX&t=1743144928777" alt="51CTO" width="80" />
+</p>
 
 ### 云平台及其开发者社区
 <br/>
 
-<div align="center">
-<div>
-  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/dark/tencentcloud-color.png" alt="腾讯云" width="30" height="60" />
-  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/light/tencentcloud-text.png" alt="腾讯云" width="70" height="60" />
-  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/dark/alibabacloud-color.png" alt="阿里云社区" width="30" height="60" />
-  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/light/alibabacloud-text.png" alt="阿里云社区" width="140" height="60" />
-  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/dark/huaweicloud-color.png" alt="华为云博客" width="30" height="60" />
-  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/light/huaweicloud-text-cn.png" alt="华为云博客" width="70" height="60" />
-  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/dark/huawei-color.png" alt="华为开发者文章" width="30" height="60" />
-  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/light/huawei-text.png" alt="华为开发者文章" width="100" height="60" />
-  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/dark/baiducloud-color.png" alt="百度云千帆" width="30" height="60" />
-  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/light/baiducloud-text.png" alt="百度云千帆" width="110" height="60" />
-  <br />
-  <img src="https://cdn.simpleicons.org/alipay/1677FF" alt="支付宝开放平台" width="30" height="50" />
-  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/dark/modelscope-color.png" alt="魔搭社区" width="36" height="60" />
-  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/light/modelscope-text.png" alt="魔搭社区" width="160" height="60" />
-  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/dark/volcengine-color.png" alt="火山引擎" width="36" height="60" />
-  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/light/volcengine-text.png" alt="火山引擎" width="90" height="60" />
-  <img src="https://www.elecfans.com/static/main/img/elecfans-logo.jpg" alt="电子发烧友" width="35" height="60" />
-</div>
-</div>
+<p align="center">
+  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/dark/tencentcloud-color.png" alt="腾讯云" width="30" />
+  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/light/tencentcloud-text.png" alt="腾讯云" width="70" />
+  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/dark/alibabacloud-color.png" alt="阿里云社区" width="30" />
+  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/light/alibabacloud-text.png" alt="阿里云社区" width="140" />
+  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/dark/huaweicloud-color.png" alt="华为云博客" width="30" />
+  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/light/huaweicloud-text-cn.png" alt="华为云博客" width="70" />
+  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/dark/huawei-color.png" alt="华为开发者文章" width="30" />
+  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/light/huawei-text.png" alt="华为开发者文章" width="100" />
+  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/dark/baiducloud-color.png" alt="百度云千帆" width="30" />
+  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/light/baiducloud-text.png" alt="百度云千帆" width="110" />
+  <br/>
+  <img src="https://cdn.simpleicons.org/alipay/1677FF" alt="支付宝开放平台" width="30" />
+  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/dark/modelscope-color.png" alt="魔搭社区" width="36" />
+  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/light/modelscope-text.png" alt="魔搭社区" width="160" />
+  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/dark/volcengine-color.png" alt="火山引擎" width="36" />
+  <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/light/volcengine-text.png" alt="火山引擎" width="90" />
+  <img src="https://www.elecfans.com/static/main/img/elecfans-logo.jpg" alt="电子发烧友" width="35" />
+</p>
 
 
 ## 开发者模式测试
