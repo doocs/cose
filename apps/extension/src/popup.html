@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      width: 320px;
+      padding: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: #fff;
+      color: #333;
+    }
+    .container {
+      text-align: center;
+    }
+    h1 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    p {
+      font-size: 13px;
+      line-height: 1.6;
+      color: #333;
+      margin-bottom: 16px;
+    }
+    p a {
+      color: #FE5200;
+      text-decoration: none;
+    }
+    p a:hover {
+      text-decoration: underline;
+    }
+    .btn {
+      display: inline-block;
+      padding: 10px 20px;
+      background: #FE5200;
+      color: #fff;
+      text-decoration: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      transition: background 0.2s;
+      border: 1px solid #e64a00;
+      cursor: pointer;
+    }
+    .btn:hover {
+      background: #e64a00;
+    }
+    .divider {
+      margin: 16px 0;
+      border-top: 1px solid #e5e5e5;
+    }
+    .hint {
+      font-size: 12px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>COSE - 多平台文章同步</h1>
+    <p>插件安装完成！</p>
+    <p>打开<a href="https://github.com/doocs/md" target="_blank">自托管的编辑器</a>即可自动检测到，无需多余配置。</p>
+    <div class="divider"></div>
+    <p class="hint">没有自托管编辑器？</p>
+    <a href="https://md.doocs.org" target="_blank" class="btn" id="openOfficial">也可使用官网编辑器</a>
+  </div>
+  <script src="bundles/popup.js" type="module"></script>
+</body>
+</html>
