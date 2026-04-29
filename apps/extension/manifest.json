@@ -63,7 +63,8 @@
       "48": "icons/cose_48.png",
       "128": "icons/cose_128.png"
     },
-    "default_title": "COSE"
+    "default_title": "COSE",
+    "default_popup": "popup.html"
   },
   "background": {
     "service_worker": "bundles/background.js",

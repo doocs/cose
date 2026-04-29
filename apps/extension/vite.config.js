@@ -21,6 +21,7 @@ export default defineConfig({
                 content: resolve(__dirname, 'src/content.js'),
                 inject: resolve(__dirname, 'src/inject.js'),
                 offscreen: resolve(__dirname, 'src/offscreen.js'),
+                popup: resolve(__dirname, 'src/popup.js'),
             },
             output: {
                 entryFileNames: 'bundles/[name].js',
@@ -40,6 +41,10 @@ export default defineConfig({
                 },
                 {
                     src: 'src/offscreen.html',
+                    dest: '.',
+                },
+                {
+                    src: 'src/popup.html',
                     dest: '.',
                 },
                 {

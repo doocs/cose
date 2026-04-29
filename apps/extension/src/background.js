@@ -350,11 +350,6 @@ chrome.runtime.onStartup.addListener(() => {
   initDynamicRules()
 })
 
-// 点击扩展图标时打开 md.doocs.org
-chrome.action.onClicked.addListener(() => {
-  chrome.tabs.create({ url: 'https://md.doocs.org' })
-})
-
 // 当前同步任务的 Tab Group ID
 let currentSyncGroupId = null
 // 存储平台用户信息
@@ -1088,8 +1083,11 @@ async function syncToPlatform(platformId, content) {
             html = html.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>')
 
             // 处理水平分割线
-            html = html.replace(/^---$/gm, '<hr />')
-            html = html.replace(/^\*\*\*$/gm, '<hr />')
+            // 注意: X Articles 忽略 <hr> 标签，需要通过 Insert > Divider 菜单插入
+            // 自动同步无法使用菜单，这里保留 hr 但用户可能需要手动调整
+            // 或者可以考虑用视觉分隔符如 --- 文本替代
+            html = html.replace(/^---$/gm, '<p>---</p>')
+            html = html.replace(/^\*\*\*$/gm, '<p>***</p>')
 
             // 处理图片
             html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width: 100%;" />')
@@ -1104,7 +1102,8 @@ async function syncToPlatform(platformId, content) {
 
             // ========== 第三阶段：恢复保护的内容 ==========
 
-            // 恢复代码块（使用样式化的 pre/code）
+            // 恢复代码块 - X Articles 不支持 <pre><code>，转换为 blockquote
+            // 参考 x-article-publisher skill 的实现
             codeBlocks.forEach((block, index) => {
               const escapedCode = block.code
                 .replace(/&/g, '&amp;')
@@ -1113,19 +1112,25 @@ async function syncToPlatform(platformId, content) {
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&#039;')
 
-              const langLabel = block.lang ? `<div style="background: #e1e4e8; padding: 4px 12px; font-size: 12px; color: #586069; border-radius: 6px 6px 0 0;">${block.lang}</div>` : ''
-              const codeHtml = `<div style="margin: 16px 0;">${langLabel}<pre style="background: #f6f8fa; padding: 16px; border-radius: ${block.lang ? '0 0 6px 6px' : '6px'}; overflow-x: auto; font-family: 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 14px; line-height: 1.45; margin: 0; white-space: pre-wrap; word-wrap: break-word;"><code>${escapedCode}</code></pre></div>`
+              // 将代码行用 <br> 连接，包装在 blockquote 中
+              // X Articles 原生支持 blockquote，这是最可靠的代码块显示方式
+              const lines = escapedCode.split('\n').filter(line => line.trim())
+              const formattedCode = lines.join('<br>')
+              const langPrefix = block.lang ? `<strong>${block.lang}</strong><br>` : ''
+              const codeHtml = `<blockquote>${langPrefix}${formattedCode}</blockquote>`
 
               html = html.replace(`__CODE_BLOCK_${index}__`, codeHtml)
             })
 
-            // 恢复行内代码
+            // 恢复行内代码 - X Articles 对 inline style 支持有限
+            // 使用简单的 <code> 标签，依赖平台默认样式
             inlineCodes.forEach((code, index) => {
               const escapedCode = code
                 .replace(/&/g, '&amp;')
                 .replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;')
-              const codeHtml = `<code style="background: #f6f8fa; padding: 2px 6px; border-radius: 3px; font-family: 'SF Mono', Consolas, monospace; font-size: 0.9em;">${escapedCode}</code>`
+              // 简化为纯 code 标签，X Articles 会应用默认样式
+              const codeHtml = `<code>${escapedCode}</code>`
 
               html = html.replace(`__INLINE_CODE_${index}__`, codeHtml)
             })
