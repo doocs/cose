@@ -64,20 +64,33 @@ async function fillWechatContent(title, htmlBody) {
 
   try {
     const titleInput = await window.waitFor('#title', 15000)
+    const titleEditor = await window.waitFor('.title-editor__input .ProseMirror', 15000)
 
     // 填充标题（优先于正文，避免焦点停留在标题区的 ProseMirror）
-    if (titleInput && title) {
-      titleInput.focus()
+    if ((titleInput || titleEditor) && title) {
+      if (titleEditor) {
+        titleEditor.focus()
+        titleEditor.innerHTML = ''
+        titleEditor.textContent = title
+        titleEditor.dispatchEvent(new Event('input', { bubbles: true }))
+        titleEditor.dispatchEvent(new Event('change', { bubbles: true }))
+      }
+
+      if (titleInput) {
+        titleInput.focus()
+      }
       const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set
         || Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
-      if (nativeSetter) {
+      if (titleInput && nativeSetter) {
         nativeSetter.call(titleInput, title)
       }
-      else {
+      else if (titleInput) {
         titleInput.value = title
       }
-      titleInput.dispatchEvent(new Event('input', { bubbles: true }))
-      titleInput.dispatchEvent(new Event('change', { bubbles: true }))
+      if (titleInput) {
+        titleInput.dispatchEvent(new Event('input', { bubbles: true }))
+        titleInput.dispatchEvent(new Event('change', { bubbles: true }))
+      }
       console.log('[COSE] 微信标题已填充:', title)
     }
 
@@ -159,7 +172,7 @@ async function fillWechatContent(title, htmlBody) {
       return {
         success: true,
         wordCount: editor.textContent?.length || 0,
-        titleFilled: titleInput?.value === title,
+        titleFilled: titleInput?.value === title || titleEditor?.textContent?.trim() === title,
       }
     }
 
