@@ -15,34 +15,91 @@ const WechatPlatform = {
 // 微信公众号内容填充函数（在页面主世界中执行）
 // 注意：需要先调用 injectUtils 注入 window.waitFor
 async function fillWechatContent(title, htmlBody) {
-  try {
-    // 等待编辑器加载完成
-    const editor = await window.waitFor('.ProseMirror', 15000)
-    if (!editor) {
-      return { success: false, error: '未找到编辑器' }
+  /**
+   * 后台改版后可能存在多个 `.ProseMirror`（标题区也可能是 ProseMirror），
+   * `querySelector('.ProseMirror')` 常会命中标题编辑器，导致正文 HTML 被贴进标题。
+   */
+  function pickWechatBodyProseMirror() {
+    const nodes = [...document.querySelectorAll('.ProseMirror')]
+    if (nodes.length === 0)
+      return null
+    if (nodes.length === 1)
+      return nodes[0]
+
+    const byPlaceholder = nodes.find(el =>
+      (el.textContent || '').includes('从这里开始写正文'),
+    )
+    if (byPlaceholder)
+      return byPlaceholder
+
+    const titleInput = document.querySelector('#title')
+    if (titleInput) {
+      const band = titleInput.getBoundingClientRect()
+      const belowTitle = nodes.filter((el) => {
+        const r = el.getBoundingClientRect()
+        return r.top >= band.bottom - 8
+      })
+      if (belowTitle.length > 0) {
+        return belowTitle.sort(
+          (a, b) => (b.clientHeight * b.clientWidth) - (a.clientHeight * a.clientWidth),
+        )[0]
+      }
     }
 
-    // 等待标题输入框
-    const titleInput = await window.waitFor('#title')
+    return nodes.sort(
+      (a, b) => (b.clientHeight * b.clientWidth) - (a.clientHeight * a.clientWidth),
+    )[0]
+  }
 
-    // 填充标题
-    if (titleInput && title) {
-      titleInput.focus()
-      // 使用 native setter 确保 React/Vue 等框架能检测到变化
+  async function waitForBodyEditor(timeout = 15000) {
+    const start = Date.now()
+    while (Date.now() - start < timeout) {
+      const el = pickWechatBodyProseMirror()
+      if (el)
+        return el
+      await new Promise(r => setTimeout(r, 100))
+    }
+    return pickWechatBodyProseMirror()
+  }
+
+  try {
+    const titleInput = await window.waitFor('#title', 15000)
+    const titleEditor = await window.waitFor('.title-editor__input .ProseMirror', 15000)
+
+    // 填充标题（优先于正文，避免焦点停留在标题区的 ProseMirror）
+    if ((titleInput || titleEditor) && title) {
+      if (titleEditor) {
+        titleEditor.focus()
+        titleEditor.innerHTML = ''
+        titleEditor.textContent = title
+        titleEditor.dispatchEvent(new Event('input', { bubbles: true }))
+        titleEditor.dispatchEvent(new Event('change', { bubbles: true }))
+      }
+
+      if (titleInput) {
+        titleInput.focus()
+      }
       const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set
-      if (nativeSetter) {
+        || Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
+      if (titleInput && nativeSetter) {
         nativeSetter.call(titleInput, title)
       }
-      else {
+      else if (titleInput) {
         titleInput.value = title
       }
-      titleInput.dispatchEvent(new Event('input', { bubbles: true }))
-      titleInput.dispatchEvent(new Event('change', { bubbles: true }))
+      if (titleInput) {
+        titleInput.dispatchEvent(new Event('input', { bubbles: true }))
+        titleInput.dispatchEvent(new Event('change', { bubbles: true }))
+      }
       console.log('[COSE] 微信标题已填充:', title)
     }
 
-    // 稍等一下让标题生效
     await new Promise(r => setTimeout(r, 300))
+
+    const editor = await waitForBodyEditor(15000)
+    if (!editor) {
+      return { success: false, error: '未找到正文编辑器' }
+    }
 
     // 填充正文内容
     if (editor && htmlBody) {
@@ -115,7 +172,7 @@ async function fillWechatContent(title, htmlBody) {
       return {
         success: true,
         wordCount: editor.textContent?.length || 0,
-        titleFilled: titleInput?.value === title,
+        titleFilled: titleInput?.value === title || titleEditor?.textContent?.trim() === title,
       }
     }
 
