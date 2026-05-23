@@ -8,7 +8,8 @@
     "dev": "pnpm -C apps/extension dev",
     "dev:chrome": "pnpm -C apps/extension dev:chrome",
     "dev:watch": "pnpm -C apps/extension dev:watch",
-    "lint": "pnpm -r lint"
+    "lint": "pnpm -r lint",
+    "test": "node --test"
   },
   "devDependencies": {
     "typescript": "^5.0.0"

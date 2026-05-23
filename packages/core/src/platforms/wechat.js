@@ -12,43 +12,58 @@ const WechatPlatform = {
   type: 'wechat',
 }
 
+function getEditorArea(editor) {
+  return (editor?.clientHeight || 0) * (editor?.clientWidth || 0)
+}
+
+function isWechatTitleEditor(editor, titleEditor) {
+  return Boolean(editor)
+    && (editor === titleEditor || Boolean(editor.closest?.('.title-editor__input')))
+}
+
+function pickWechatBodyProseMirrorCandidate(nodes, { titleInput, titleEditor } = {}) {
+  const bodyCandidates = nodes.filter(editor => !isWechatTitleEditor(editor, titleEditor))
+  if (bodyCandidates.length === 0)
+    return null
+  if (bodyCandidates.length === 1)
+    return bodyCandidates[0]
+
+  const byPlaceholder = bodyCandidates.find(editor =>
+    (editor.textContent || '').includes('从这里开始写正文'),
+  )
+  if (byPlaceholder)
+    return byPlaceholder
+
+  if (titleInput) {
+    const band = titleInput.getBoundingClientRect()
+    const belowTitle = bodyCandidates.filter((editor) => {
+      const rect = editor.getBoundingClientRect()
+      return rect.top >= band.bottom - 8
+    })
+    if (belowTitle.length > 0) {
+      return belowTitle.sort((a, b) => getEditorArea(b) - getEditorArea(a))[0]
+    }
+  }
+
+  return bodyCandidates.sort((a, b) => getEditorArea(b) - getEditorArea(a))[0]
+}
+
 // 微信公众号内容填充函数（在页面主世界中执行）
 // 注意：需要先调用 injectUtils 注入 window.waitFor
 async function fillWechatContent(title, htmlBody) {
   /**
    * 后台改版后可能存在多个 `.ProseMirror`（标题区也可能是 ProseMirror），
    * `querySelector('.ProseMirror')` 常会命中标题编辑器，导致正文 HTML 被贴进标题。
+   * 另外，正文编辑器有时会比标题编辑器晚挂载，这时也要继续等待，不能把唯一节点误判成正文。
    */
   function pickWechatBodyProseMirror() {
     const nodes = [...document.querySelectorAll('.ProseMirror')]
     if (nodes.length === 0)
       return null
-    if (nodes.length === 1)
-      return nodes[0]
-
-    const byPlaceholder = nodes.find(el =>
-      (el.textContent || '').includes('从这里开始写正文'),
-    )
-    if (byPlaceholder)
-      return byPlaceholder
 
     const titleInput = document.querySelector('#title')
-    if (titleInput) {
-      const band = titleInput.getBoundingClientRect()
-      const belowTitle = nodes.filter((el) => {
-        const r = el.getBoundingClientRect()
-        return r.top >= band.bottom - 8
-      })
-      if (belowTitle.length > 0) {
-        return belowTitle.sort(
-          (a, b) => (b.clientHeight * b.clientWidth) - (a.clientHeight * a.clientWidth),
-        )[0]
-      }
-    }
-
-    return nodes.sort(
-      (a, b) => (b.clientHeight * b.clientWidth) - (a.clientHeight * a.clientWidth),
-    )[0]
+    const titleEditor = document.querySelector('.title-editor__input .ProseMirror')
+    return pickWechatBodyProseMirrorCandidate(nodes, { titleInput, titleEditor })
   }
 
   async function waitForBodyEditor(timeout = 15000) {
@@ -351,5 +366,9 @@ async function syncWechatContent(tab, content, helpers) {
 }
 
 // 导出
-export { WechatPlatform, fillWechatContent, syncWechatContent }
-
+export {
+  WechatPlatform,
+  fillWechatContent,
+  pickWechatBodyProseMirrorCandidate,
+  syncWechatContent,
+}
