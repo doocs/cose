@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Fork PRs receive a read-only GITHUB_TOKEN; no repository secrets required.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build extension (Chromium)
+        run: pnpm build
+
+      - name: Verify Chromium build artifacts
+        run: |
+          test -f apps/extension/dist/manifest.json
+          test -f apps/extension/dist/popup.html
+          test -f apps/extension/dist/offscreen.html
+          test -f apps/extension/dist/bundles/background.js
+
+      - name: Run tests
+        run: pnpm test
+
+      - name: Build extension (Firefox) and lint
+        run: |
+          pnpm build:firefox
+          pnpm -C apps/extension lint
