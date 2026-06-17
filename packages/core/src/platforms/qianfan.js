@@ -11,8 +11,6 @@ const QianfanPlatform = {
   type: 'qianfan',
 }
 
-
-
 // 千帆平台拦截函数
 // 在 MAIN world 中执行，拦截所有可能导致跳转到登录页的行为
 // 包括：fetch, XHR, sendBeacon, location 跳转, window.open, Navigation API, History API
@@ -26,7 +24,7 @@ function qianfanIntercept() {
   const FAKE_RESPONSE = JSON.stringify({
     success: true,
     status: 200,
-    result: { id: 'cose-intercepted' }
+    result: { id: 'cose-intercepted' },
   })
 
   console.log('[COSE] 千帆拦截器开始安装...')
@@ -36,14 +34,16 @@ function qianfanIntercept() {
   window.fetch = function (...args) {
     const url = typeof args[0] === 'string' ? args[0] : args[0]?.url || ''
     const opts = args[1] || {}
-    const method = (opts.method || (args[0]?.method) || 'GET').toUpperCase()
+    const method = (opts.method || args[0]?.method || 'GET').toUpperCase()
 
     if (url.includes(INTERCEPT_PATTERN) && method === 'POST') {
       console.log('[COSE] 拦截 fetch POST:', url, '(已拦截', ++blockedCount, '个)')
-      return Promise.resolve(new Response(FAKE_RESPONSE, {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      }))
+      return Promise.resolve(
+        new Response(FAKE_RESPONSE, {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      )
     }
     return originalFetch.apply(this, args)
   }
@@ -66,7 +66,10 @@ function qianfanIntercept() {
         Object.defineProperty(self, 'readyState', { get: () => 4, configurable: true })
         Object.defineProperty(self, 'status', { get: () => 200, configurable: true })
         Object.defineProperty(self, 'statusText', { get: () => 'OK', configurable: true })
-        Object.defineProperty(self, 'responseText', { get: () => FAKE_RESPONSE, configurable: true })
+        Object.defineProperty(self, 'responseText', {
+          get: () => FAKE_RESPONSE,
+          configurable: true,
+        })
         Object.defineProperty(self, 'response', { get: () => FAKE_RESPONSE, configurable: true })
         self.dispatchEvent(new Event('readystatechange'))
         self.dispatchEvent(new Event('load'))
@@ -123,7 +126,7 @@ function qianfanIntercept() {
 
   // ========== 拦截 Navigation API ==========
   if (window.navigation) {
-    window.navigation.addEventListener('navigate', (e) => {
+    window.navigation.addEventListener('navigate', e => {
       const destUrl = e.destination?.url || ''
       console.log('[COSE] Navigation API navigate 事件:', destUrl)
       if (destUrl.includes(LOGIN_URL_PATTERN)) {

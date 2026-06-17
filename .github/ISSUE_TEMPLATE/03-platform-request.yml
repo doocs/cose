@@ -1,7 +1,7 @@
 name: Platform Request / 平台支持
 description: Request support for a new platform / 请求支持新平台
-title: "[Platform]: "
-labels: ["enhancement", "new platform"]
+title: '[Platform]: '
+labels: ['enhancement', 'new platform']
 body:
   - type: input
     id: platform-name

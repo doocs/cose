@@ -12,12 +12,12 @@ const AliyunPlatform = {
 // 阿里云开发者社区内容填充函数
 async function fillAliyunContent(content) {
   const { title, markdown } = content
-  
+
   console.log('[COSE] 阿里云开发者社区：开始填充内容')
-  
+
   // 等待页面加载
   await new Promise(resolve => setTimeout(resolve, 2000))
-  
+
   // 填充标题
   const titleInput = document.querySelector('input[placeholder*="标题"]')
   if (titleInput && title) {
@@ -27,16 +27,17 @@ async function fillAliyunContent(content) {
     titleInput.dispatchEvent(new Event('change', { bubbles: true }))
     console.log('[COSE] 阿里云开发者社区：标题已填充')
   }
-  
+
   // 等待一下再填充正文
   await new Promise(resolve => setTimeout(resolve, 500))
-  
+
   // 填充正文（markdown 编辑器）
   // 阿里云开发者社区使用的是 markdown 编辑器，textarea 是主要输入区域
-  const contentTextarea = document.querySelector('textarea[class*="editor"]') ||
+  const contentTextarea =
+    document.querySelector('textarea[class*="editor"]') ||
     document.querySelector('.markdown-editor textarea') ||
     document.querySelector('textarea')
-  
+
   if (contentTextarea && markdown) {
     contentTextarea.focus()
     contentTextarea.value = markdown
@@ -44,7 +45,7 @@ async function fillAliyunContent(content) {
     contentTextarea.dispatchEvent(new Event('change', { bubbles: true }))
     console.log('[COSE] 阿里云开发者社区：正文已填充')
   }
-  
+
   console.log('[COSE] 阿里云开发者社区：内容填充完成')
 }
 

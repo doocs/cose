@@ -30,7 +30,9 @@ function fillCSDNContent(title, markdown, body) {
     await new Promise(resolve => setTimeout(resolve, 1000))
 
     // CSDN 使用 contenteditable 的 PRE 元素
-    const editor = document.querySelector('.editor__inner[contenteditable="true"], [contenteditable="true"].markdown-highlighting')
+    const editor = document.querySelector(
+      '.editor__inner[contenteditable="true"], [contenteditable="true"].markdown-highlighting'
+    )
 
     if (editor) {
       editor.focus()
@@ -93,4 +95,3 @@ async function syncCSDNContent(tab, content, helpers) {
 
 // 导出
 export { CSDNPlatform, fillCSDNContent, syncCSDNContent }
-

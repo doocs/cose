@@ -107,7 +107,11 @@ async function handleApiFetch(payload) {
     const finalUrl = resp.url
     let body = null
     if (responseType === 'json') {
-      try { body = await resp.json() } catch (e) { body = null }
+      try {
+        body = await resp.json()
+      } catch (e) {
+        body = null
+      }
     } else {
       body = await resp.text()
     }
@@ -116,7 +120,6 @@ async function handleApiFetch(payload) {
     return { error: e.message }
   }
 }
-
 
 /**
  * 51CTO detection: fetch home.51cto.com/space and parse with DOMParser.
@@ -148,7 +151,10 @@ async function handleDetectCto51() {
     if (!username && !uid) {
       // Return debug info to help diagnose
       const title = doc.querySelector('title')?.textContent || ''
-      return { loggedIn: false, _debug: { status: resp.status, url: resp.url, htmlLen: html.length, title } }
+      return {
+        loggedIn: false,
+        _debug: { status: resp.status, url: resp.url, htmlLen: html.length, title },
+      }
     }
 
     return { loggedIn: true, username, avatar, uid }
@@ -156,7 +162,6 @@ async function handleDetectCto51() {
     return { loggedIn: false, error: e.message }
   }
 }
-
 
 /**
  * Cnblogs detection: fetch account.cnblogs.com/user/userinfo in document context.
@@ -167,7 +172,7 @@ async function handleDetectCnblogs() {
     const resp = await fetch('https://account.cnblogs.com/user/userinfo', {
       method: 'GET',
       credentials: 'include',
-      headers: { 'Accept': 'application/json' },
+      headers: { Accept: 'application/json' },
     })
     if (!resp.ok) return { loggedIn: false }
 
@@ -186,7 +191,6 @@ async function handleDetectCnblogs() {
   }
 }
 
-
 /**
  * Xiaohongshu detection: fetch creator API in document context.
  * Cookies are sent automatically with credentials: 'include'.
@@ -196,7 +200,7 @@ async function handleDetectXiaohongshu() {
     const resp = await fetch('https://creator.xiaohongshu.com/api/galaxy/user/info', {
       method: 'GET',
       credentials: 'include',
-      headers: { 'Accept': 'application/json' },
+      headers: { Accept: 'application/json' },
     })
     if (!resp.ok) return { loggedIn: false }
 
@@ -214,4 +218,3 @@ async function handleDetectXiaohongshu() {
     return { loggedIn: false, error: e.message }
   }
 }
-

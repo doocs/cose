@@ -1,15 +1,15 @@
 name: Feature Request / 功能请求
 description: Suggest a new feature or enhancement / 建议新功能或改进
-title: "[Feature]: "
-labels: ["enhancement"]
+title: '[Feature]: '
+labels: ['enhancement']
 body:
   - type: markdown
     attributes:
       value: |
         Thanks for your interest in improving this project! Please describe your feature request below.
-        
+
         感谢您对改进本项目的兴趣！请在下方描述您的功能请求。
-  
+
   - type: textarea
     id: problem-description
     attributes:
@@ -18,7 +18,7 @@ body:
       placeholder: "I'm frustrated when... / 我感到困扰的是..."
     validations:
       required: true
-  
+
   - type: textarea
     id: proposed-solution
     attributes:
@@ -27,7 +27,7 @@ body:
       placeholder: A clear and concise description of what you want to happen / 清晰简洁地描述您希望实现的功能
     validations:
       required: true
-  
+
   - type: textarea
     id: alternatives
     attributes:
@@ -36,7 +36,7 @@ body:
       placeholder: What other approaches could solve this problem? / 还有哪些方法可以解决这个问题？
     validations:
       required: false
-  
+
   - type: dropdown
     id: feature-type
     attributes:
@@ -51,7 +51,7 @@ body:
         - Other / 其他
     validations:
       required: true
-  
+
   - type: textarea
     id: additional-context
     attributes:
@@ -60,7 +60,7 @@ body:
       placeholder: Any mockups, examples, or additional details / 任何原型图、示例或其他细节
     validations:
       required: false
-  
+
   - type: checkboxes
     id: willingness
     attributes:

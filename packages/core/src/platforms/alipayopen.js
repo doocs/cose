@@ -17,8 +17,8 @@ const AlipayOpenPlatform = {
  * @param {string} markdown - Markdown 内容
  */
 function fillAlipayOpenContent(title, markdown) {
-  const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
-  
+  const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
+
   return (async () => {
     try {
       console.log('[COSE] 支付宝开放平台 开始填充, 标题:', title)
@@ -40,12 +40,15 @@ function fillAlipayOpenContent(title, markdown) {
           }
         }
       }
-      
+
       console.log('[COSE] 支付宝开放平台 查找标题输入框:', !!titleInput)
-      
+
       if (titleInput && title) {
         titleInput.focus()
-        const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set
+        const nativeSetter = Object.getOwnPropertyDescriptor(
+          window.HTMLInputElement.prototype,
+          'value'
+        ).set
         nativeSetter.call(titleInput, title)
         titleInput.dispatchEvent(new Event('input', { bubbles: true }))
         titleInput.dispatchEvent(new Event('change', { bubbles: true }))
@@ -66,13 +69,13 @@ function fillAlipayOpenContent(title, markdown) {
         // 使用 ClipboardEvent 模拟粘贴 Markdown 内容
         const dt = new DataTransfer()
         dt.setData('text/plain', markdown)
-        
+
         const pasteEvent = new ClipboardEvent('paste', {
           bubbles: true,
           cancelable: true,
-          clipboardData: dt
+          clipboardData: dt,
         })
-        
+
         editor.dispatchEvent(pasteEvent)
         console.log('[COSE] 支付宝开放平台 内容粘贴成功')
 
@@ -80,8 +83,8 @@ function fillAlipayOpenContent(title, markdown) {
         let confirmed = false
         for (let i = 0; i < 15; i++) {
           await sleep(200)
-          const convertBtn = Array.from(document.querySelectorAll('button')).find(
-            btn => btn.textContent.includes('立即转换')
+          const convertBtn = Array.from(document.querySelectorAll('button')).find(btn =>
+            btn.textContent.includes('立即转换')
           )
           if (convertBtn) {
             convertBtn.click()

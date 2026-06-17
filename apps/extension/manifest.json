@@ -72,13 +72,8 @@
   },
   "content_scripts": [
     {
-      "matches": [
-        "http://*/*",
-        "https://*/*"
-      ],
-      "js": [
-        "bundles/content.js"
-      ],
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["bundles/content.js"],
       "run_at": "document_idle"
     }
   ],
@@ -89,13 +84,8 @@
   },
   "web_accessible_resources": [
     {
-      "resources": [
-        "bundles/inject.js",
-        "bundles/platforms/*.js"
-      ],
-      "matches": [
-        "<all_urls>"
-      ]
+      "resources": ["bundles/inject.js", "bundles/platforms/*.js"],
+      "matches": ["<all_urls>"]
     }
   ]
 }

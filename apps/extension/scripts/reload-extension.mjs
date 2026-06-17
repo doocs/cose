@@ -15,32 +15,38 @@ const CDP_URL = 'http://127.0.0.1:9222'
 let reloadTimeout = null
 
 function ts() {
-  return new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  return new Date().toLocaleTimeString('en-US', {
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  })
 }
 
 async function reloadExtension() {
-    try {
-        const res = await fetch(`${CDP_URL}/json/list`)
-        const pages = await res.json()
+  try {
+    const res = await fetch(`${CDP_URL}/json/list`)
+    const pages = await res.json()
 
-        const extPage = pages.find(p => p.url.includes('chrome://extensions'))
-        if (!extPage) {
-            console.log(`[reload ${ts()}] 未找到 chrome://extensions 页面，请打开该页面`)
-            return
-        }
+    const extPage = pages.find(p => p.url.includes('chrome://extensions'))
+    if (!extPage) {
+      console.log(`[reload ${ts()}] 未找到 chrome://extensions 页面，请打开该页面`)
+      return
+    }
 
-        console.log(`[reload ${ts()}] 正在重新加载扩展...`)
+    console.log(`[reload ${ts()}] 正在重新加载扩展...`)
 
-        const ws = new WebSocket(extPage.webSocketDebuggerUrl)
+    const ws = new WebSocket(extPage.webSocketDebuggerUrl)
 
-        await new Promise((resolve) => {
-            ws.on('open', () => {
-                // 在 extensions 页面中找到 COSE 扩展并点击刷新按钮
-                ws.send(JSON.stringify({
-                    id: 1,
-                    method: 'Runtime.evaluate',
-                    params: {
-                        expression: `
+    await new Promise(resolve => {
+      ws.on('open', () => {
+        // 在 extensions 页面中找到 COSE 扩展并点击刷新按钮
+        ws.send(
+          JSON.stringify({
+            id: 1,
+            method: 'Runtime.evaluate',
+            params: {
+              expression: `
               (async () => {
                 // 获取 extensions-manager
                 const manager = document.querySelector('extensions-manager');
@@ -68,44 +74,48 @@ async function reloadExtension() {
                 return 'not-found';
               })()
             `,
-                        awaitPromise: true
-                    }
-                }))
-            })
+              awaitPromise: true,
+            },
+          })
+        )
+      })
 
-            ws.on('message', (data) => {
-                const msg = JSON.parse(data.toString())
-                if (msg.id === 1) {
-                    const result = msg.result?.result?.value
-                    if (result === 'ok') {
-                        console.log(`[reload ${ts()}] ✓ 扩展已重新加载`)
-                    } else if (result === 'no-reload-btn') {
-                        console.log(`[reload ${ts()}] ⚠ 未找到刷新按钮，请开启 Developer mode`)
-                    } else if (result === 'not-found') {
-                        console.log(`[reload ${ts()}] ⚠ 未找到 COSE 扩展`)
-                    } else {
-                        console.log(`[reload ${ts()}] ⚠ 刷新失败:`, result)
-                    }
-                    ws.close()
-                    resolve()
-                }
-            })
+      ws.on('message', data => {
+        const msg = JSON.parse(data.toString())
+        if (msg.id === 1) {
+          const result = msg.result?.result?.value
+          if (result === 'ok') {
+            console.log(`[reload ${ts()}] ✓ 扩展已重新加载`)
+          } else if (result === 'no-reload-btn') {
+            console.log(`[reload ${ts()}] ⚠ 未找到刷新按钮，请开启 Developer mode`)
+          } else if (result === 'not-found') {
+            console.log(`[reload ${ts()}] ⚠ 未找到 COSE 扩展`)
+          } else {
+            console.log(`[reload ${ts()}] ⚠ 刷新失败:`, result)
+          }
+          ws.close()
+          resolve()
+        }
+      })
 
-            ws.on('error', (e) => {
-                console.log(`[reload ${ts()}] 连接错误:`, e.message)
-                resolve()
-            })
+      ws.on('error', e => {
+        console.log(`[reload ${ts()}] 连接错误:`, e.message)
+        resolve()
+      })
 
-            setTimeout(() => { ws.close(); resolve() }, 3000)
-        })
-    } catch (e) {
-        console.log(`[reload ${ts()}] 失败:`, e.message)
-    }
+      setTimeout(() => {
+        ws.close()
+        resolve()
+      }, 3000)
+    })
+  } catch (e) {
+    console.log(`[reload ${ts()}] 失败:`, e.message)
+  }
 }
 
 function debounceReload() {
-    if (reloadTimeout) clearTimeout(reloadTimeout)
-    reloadTimeout = setTimeout(reloadExtension, 800)
+  if (reloadTimeout) clearTimeout(reloadTimeout)
+  reloadTimeout = setTimeout(reloadExtension, 800)
 }
 
 console.log(`[reload ${ts()}] 监听 ${distDir} 目录变化...`)
@@ -115,13 +125,13 @@ console.log('  2. chrome://extensions 页面已打开')
 console.log('  3. Developer mode 已开启')
 
 watch(distDir, { recursive: true }, (eventType, filename) => {
-    if (filename && !filename.includes('.DS_Store') && !filename.includes('_metadata')) {
-        console.log(`[reload ${ts()}] 检测到变化: ${filename}`)
-        debounceReload()
-    }
+  if (filename && !filename.includes('.DS_Store') && !filename.includes('_metadata')) {
+    console.log(`[reload ${ts()}] 检测到变化: ${filename}`)
+    debounceReload()
+  }
 })
 
 process.on('SIGINT', () => {
-    console.log(`\n[reload ${ts()}] 已停止`)
-    process.exit(0)
+  console.log(`\n[reload ${ts()}] 已停止`)
+  process.exit(0)
 })

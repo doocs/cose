@@ -9,9 +9,21 @@
     "dev:chrome": "pnpm -C apps/extension dev:chrome",
     "dev:watch": "pnpm -C apps/extension dev:watch",
     "lint": "pnpm -r lint",
-    "test": "node --test"
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "node --test",
+    "prepare": "simple-git-hooks"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "pnpm lint-staged"
+  },
+  "lint-staged": {
+    "*.{js,ts,mjs,cjs,json,md,yml,yaml,html}": "prettier --write"
   },
   "devDependencies": {
+    "lint-staged": "^16.1.6",
+    "prettier": "^3.6.2",
+    "simple-git-hooks": "^2.13.1",
     "typescript": "^5.9.3"
   }
 }

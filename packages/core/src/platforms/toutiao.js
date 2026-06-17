@@ -15,7 +15,7 @@ import { injectUtils } from './common.js'
 function fillToutiaoContentInPage(title, body) {
   // 等待满足条件的元素出现
   function waitForElement(predicate, timeout = 10000) {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const el = predicate()
       if (el) return resolve(el)
 
@@ -43,9 +43,14 @@ function fillToutiaoContentInPage(title, body) {
     if (titleInput && title) {
       titleInput.focus()
       // 模拟用户输入
-      const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
+      const nativeSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLTextAreaElement.prototype,
+        'value'
+      ).set
       nativeSetter.call(titleInput, title)
-      titleInput.dispatchEvent(new InputEvent('input', { bubbles: true, data: title, inputType: 'insertText' }))
+      titleInput.dispatchEvent(
+        new InputEvent('input', { bubbles: true, data: title, inputType: 'insertText' })
+      )
       titleInput.dispatchEvent(new Event('change', { bubbles: true }))
       titleInput.dispatchEvent(new Event('blur', { bubbles: true }))
       console.log('[COSE] 头条标题填充成功:', title)
@@ -57,9 +62,7 @@ function fillToutiaoContentInPage(title, body) {
     await new Promise(resolve => setTimeout(resolve, 500))
 
     // 头条使用 ProseMirror 富文本编辑器
-    const editor = await waitForElement(() =>
-      document.querySelector('.ProseMirror')
-    )
+    const editor = await waitForElement(() => document.querySelector('.ProseMirror'))
 
     if (editor && body) {
       editor.focus()

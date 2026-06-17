@@ -7,7 +7,8 @@ const WechatPlatform = {
   icon: 'https://res.wx.qq.com/a/wx_fed/assets/res/NTI4MWU5.ico',
   url: 'https://mp.weixin.qq.com',
   // 先打开草稿箱，再自动点击新建
-  publishUrl: 'https://mp.weixin.qq.com/cgi-bin/appmsg?t=media/appmsg_edit_v2&action=edit&isNew=1&type=10',
+  publishUrl:
+    'https://mp.weixin.qq.com/cgi-bin/appmsg?t=media/appmsg_edit_v2&action=edit&isNew=1&type=10',
   title: '微信公众号',
   type: 'wechat',
 }
@@ -17,26 +18,24 @@ function getEditorArea(editor) {
 }
 
 function isWechatTitleEditor(editor, titleEditor) {
-  return Boolean(editor)
-    && (editor === titleEditor || Boolean(editor.closest?.('.title-editor__input')))
+  return (
+    Boolean(editor) && (editor === titleEditor || Boolean(editor.closest?.('.title-editor__input')))
+  )
 }
 
 function pickWechatBodyProseMirrorCandidate(nodes, { titleInput, titleEditor } = {}) {
   const bodyCandidates = nodes.filter(editor => !isWechatTitleEditor(editor, titleEditor))
-  if (bodyCandidates.length === 0)
-    return null
-  if (bodyCandidates.length === 1)
-    return bodyCandidates[0]
+  if (bodyCandidates.length === 0) return null
+  if (bodyCandidates.length === 1) return bodyCandidates[0]
 
   const byPlaceholder = bodyCandidates.find(editor =>
-    (editor.textContent || '').includes('从这里开始写正文'),
+    (editor.textContent || '').includes('从这里开始写正文')
   )
-  if (byPlaceholder)
-    return byPlaceholder
+  if (byPlaceholder) return byPlaceholder
 
   if (titleInput) {
     const band = titleInput.getBoundingClientRect()
-    const belowTitle = bodyCandidates.filter((editor) => {
+    const belowTitle = bodyCandidates.filter(editor => {
       const rect = editor.getBoundingClientRect()
       return rect.top >= band.bottom - 8
     })
@@ -62,25 +61,24 @@ async function fillWechatContent(title, htmlBody) {
       return (editor?.clientHeight || 0) * (editor?.clientWidth || 0)
     }
     function isWechatTitleEditor(editor, titleEditor) {
-      return Boolean(editor)
-        && (editor === titleEditor || Boolean(editor.closest?.('.title-editor__input')))
+      return (
+        Boolean(editor) &&
+        (editor === titleEditor || Boolean(editor.closest?.('.title-editor__input')))
+      )
     }
     function pickCandidate(nodes, { titleInput, titleEditor } = {}) {
       const bodyCandidates = nodes.filter(editor => !isWechatTitleEditor(editor, titleEditor))
-      if (bodyCandidates.length === 0)
-        return null
-      if (bodyCandidates.length === 1)
-        return bodyCandidates[0]
+      if (bodyCandidates.length === 0) return null
+      if (bodyCandidates.length === 1) return bodyCandidates[0]
 
       const byPlaceholder = bodyCandidates.find(editor =>
-        (editor.textContent || '').includes('从这里开始写正文'),
+        (editor.textContent || '').includes('从这里开始写正文')
       )
-      if (byPlaceholder)
-        return byPlaceholder
+      if (byPlaceholder) return byPlaceholder
 
       if (titleInput) {
         const band = titleInput.getBoundingClientRect()
-        const belowTitle = bodyCandidates.filter((editor) => {
+        const belowTitle = bodyCandidates.filter(editor => {
           const rect = editor.getBoundingClientRect()
           return rect.top >= band.bottom - 8
         })
@@ -93,8 +91,7 @@ async function fillWechatContent(title, htmlBody) {
     }
 
     const nodes = [...document.querySelectorAll('.ProseMirror')]
-    if (nodes.length === 0)
-      return null
+    if (nodes.length === 0) return null
 
     const titleInput = document.querySelector('#title')
     const titleEditor = document.querySelector('.title-editor__input .ProseMirror')
@@ -105,8 +102,7 @@ async function fillWechatContent(title, htmlBody) {
     const start = Date.now()
     while (Date.now() - start < timeout) {
       const el = pickWechatBodyProseMirror()
-      if (el)
-        return el
+      if (el) return el
       await new Promise(r => setTimeout(r, 100))
     }
     return pickWechatBodyProseMirror()
@@ -129,12 +125,12 @@ async function fillWechatContent(title, htmlBody) {
       if (titleInput) {
         titleInput.focus()
       }
-      const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set
-        || Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
+      const nativeSetter =
+        Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set ||
+        Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
       if (titleInput && nativeSetter) {
         nativeSetter.call(titleInput, title)
-      }
-      else if (titleInput) {
+      } else if (titleInput) {
         titleInput.value = title
       }
       if (titleInput) {
@@ -168,14 +164,12 @@ async function fillWechatContent(title, htmlBody) {
       // 优先使用微信编辑器 JSAPI。合成 Ctrl+V 事件不会触发真实粘贴；
       // 直接写 innerHTML 也不会可靠同步到 ProseMirror 的文档模型。
       if (window.__MP_Editor_JSAPI__ && typeof window.__MP_Editor_JSAPI__.invoke === 'function') {
-        injected = await new Promise((resolve) => {
+        injected = await new Promise(resolve => {
           let done = false
           const finish = (ok, err) => {
-            if (done)
-              return
+            if (done) return
             done = true
-            if (err)
-              injectError = err.message || String(err)
+            if (err) injectError = err.message || String(err)
             resolve(ok)
           }
 
@@ -186,8 +180,7 @@ async function fillWechatContent(title, htmlBody) {
               sucCb: () => finish(true),
               errCb: err => finish(false, err),
             })
-          }
-          catch (err) {
+          } catch (err) {
             finish(false, err)
           }
 
@@ -197,8 +190,7 @@ async function fillWechatContent(title, htmlBody) {
         if (injected) {
           console.log('[COSE] 微信内容已通过 mp_editor_set_content 注入')
           await new Promise(r => setTimeout(r, 800))
-        }
-        else {
+        } else {
           console.warn('[COSE] mp_editor_set_content 注入失败:', injectError)
         }
       }
@@ -232,7 +224,7 @@ async function fillWechatContent(title, htmlBody) {
 
       return {
         success: hasEditorContent,
-        error: hasEditorContent ? undefined : (injectError || '正文注入后未检测到有效内容'),
+        error: hasEditorContent ? undefined : injectError || '正文注入后未检测到有效内容',
         wordCount,
         imageCount,
         titleFilled: titleInput?.value === title || titleEditor?.textContent?.trim() === title,
@@ -240,16 +232,16 @@ async function fillWechatContent(title, htmlBody) {
     }
 
     return { success: false, error: '内容为空' }
-  }
-  catch (err) {
+  } catch (err) {
     return { success: false, error: err.message }
   }
 }
 
 // 微信公众号保存草稿函数（在页面主世界中执行）
 function saveWechatDraft() {
-  const saveDraftBtn = Array.from(document.querySelectorAll('button'))
-    .find(b => b.textContent.includes('保存为草稿'))
+  const saveDraftBtn = Array.from(document.querySelectorAll('button')).find(b =>
+    b.textContent.includes('保存为草稿')
+  )
   if (saveDraftBtn) {
     saveDraftBtn.click()
     console.log('[COSE] 已点击保存为草稿')
@@ -271,27 +263,27 @@ async function syncWechatContent(tab, content, helpers) {
   // 步骤1：等待首页加载完成
   console.log('[COSE] 微信公众号等待页面加载')
   await waitForTab(tab.id)
-  
+
   // 注入公共工具函数（waitFor, setInputValue）
   await injectUtils(chrome, tab.id)
-  
+
   // 步骤2：使用 MutationObserver 监听获取 token
   console.log('[COSE] 开始检测 token...')
   const [tokenResult] = await chrome.scripting.executeScript({
     target: { tabId: tab.id },
     func: () => {
-      return new Promise((resolve) => {
+      return new Promise(resolve => {
         // 先检查当前页面是否已有 token
         const checkToken = () => {
           const urlMatch = window.location.href.match(/token=(\d+)/)
           if (urlMatch) return urlMatch[1]
-          
+
           const links = document.querySelectorAll('a[href*="token"]')
           for (const link of links) {
             const match = link.href?.match(/token=(\d+)/)
             if (match) return match[1]
           }
-          
+
           const scripts = document.querySelectorAll('script:not([src])')
           for (const script of scripts) {
             const content = script.textContent
@@ -321,23 +313,23 @@ async function syncWechatContent(tab, content, helpers) {
         }, 10000)
       })
     },
-    world: 'MAIN'
+    world: 'MAIN',
   })
-  
+
   const token = tokenResult?.result
-  
+
   if (!token) {
     console.error('[COSE] 无法从页面获取 token')
     return { success: false, message: '无法获取微信公众号 token，请确保已登录', tabId: tab.id }
   }
-  
+
   // 步骤3：跳转到编辑器页面
   const editorUrl = `https://mp.weixin.qq.com/cgi-bin/appmsg?t=media/appmsg_edit_v2&action=edit&isNew=1&type=10&token=${token}&lang=zh_CN`
   console.log('[COSE] 获取到 token:', token, '跳转到编辑器')
-  
+
   await chrome.tabs.update(tab.id, { url: editorUrl })
   await waitForTab(tab.id)
-  
+
   // 使用剪贴板 HTML（带完整样式）或降级到 body
   const htmlContent = content.wechatHtml || content.body
   console.log('[COSE] 微信 HTML 内容长度:', htmlContent?.length || 0)
@@ -347,7 +339,7 @@ async function syncWechatContent(tab, content, helpers) {
   const [editorResult] = await chrome.scripting.executeScript({
     target: { tabId: tab.id },
     func: () => {
-      return new Promise((resolve) => {
+      return new Promise(resolve => {
         const existing = document.querySelector('.ProseMirror')
         if (existing) return resolve(true)
 
@@ -365,7 +357,7 @@ async function syncWechatContent(tab, content, helpers) {
         }, 15000)
       })
     },
-    world: 'MAIN'
+    world: 'MAIN',
   })
 
   if (!editorResult?.result) {
@@ -374,10 +366,10 @@ async function syncWechatContent(tab, content, helpers) {
   }
 
   console.log('[COSE] 编辑器已就绪，开始注入内容...')
-  
+
   // 页面跳转后需要重新注入工具函数（waitFor, setInputValue）
   await injectUtils(chrome, tab.id)
-  
+
   // 步骤5：填充内容
   let result
   try {
@@ -394,7 +386,7 @@ async function syncWechatContent(tab, content, helpers) {
 
   const fillResult = result?.[0]?.result
   console.log('[COSE] 微信填充结果:', JSON.stringify(fillResult, null, 2))
-  
+
   if (!fillResult?.success) {
     console.error('[COSE] 微信内容填充失败:', fillResult?.error)
     return { success: false, message: fillResult?.error || '内容填充失败', tabId: tab.id }
@@ -414,9 +406,4 @@ async function syncWechatContent(tab, content, helpers) {
 }
 
 // 导出
-export {
-  WechatPlatform,
-  fillWechatContent,
-  pickWechatBodyProseMirrorCandidate,
-  syncWechatContent,
-}
+export { WechatPlatform, fillWechatContent, pickWechatBodyProseMirrorCandidate, syncWechatContent }

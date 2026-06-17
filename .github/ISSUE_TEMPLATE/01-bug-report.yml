@@ -1,15 +1,15 @@
 name: Bug Report / 问题报告
 description: Report a bug or issue with the extension / 报告扩展的 bug 或问题
-title: "[Bug]: "
-labels: ["bug", "triage"]
+title: '[Bug]: '
+labels: ['bug', 'triage']
 body:
   - type: markdown
     attributes:
       value: |
         Thanks for taking the time to report this bug! Please fill out the information below to help us resolve the issue.
-        
+
         感谢您花时间报告此问题！请填写以下信息以帮助我们解决问题。
-  
+
   - type: textarea
     id: description
     attributes:
@@ -18,7 +18,7 @@ body:
       placeholder: Describe the bug you encountered / 描述您遇到的问题
     validations:
       required: true
-  
+
   - type: textarea
     id: reproduction-steps
     attributes:
@@ -31,7 +31,7 @@ body:
         4. See error / 看到错误
     validations:
       required: true
-  
+
   - type: textarea
     id: expected-behavior
     attributes:
@@ -40,7 +40,7 @@ body:
       placeholder: Describe the expected behavior / 描述预期行为
     validations:
       required: true
-  
+
   - type: textarea
     id: suggested-implementation
     attributes:
@@ -49,7 +49,7 @@ body:
       placeholder: Describe your suggested implementation / 描述您建议的实现方式
     validations:
       required: false
-  
+
   - type: input
     id: platform
     attributes:
@@ -58,7 +58,7 @@ body:
       placeholder: e.g., CSDN, Zhihu, Juejin, Toutiao / 如：CSDN、知乎、掘金、头条
     validations:
       required: true
-  
+
   - type: dropdown
     id: browser
     attributes:
@@ -72,7 +72,7 @@ body:
         - Other / 其他
     validations:
       required: true
-  
+
   - type: input
     id: extension-version
     attributes:
@@ -81,7 +81,7 @@ body:
       placeholder: e.g., 1.2.0 / 如：1.2.0
     validations:
       required: true
-  
+
   - type: textarea
     id: environment
     attributes:
@@ -93,7 +93,7 @@ body:
         - Additional context / 其他信息
     validations:
       required: false
-  
+
   - type: textarea
     id: screenshots
     attributes:
@@ -102,7 +102,7 @@ body:
       placeholder: Drag and drop images here / 拖放图片到这里
     validations:
       required: false
-  
+
   - type: textarea
     id: additional-context
     attributes:

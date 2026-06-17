@@ -9,7 +9,5 @@ const VolcenginePlatform = {
   type: 'volcengine',
 }
 
-
-
 // 导出
 export { VolcenginePlatform }

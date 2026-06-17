@@ -5,4 +5,5 @@ allowBuilds:
   core-js: false
   dtrace-provider: false
   esbuild: true
+  simple-git-hooks: true
   spawn-sync: false

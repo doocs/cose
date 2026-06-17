@@ -16,16 +16,22 @@ import { injectUtils } from './common.js'
 function fillWangyihaoContent(title, htmlBody) {
   async function fill() {
     // 1. 等待并填充标题 - 网易号使用 textarea.netease-textarea
-    const titleInput = await window.waitFor('textarea.netease-textarea', 10000) ||
-      await window.waitFor('textarea[placeholder*="标题"]', 3000)
+    const titleInput =
+      (await window.waitFor('textarea.netease-textarea', 10000)) ||
+      (await window.waitFor('textarea[placeholder*="标题"]', 3000))
 
     if (titleInput && title) {
       titleInput.focus()
       // 使用 native setter 来绕过 React 的受控组件
-      const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
+      const nativeSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLTextAreaElement.prototype,
+        'value'
+      ).set
       nativeSetter.call(titleInput, title)
       // 触发 React 能识别的事件
-      titleInput.dispatchEvent(new InputEvent('input', { bubbles: true, data: title, inputType: 'insertText' }))
+      titleInput.dispatchEvent(
+        new InputEvent('input', { bubbles: true, data: title, inputType: 'insertText' })
+      )
       titleInput.dispatchEvent(new Event('change', { bubbles: true }))
       titleInput.dispatchEvent(new Event('blur', { bubbles: true }))
       console.log('[COSE] 网易号标题已填充')
@@ -34,8 +40,9 @@ function fillWangyihaoContent(title, htmlBody) {
     }
 
     // 2. 等待 Draft.js 编辑器出现
-    const editor = await window.waitFor('.public-DraftEditor-content', 10000) ||
-      await window.waitFor('[contenteditable="true"]', 3000)
+    const editor =
+      (await window.waitFor('.public-DraftEditor-content', 10000)) ||
+      (await window.waitFor('[contenteditable="true"]', 3000))
 
     if (editor && htmlBody) {
       editor.focus()
@@ -54,7 +61,7 @@ function fillWangyihaoContent(title, htmlBody) {
       const pasteEvent = new ClipboardEvent('paste', {
         bubbles: true,
         cancelable: true,
-        clipboardData: dt
+        clipboardData: dt,
       })
 
       editor.dispatchEvent(pasteEvent)

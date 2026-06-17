@@ -11,8 +11,6 @@ const TwitterPlatform = {
   type: 'twitter',
 }
 
-
-
 /**
  * 自定义 Markdown 渲染器
  * 将 Markdown 转换为 Twitter Articles 支持的 HTML 格式
@@ -64,10 +62,7 @@ function createTwitterRenderer(marked) {
 
   // 行内代码
   renderer.codespan = function (code) {
-    const escapedCode = code
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
+    const escapedCode = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     return `<code style="background-color: #f6f8fa; padding: 2px 6px; border-radius: 3px; font-family: 'SF Mono', Consolas, monospace; font-size: 0.9em;">${escapedCode}</code>`
   }
 
@@ -119,7 +114,9 @@ function createTwitterRenderer(marked) {
 
   renderer.tablecell = function (content, flags) {
     const tag = flags.header ? 'th' : 'td'
-    const align = flags.align ? ` style="text-align: ${flags.align}; border: 1px solid #cfd9de; padding: 8px;"` : ' style="border: 1px solid #cfd9de; padding: 8px;"'
+    const align = flags.align
+      ? ` style="text-align: ${flags.align}; border: 1px solid #cfd9de; padding: 8px;"`
+      : ' style="border: 1px solid #cfd9de; padding: 8px;"'
     return `<${tag}${align}>${content}</${tag}>\n`
   }
 
@@ -222,17 +219,26 @@ async function fillTwitterContent(content, waitFor, setInputValue) {
     htmlContent = body || markdown || ''
     if (!htmlContent.includes('<')) {
       // 如果是纯文本，简单转换为段落
-      htmlContent = htmlContent.split('\n\n').map(p => `<p>${p}</p>`).join('\n')
+      htmlContent = htmlContent
+        .split('\n\n')
+        .map(p => `<p>${p}</p>`)
+        .join('\n')
     }
   }
 
   // 第一步：填充标题
   // Twitter Articles 使用 textarea[placeholder="Add a title"]
-  const titleInput = await waitFor('textarea[placeholder="Add a title"], textarea[name="Article Title"]', 5000)
+  const titleInput = await waitFor(
+    'textarea[placeholder="Add a title"], textarea[name="Article Title"]',
+    5000
+  )
   if (titleInput && title) {
     titleInput.focus()
     // 使用 native setter 来绑定 React 的受控组件
-    const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
+    const nativeSetter = Object.getOwnPropertyDescriptor(
+      window.HTMLTextAreaElement.prototype,
+      'value'
+    ).set
     nativeSetter.call(titleInput, title)
     titleInput.dispatchEvent(new Event('input', { bubbles: true }))
     titleInput.dispatchEvent(new Event('change', { bubbles: true }))
@@ -241,7 +247,10 @@ async function fillTwitterContent(content, waitFor, setInputValue) {
 
   // 第二步：填充内容
   // Twitter Articles 使用 Draft.js 编辑器
-  const contentEl = await waitFor('.public-DraftEditor-content[contenteditable="true"], .DraftEditor-root [contenteditable="true"]', 5000)
+  const contentEl = await waitFor(
+    '.public-DraftEditor-content[contenteditable="true"], .DraftEditor-root [contenteditable="true"]',
+    5000
+  )
   if (contentEl && htmlContent) {
     contentEl.focus()
 
@@ -253,7 +262,7 @@ async function fillTwitterContent(content, waitFor, setInputValue) {
     const pasteEvent = new ClipboardEvent('paste', {
       bubbles: true,
       cancelable: true,
-      clipboardData: dt
+      clipboardData: dt,
     })
 
     contentEl.dispatchEvent(pasteEvent)

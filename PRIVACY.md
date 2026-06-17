@@ -28,15 +28,15 @@ All data processed by COSE remains on your local device:
 
 ## Permissions Explained
 
-| Permission | Purpose |
-|------------|---------|
-| `tabGroups` | Organize sync tabs into groups |
-| `activeTab` | Temporarily access the current tab when you initiate a sync |
-| `scripting` | Fill article content into platform editors |
-| `cookies` | Check platform login status |
-| `debugger` | Simulate paste events for WeChat editor |
-| `clipboardRead` | Read formatted content (HTML) from the clipboard for syncing |
-| `clipboardWrite` | Write content to the clipboard when needed for syncing |
+| Permission       | Purpose                                                      |
+| ---------------- | ------------------------------------------------------------ |
+| `tabGroups`      | Organize sync tabs into groups                               |
+| `activeTab`      | Temporarily access the current tab when you initiate a sync  |
+| `scripting`      | Fill article content into platform editors                   |
+| `cookies`        | Check platform login status                                  |
+| `debugger`       | Simulate paste events for WeChat editor                      |
+| `clipboardRead`  | Read formatted content (HTML) from the clipboard for syncing |
+| `clipboardWrite` | Write content to the clipboard when needed for syncing       |
 
 ## Third-Party Services
 

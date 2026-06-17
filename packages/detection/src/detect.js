@@ -29,54 +29,54 @@ import { detectDoubanUser } from './platforms/douban.js'
 
 // Platform-specific detectors map
 const PLATFORM_DETECTORS = {
-    'csdn': detectCSDNUser,
-    'oschina': detectOSChinaUser,
-    'alipayopen': detectAlipayUser,
-    'weibo': detectWeiboUser,
-    'wechat': detectWechatUser,
-    'xiaohongshu': detectXiaohongshuUser,
-    'elecfans': detectElecfansUser,
-    'huaweicloud': detectHuaweiCloudUser,
-    'huaweidev': detectHuaweiDevUser,
-    'sspai': detectSspaiUser,
-    'aliyun': detectAliyunUser,
-    'sohu': detectSohuUser,
-    'medium': detectMediumUser,
-    'tencentcloud': detectTencentCloudUser,
-    'qianfan': detectQianfanUser,
-    'twitter': detectTwitterUser,
-    'bilibili': detectBilibiliUser,
-    'cto51': detectCTO51User,
-    'jianshu': detectJianshuUser,
-    'segmentfault': detectSegmentFaultUser,
-    'infoq': detectInfoQUser,
-    'modelscope': detectModelScopeUser,
-    'volcengine': detectVolcengineUser,
-    'cnblogs': detectCnblogsUser,
-    'wangyihao': detectWangyihaoUser,
-    'douban': detectDoubanUser,
+  csdn: detectCSDNUser,
+  oschina: detectOSChinaUser,
+  alipayopen: detectAlipayUser,
+  weibo: detectWeiboUser,
+  wechat: detectWechatUser,
+  xiaohongshu: detectXiaohongshuUser,
+  elecfans: detectElecfansUser,
+  huaweicloud: detectHuaweiCloudUser,
+  huaweidev: detectHuaweiDevUser,
+  sspai: detectSspaiUser,
+  aliyun: detectAliyunUser,
+  sohu: detectSohuUser,
+  medium: detectMediumUser,
+  tencentcloud: detectTencentCloudUser,
+  qianfan: detectQianfanUser,
+  twitter: detectTwitterUser,
+  bilibili: detectBilibiliUser,
+  cto51: detectCTO51User,
+  jianshu: detectJianshuUser,
+  segmentfault: detectSegmentFaultUser,
+  infoq: detectInfoQUser,
+  modelscope: detectModelScopeUser,
+  volcengine: detectVolcengineUser,
+  cnblogs: detectCnblogsUser,
+  wangyihao: detectWangyihaoUser,
+  douban: detectDoubanUser,
 }
 
 export async function detectUser(platformId) {
-    console.log(`[COSE] Detection: Checking ${platformId}`)
+  console.log(`[COSE] Detection: Checking ${platformId}`)
 
-    // 1. Platform-specific Detectors
-    if (PLATFORM_DETECTORS[platformId]) {
-        return PLATFORM_DETECTORS[platformId]()
+  // 1. Platform-specific Detectors
+  if (PLATFORM_DETECTORS[platformId]) {
+    return PLATFORM_DETECTORS[platformId]()
+  }
+
+  // 2. Generic Config-based Detection
+  const config = LOGIN_CHECK_CONFIG[platformId]
+  if (config) {
+    if (config.useCookie || (config.cookieNames && config.cookieNames.length > 0)) {
+      return checkLoginByCookie(platformId, config)
     }
 
-    // 2. Generic Config-based Detection
-    const config = LOGIN_CHECK_CONFIG[platformId]
-    if (config) {
-        if (config.useCookie || (config.cookieNames && config.cookieNames.length > 0)) {
-            return checkLoginByCookie(platformId, config)
-        }
-
-        // Default to API check if API is defined
-        if (config.api) {
-            return detectByApi(platformId, config)
-        }
+    // Default to API check if API is defined
+    if (config.api) {
+      return detectByApi(platformId, config)
     }
+  }
 
-    return { loggedIn: false, error: 'No detection available' }
+  return { loggedIn: false, error: 'No detection available' }
 }

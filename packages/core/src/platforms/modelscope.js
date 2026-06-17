@@ -11,7 +11,5 @@ const ModelScopePlatform = {
   type: 'modelscope',
 }
 
-
-
 // 导出
 export { ModelScopePlatform }

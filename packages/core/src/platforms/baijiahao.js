@@ -17,8 +17,9 @@ async function fillBaijiahaoContent(content, waitFor, setInputValue) {
   // 1. 填充标题
   // 百家号标题输入框在 .client_components_titleInput 内的 contenteditable div
   await new Promise(resolve => setTimeout(resolve, 1000))
-  
-  const titleEditor = document.querySelector('.client_components_titleInput [contenteditable="true"]') ||
+
+  const titleEditor =
+    document.querySelector('.client_components_titleInput [contenteditable="true"]') ||
     document.querySelector('.client_pages_edit_components_titleInput [contenteditable="true"]') ||
     document.querySelector('[class*="titleInput"] [contenteditable="true"]')
 

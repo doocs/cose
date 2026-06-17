@@ -6,13 +6,7 @@ import {
   pickWechatBodyProseMirrorCandidate,
 } from '../packages/core/src/platforms/wechat.js'
 
-function createEditor({
-  textContent = '',
-  top = 0,
-  height = 120,
-  width = 640,
-  classes = [],
-} = {}) {
+function createEditor({ textContent = '', top = 0, height = 120, width = 640, classes = [] } = {}) {
   const classSet = new Set(classes)
   const rect = {
     top,
@@ -28,7 +22,7 @@ function createEditor({
     clientHeight: height,
     clientWidth: width,
     getBoundingClientRect: () => rect,
-    closest: (selector) => {
+    closest: selector => {
       const selectors = selector.split(',').map(item => item.trim().replace(/^\./, ''))
       return selectors.some(item => classSet.has(item)) ? { selector } : null
     },
@@ -56,11 +50,7 @@ function createInputElement() {
   }
 }
 
-function createProseMirrorElement({
-  textContent = '',
-  classes = [],
-  onDispatchEvent,
-} = {}) {
+function createProseMirrorElement({ textContent = '', classes = [], onDispatchEvent } = {}) {
   const classSet = new Set(classes)
   let html = ''
   let text = textContent
@@ -99,8 +89,7 @@ function createProseMirrorElement({
       imageCount = (value.match(/<img\b/gi) || []).length
     },
     querySelectorAll(selector) {
-      if (selector === 'img')
-        return Array.from({ length: imageCount }, () => ({}))
+      if (selector === 'img') return Array.from({ length: imageCount }, () => ({}))
       return []
     },
     getBoundingClientRect: () => ({
@@ -111,7 +100,7 @@ function createProseMirrorElement({
       width: 720,
       height: classSet.has('title-editor__input') ? 40 : 480,
     }),
-    closest: (selector) => {
+    closest: selector => {
       const selectors = selector.split(',').map(item => item.trim().replace(/^\./, ''))
       return selectors.some(item => classSet.has(item)) ? { selector } : null
     },
@@ -155,17 +144,15 @@ async function withWechatFillEnvironment({ jsapiInvoke, bodyEditor, callback }) 
   globalThis.Event = TestEvent
   globalThis.ClipboardEvent = TestEvent
   globalThis.DataTransfer = TestDataTransfer
-  globalThis.setTimeout = (fn) => {
+  globalThis.setTimeout = fn => {
     fn()
     return 0
   }
 
   globalThis.window = {
-    waitFor: async (selector) => {
-      if (selector === '#title')
-        return titleInput
-      if (selector === '.title-editor__input .ProseMirror')
-        return titleEditor
+    waitFor: async selector => {
+      if (selector === '#title') return titleInput
+      if (selector === '.title-editor__input .ProseMirror') return titleEditor
       return null
     },
     HTMLTextAreaElement: class HTMLTextAreaElement {},
@@ -179,27 +166,20 @@ async function withWechatFillEnvironment({ jsapiInvoke, bodyEditor, callback }) 
   }
 
   globalThis.document = {
-    querySelectorAll: selector => selector === '.ProseMirror'
-      ? [titleEditor, bodyEditor]
-      : [],
-    querySelector: (selector) => {
-      if (selector === '#title')
-        return titleInput
-      if (selector === '.title-editor__input .ProseMirror')
-        return titleEditor
+    querySelectorAll: selector => (selector === '.ProseMirror' ? [titleEditor, bodyEditor] : []),
+    querySelector: selector => {
+      if (selector === '#title') return titleInput
+      if (selector === '.title-editor__input .ProseMirror') return titleEditor
       return null
     },
   }
 
   try {
     return await callback({ titleInput, titleEditor })
-  }
-  finally {
+  } finally {
     for (const [key, value] of Object.entries(previousGlobals)) {
-      if (value === undefined)
-        delete globalThis[key]
-      else
-        globalThis[key] = value
+      if (value === undefined) delete globalThis[key]
+      else globalThis[key] = value
     }
   }
 }
@@ -232,7 +212,10 @@ test('标题和正文同时存在时优先选择正文编辑器', () => {
     width: 720,
   })
 
-  const picked = pickWechatBodyProseMirrorCandidate([titleEditor, bodyEditor], { titleInput, titleEditor })
+  const picked = pickWechatBodyProseMirrorCandidate([titleEditor, bodyEditor], {
+    titleInput,
+    titleEditor,
+  })
   assert.equal(picked, bodyEditor)
 })
 
@@ -257,7 +240,7 @@ test('正文填充优先使用微信编辑器 JSAPI 注入含图 HTML', async ()
 
   const result = await withWechatFillEnvironment({
     bodyEditor,
-    jsapiInvoke: (params) => {
+    jsapiInvoke: params => {
       calls.push(params)
       bodyEditor.setRenderedContent(params.apiParam.content)
       params.sucCb({})
@@ -278,7 +261,7 @@ test('微信 JSAPI 不可用时使用 paste 事件兜底而不是直接写 inner
   let pasteEvent
   const bodyEditor = createProseMirrorElement({
     textContent: '从这里开始写正文',
-    onDispatchEvent: (event) => {
+    onDispatchEvent: event => {
       if (event.type === 'paste') {
         pasteEvent = event
         bodyEditor.setRenderedContent(event.clipboardData.getData('text/html'))

@@ -9,7 +9,5 @@ const HuaweiDevPlatform = {
   type: 'huaweidev',
 }
 
-
-
 // 导出
 export { HuaweiDevPlatform }

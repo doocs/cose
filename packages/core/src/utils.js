@@ -7,7 +7,7 @@
 function injectCommonUtils() {
   // 等待元素出现的工具函数（使用 MutationObserver）
   window.waitFor = (selector, timeout = 10000) => {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const el = document.querySelector(selector)
       if (el) return resolve(el)
 
@@ -33,11 +33,9 @@ function injectCommonUtils() {
     el.focus()
     if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') {
       // 使用 native setter 确保 React/Vue 等框架能检测到变化
-      const nativeSetter = Object.getOwnPropertyDescriptor(
-        window.HTMLTextAreaElement.prototype, 'value'
-      )?.set || Object.getOwnPropertyDescriptor(
-        window.HTMLInputElement.prototype, 'value'
-      )?.set
+      const nativeSetter =
+        Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set ||
+        Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
       if (nativeSetter) {
         nativeSetter.call(el, value)
       } else {
