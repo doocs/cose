@@ -65,10 +65,12 @@ function createProseMirrorElement({
   let html = ''
   let text = textContent
   let imageCount = 0
+  const innerHTMLWrites = []
 
   return {
     clientHeight: 480,
     clientWidth: 720,
+    innerHTMLWrites,
     focus() {},
     dispatchEvent(event) {
       onDispatchEvent?.(event)
@@ -84,6 +86,7 @@ function createProseMirrorElement({
       return html
     },
     set innerHTML(value) {
+      innerHTMLWrites.push(value)
       html = value
       if (value === '') {
         text = ''
@@ -291,6 +294,7 @@ test('微信 JSAPI 不可用时使用 paste 事件兜底而不是直接写 inner
   assert.equal(pasteEvent?.type, 'paste')
   assert.equal(pasteEvent.clipboardData.getData('text/html'), htmlBody)
   assert.equal(bodyEditor.innerHTML, htmlBody)
+  assert.deepEqual(bodyEditor.innerHTMLWrites, [''])
   assert.equal(result.success, true)
   assert.equal(result.wordCount, 2)
 })
