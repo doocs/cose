@@ -160,42 +160,57 @@ async function fillWechatContent(title, htmlBody) {
         editor.innerHTML = ''
       }
 
-      // 使用真实剪贴板 API 写入 HTML，然后模拟 Ctrl+V
-      try {
-        // 创建 ClipboardItem 并写入剪贴板
-        const blob = new Blob([htmlBody], { type: 'text/html' })
-        const plainBlob = new Blob([htmlBody.replace(/<[^>]*>/g, '')], { type: 'text/plain' })
-        const clipboardItem = new ClipboardItem({
-          'text/html': blob,
-          'text/plain': plainBlob,
+      const plainText = htmlBody.replace(/<[^>]*>/g, '')
+      const hasImageInSource = /<img\b/i.test(htmlBody)
+      let injected = false
+      let injectError = ''
+
+      // 优先使用微信编辑器 JSAPI。合成 Ctrl+V 事件不会触发真实粘贴；
+      // 直接写 innerHTML 也不会可靠同步到 ProseMirror 的文档模型。
+      if (window.__MP_Editor_JSAPI__ && typeof window.__MP_Editor_JSAPI__.invoke === 'function') {
+        injected = await new Promise((resolve) => {
+          let done = false
+          const finish = (ok, err) => {
+            if (done)
+              return
+            done = true
+            if (err)
+              injectError = err.message || String(err)
+            resolve(ok)
+          }
+
+          try {
+            window.__MP_Editor_JSAPI__.invoke({
+              apiName: 'mp_editor_set_content',
+              apiParam: { content: htmlBody },
+              sucCb: () => finish(true),
+              errCb: err => finish(false, err),
+            })
+          }
+          catch (err) {
+            finish(false, err)
+          }
+
+          setTimeout(() => finish(false, new Error('mp_editor_set_content 调用超时')), 5000)
         })
-        await navigator.clipboard.write([clipboardItem])
-        console.log('[COSE] HTML 已写入真实剪贴板')
 
-        // 模拟 Ctrl+V 粘贴
-        editor.dispatchEvent(new KeyboardEvent('keydown', {
-          key: 'v',
-          code: 'KeyV',
-          ctrlKey: true,
-          bubbles: true,
-        }))
-        editor.dispatchEvent(new KeyboardEvent('keyup', {
-          key: 'v',
-          code: 'KeyV',
-          ctrlKey: true,
-          bubbles: true,
-        }))
-        console.log('[COSE] 已模拟 Ctrl+V 粘贴')
-
-        // 等待内容渲染
-        await new Promise(r => setTimeout(r, 800))
+        if (injected) {
+          console.log('[COSE] 微信内容已通过 mp_editor_set_content 注入')
+          await new Promise(r => setTimeout(r, 800))
+        }
+        else {
+          console.warn('[COSE] mp_editor_set_content 注入失败:', injectError)
+        }
       }
-      catch (clipboardErr) {
-        console.log('[COSE] 真实剪贴板失败，降级到 DataTransfer:', clipboardErr.message)
-        // 降级到 DataTransfer 方案
+
+      if (!injected) {
+        if (hasImageInSource) {
+          console.warn('[COSE] 正文包含图片，但微信 JSAPI 不可用；paste 兜底可能无法保留图片')
+        }
+
         const dt = new DataTransfer()
         dt.setData('text/html', htmlBody)
-        dt.setData('text/plain', htmlBody.replace(/<[^>]*>/g, ''))
+        dt.setData('text/plain', plainText)
 
         const pasteEvent = new ClipboardEvent('paste', {
           bubbles: true,
@@ -204,24 +219,22 @@ async function fillWechatContent(title, htmlBody) {
         })
 
         editor.dispatchEvent(pasteEvent)
-        console.log('[COSE] 微信内容已通过 paste 事件注入（降级方案）')
+        console.log('[COSE] 微信内容已通过 paste 事件注入（兜底方案）')
 
         // 等待内容渲染
-        await new Promise(r => setTimeout(r, 500))
+        await new Promise(r => setTimeout(r, 800))
       }
 
       // 验证内容是否注入成功
-      const wordCount = editor.textContent?.length || 0
-      if (wordCount === 0) {
-        // 备用方案：直接设置 innerHTML
-        console.log('[COSE] 粘贴未生效，尝试直接设置 innerHTML')
-        editor.innerHTML = htmlBody
-        editor.dispatchEvent(new Event('input', { bubbles: true }))
-      }
+      const wordCount = editor.textContent?.trim().length || 0
+      const imageCount = editor.querySelectorAll?.('img').length || 0
+      const hasEditorContent = wordCount > 0 || imageCount > 0 || injected
 
       return {
-        success: true,
-        wordCount: editor.textContent?.length || 0,
+        success: hasEditorContent,
+        error: hasEditorContent ? undefined : (injectError || '正文注入后未检测到有效内容'),
+        wordCount,
+        imageCount,
         titleFilled: titleInput?.value === title || titleEditor?.textContent?.trim() === title,
       }
     }
