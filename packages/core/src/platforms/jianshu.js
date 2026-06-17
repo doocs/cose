@@ -45,9 +45,4 @@ async function fillJianshuContent(content, waitFor, setInputValue) {
   }
 }
 
-// 导出
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { JianshuPlatform, fillJianshuContent }
-}
-
 export { JianshuPlatform, fillJianshuContent }

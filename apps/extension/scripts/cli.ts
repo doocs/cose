@@ -98,10 +98,6 @@ const copyResources = async () => {
             to: path.join(rootDir, 'dist/icons'),
         },
         {
-            from: path.join(rootDir, 'assets'),
-            to: path.join(rootDir, 'dist/assets'),
-        },
-        {
             // Copy platform scripts from core package
             from: path.resolve(rootDir, '../../packages/core/src/platforms'),
             to: path.join(rootDir, 'dist/bundles/platforms'),
@@ -122,6 +118,16 @@ const copyResources = async () => {
             console.log(`  ⚠ Skipped ${path.basename(entry.from)} (not found)`)
         }
     }
+
+    for (const name of ['popup.html', 'offscreen.html'] as const) {
+        const from = path.join(rootDir, 'src', name)
+        const to = path.join(rootDir, 'dist', name)
+        await fs.copyFile(from, to)
+        console.log(`  ✓ Copied ${name}`)
+    }
+
+    // vite-plugin-static-copy v4 may leave stale HTML under dist/src
+    await fs.rm(path.join(rootDir, 'dist/src'), { recursive: true, force: true })
 }
 
 const genManifest = async (options: BuildOptions) => {

@@ -21,11 +21,10 @@
   "devDependencies": {
     "cac": "^6.7.14",
     "execa": "^9.6.1",
-    "rimraf": "^5.0.5",
-    "tsx": "^4.21.0",
-    "vite": "^5.0.12",
-    "vite-plugin-static-copy": "^1.0.1",
-    "web-ext": "^7.11.0",
-    "ws": "^8.19.0"
+    "tsx": "^4.22.4",
+    "vite": "^8.0.16",
+    "vite-plugin-static-copy": "^4.1.1",
+    "web-ext": "^10.4.0",
+    "ws": "^8.21.0"
   }
 }

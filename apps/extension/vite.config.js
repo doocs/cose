@@ -39,18 +39,6 @@ export default defineConfig({
                     src: 'icons',
                     dest: '.',
                 },
-                {
-                    src: 'src/offscreen.html',
-                    dest: '.',
-                },
-                {
-                    src: 'src/popup.html',
-                    dest: '.',
-                },
-                {
-                    src: 'assets',
-                    dest: '.',
-                },
             ],
         }),
     ],
