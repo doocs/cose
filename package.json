@@ -21,9 +21,9 @@
     "*.{js,ts,mjs,cjs,json,md,yml,yaml,html}": "prettier --write"
   },
   "devDependencies": {
-    "lint-staged": "^16.1.6",
-    "prettier": "^3.6.2",
-    "simple-git-hooks": "^2.13.1",
+    "lint-staged": "^17.5.1",
+    "prettier": "^3.9.9",
+    "simple-git-hooks": "^2.14.0",
     "typescript": "^5.9.3"
   }
 }

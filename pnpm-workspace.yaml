@@ -7,3 +7,5 @@ allowBuilds:
   esbuild: true
   simple-git-hooks: true
   spawn-sync: false
+minimumReleaseAgeExclude:
+  - prettier@3.9.9

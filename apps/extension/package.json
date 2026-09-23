@@ -19,12 +19,12 @@
     "@cose/detection": "workspace:*"
   },
   "devDependencies": {
-    "cac": "^6.7.14",
+    "cac": "^7.0.0",
     "execa": "^9.6.1",
-    "tsx": "^4.22.4",
-    "vite": "^8.0.16",
+    "tsx": "^4.23.15",
+    "vite": "^8.3.0",
     "vite-plugin-static-copy": "^4.1.1",
-    "web-ext": "^10.4.0",
-    "ws": "^8.21.0"
+    "web-ext": "^10.7.0",
+    "ws": "^8.21.3"
   }
 }
