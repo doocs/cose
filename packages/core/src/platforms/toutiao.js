@@ -12,7 +12,7 @@ const ToutiaoPlatform = {
 import { injectUtils } from './common.js'
 
 // 今日头条内容填充函数（在页面主世界中执行）
-function fillToutiaoContentInPage(title, body) {
+function fillToutiaoContentInPage(title, body, wechatHtml) {
   // 等待满足条件的元素出现
   function waitForElement(predicate, timeout = 10000) {
     return new Promise(resolve => {
@@ -64,7 +64,7 @@ function fillToutiaoContentInPage(title, body) {
     // 头条使用 ProseMirror 富文本编辑器
     const editor = await waitForElement(() => document.querySelector('.ProseMirror'))
 
-    if (editor && body) {
+    if (editor && (wechatHtml || body)) {
       editor.focus()
 
       // 对于 ProseMirror，我们需要更智能的方式来填充内容
@@ -83,7 +83,7 @@ function fillToutiaoContentInPage(title, body) {
       selection.addRange(range)
 
       // 创建 HTML 内容
-      const htmlContent = lines.map(line => `<p>${line}</p>`).join('')
+      const htmlContent = wechatHtml || lines.map(line => `<p>${line}</p>`).join('')
 
       // 使用 insertHTML 命令
       document.execCommand('insertHTML', false, htmlContent)
@@ -126,7 +126,7 @@ async function syncToutiaoContent(tab, content, helpers) {
   const result = await chrome.scripting.executeScript({
     target: { tabId: tab.id },
     func: fillToutiaoContentInPage,
-    args: [content.title, content.body || content.markdown || ''],
+    args: [content.title, content.body || content.markdown || '', content.wechatHtml],
     world: 'MAIN',
   })
 

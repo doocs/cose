@@ -496,6 +496,7 @@
         const hasBilibili = syncAccounts.some(a => (a.uid || a.type) === 'bilibili')
         const hasWeibo = syncAccounts.some(a => (a.uid || a.type) === 'weibo')
         const hasXiaohongshu = syncAccounts.some(a => (a.uid || a.type) === 'xiaohongshu')
+        const hasToutiao = syncAccounts.some(a => (a.uid || a.type) === 'toutiao')
         let clipboardHtmlContent = null
         if (
           hasWechat ||
@@ -505,7 +506,8 @@
           hasSspai ||
           hasBilibili ||
           hasWeibo ||
-          hasXiaohongshu
+          hasXiaohongshu ||
+          hasToutiao
         ) {
           // 先点击复制按钮，将带样式的内容复制到剪贴板
           const copyBtn =
@@ -553,7 +555,7 @@
                 markdown: post.markdown,
                 thumb: post.thumb,
                 desc: post.desc,
-                // 微信公众号、百家号、网易号、Medium、少数派、B站专栏、微博头条和小红书使用剪贴板中带样式的 HTML
+                // 微信公众号、今日头条、百家号、网易号、Medium、少数派、B站专栏、微博头条和小红书使用剪贴板中带样式的 HTML
                 wechatHtml:
                   platformId === 'wechat' ||
                   platformId === 'baijiahao' ||
@@ -562,7 +564,8 @@
                   platformId === 'sspai' ||
                   platformId === 'bilibili' ||
                   platformId === 'weibo' ||
-                  platformId === 'xiaohongshu'
+                  platformId === 'xiaohongshu' ||
+                  platformId === 'toutiao'
                     ? clipboardHtmlContent
                     : null,
               },
