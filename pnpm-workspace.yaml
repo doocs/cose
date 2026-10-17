@@ -8,4 +8,4 @@ allowBuilds:
   simple-git-hooks: true
   spawn-sync: false
 minimumReleaseAgeExclude:
-  - prettier@3.9.9
+  - prettier@3.9.10
