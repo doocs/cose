@@ -48,14 +48,21 @@ export async function detectWeiboUser() {
       const html = await response.text()
 
       // 从 HTML 中提取用户名
-      const nickMatch = html.match(/"nick"\s*:\s*"([^"]+)"/)
+      // 页面中 JSON 以 \uXXXX 转义存储（如 "nick":"A\u5c0f"），
+      // 使用正则匹配并解码 Unicode 转义序列
+      const nickMatch = html.match(/"nick"\s*:\s*"((?:[^"\\]|\\.)*)"/)
       if (nickMatch) {
-        username = nickMatch[1]
+        // 解码 \uXXXX 转义序列为实际字符
+        username = nickMatch[1].replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) =>
+          String.fromCharCode(parseInt(hex, 16))
+        )
       } else {
-        // 深度查找 nick
+        // 深度查找 nick（双重转义的情况）
         const altNickMatch = html.match(/\\"nick\\"\s*:\s*\\"([^\\"]+)\\"/)
         if (altNickMatch) {
-          username = altNickMatch[1]
+          username = altNickMatch[1].replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) =>
+            String.fromCharCode(parseInt(hex, 16))
+          )
         }
       }
 
