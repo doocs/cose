@@ -63,6 +63,7 @@
     const pending = pendingRequests.get(resId)
     if (pending) {
       pendingRequests.delete(resId)
+      clearTimeout(pending.timer)
       try {
         if (error) {
           // 检查是否是扩展上下文失效的错误
@@ -86,25 +87,32 @@
   function sendMessage(type, payload) {
     return new Promise((resolve, reject) => {
       const id = ++requestId
-      pendingRequests.set(id, { resolve, reject })
+      // Toutiao uploads rendered SVG formulas one by one and waits up to 30s for each.
+      const body =
+        type === 'SYNC_TO_PLATFORM' && payload?.platformId === 'toutiao' && payload.content?.body
+      const svgCount = typeof body === 'string' ? (body.match(/<svg(?=[\s/>])/gi) || []).length : 0
+      const timeoutMs = Math.min(2_147_483_647, 120_000 + svgCount * 35_000)
+      const timer = setTimeout(() => {
+        pendingRequests.delete(id)
+        reject(new Error('Request timeout'))
+      }, timeoutMs)
+      pendingRequests.set(id, { resolve, reject, timer })
 
-      window.postMessage(
-        {
-          source: 'cose-page',
-          type,
-          requestId: id,
-          payload,
-        },
-        '*'
-      )
-
-      // 超时处理
-      setTimeout(() => {
-        if (pendingRequests.has(id)) {
-          pendingRequests.delete(id)
-          reject(new Error('Request timeout'))
-        }
-      }, 120000)
+      try {
+        window.postMessage(
+          {
+            source: 'cose-page',
+            type,
+            requestId: id,
+            payload,
+          },
+          '*'
+        )
+      } catch (error) {
+        clearTimeout(timer)
+        pendingRequests.delete(id)
+        reject(error)
+      }
     })
   }
 
@@ -496,7 +504,6 @@
         const hasBilibili = syncAccounts.some(a => (a.uid || a.type) === 'bilibili')
         const hasWeibo = syncAccounts.some(a => (a.uid || a.type) === 'weibo')
         const hasXiaohongshu = syncAccounts.some(a => (a.uid || a.type) === 'xiaohongshu')
-        const hasToutiao = syncAccounts.some(a => (a.uid || a.type) === 'toutiao')
         let clipboardHtmlContent = null
         if (
           hasWechat ||
@@ -506,8 +513,7 @@
           hasSspai ||
           hasBilibili ||
           hasWeibo ||
-          hasXiaohongshu ||
-          hasToutiao
+          hasXiaohongshu
         ) {
           // 先点击复制按钮，将带样式的内容复制到剪贴板
           const copyBtn =
@@ -555,7 +561,7 @@
                 markdown: post.markdown,
                 thumb: post.thumb,
                 desc: post.desc,
-                // 微信公众号、今日头条、百家号、网易号、Medium、少数派、B站专栏、微博头条和小红书使用剪贴板中带样式的 HTML
+                // 微信公众号、百家号、网易号、Medium、少数派、B站专栏、微博头条和小红书使用剪贴板中带样式的 HTML
                 wechatHtml:
                   platformId === 'wechat' ||
                   platformId === 'baijiahao' ||
@@ -564,8 +570,7 @@
                   platformId === 'sspai' ||
                   platformId === 'bilibili' ||
                   platformId === 'weibo' ||
-                  platformId === 'xiaohongshu' ||
-                  platformId === 'toutiao'
+                  platformId === 'xiaohongshu'
                     ? clipboardHtmlContent
                     : null,
               },
