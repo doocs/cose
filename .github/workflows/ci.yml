@@ -3,8 +3,10 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 # Fork PRs receive a read-only GITHUB_TOKEN; no repository secrets required.
 permissions:
@@ -12,7 +14,7 @@ permissions:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
 
 jobs:
   build-and-test:
@@ -20,6 +22,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -30,26 +34,89 @@ jobs:
           node-version: 22
           cache: pnpm
 
+      - name: Read extension version and verify release tag
+        run: |
+          version=$(node -p "require('./apps/extension/package.json').version")
+          if [[ "$GITHUB_REF_TYPE" == tag && "$GITHUB_REF_NAME" != "v$version" ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match extension version $version"
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Check formatting
         run: pnpm format:check
 
-      - name: Build extension (Chromium)
-        run: pnpm build
-
-      - name: Verify Chromium build artifacts
-        run: |
-          test -f apps/extension/dist/manifest.json
-          test -f apps/extension/dist/popup.html
-          test -f apps/extension/dist/offscreen.html
-          test -f apps/extension/dist/bundles/background.js
-
       - name: Run tests
         run: pnpm test
 
-      - name: Build extension (Firefox) and lint
+      - name: Build and package Chromium
+        working-directory: apps/extension
         run: |
-          pnpm build:firefox
-          pnpm -C apps/extension lint
+          pnpm run build:release
+          test -s dist/popup.html
+          test -s dist/offscreen.html
+          pnpm exec web-ext build --source-dir dist --artifacts-dir "$RUNNER_TEMP/packages" --filename "cose-$VERSION-chromium.zip"
+
+      - name: Load the packaged extension in Chromium
+        run: |
+          unzip -q "$RUNNER_TEMP/packages/cose-$VERSION-chromium.zip" -d "$RUNNER_TEMP/chromium-extension"
+          jq -e --arg version "$VERSION" '.version == $version and .background.service_worker == "bundles/background.js"' "$RUNNER_TEMP/chromium-extension/manifest.json"
+          pnpm exec playwright-core install --with-deps --no-shell chromium
+          pnpm smoke:chromium "$RUNNER_TEMP/chromium-extension"
+
+      - name: Build, lint and package Firefox
+        working-directory: apps/extension
+        run: |
+          pnpm run build:release --target firefox
+          pnpm exec web-ext build --source-dir dist --artifacts-dir "$RUNNER_TEMP/packages" --filename "cose-$VERSION-firefox.zip"
+          unzip -p "$RUNNER_TEMP/packages/cose-$VERSION-firefox.zip" manifest.json |
+            jq -e --arg version "$VERSION" '.version == $version and .background.scripts == ["bundles/background.js"]'
+
+      - name: Save tested extensions
+        uses: actions/upload-artifact@v7
+        with:
+          name: cose-extensions
+          path: ${{ runner.temp }}/packages/*.zip
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    needs: build-and-test
+    if: github.event_name == 'push' && github.ref_type == 'tag' && !github.event.deleted
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: cose-extensions
+          path: packages
+
+      - name: Publish both tested archives
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          tag="$GITHUB_REF_NAME"
+          chromium="packages/cose-${tag#v}-chromium.zip"
+          firefox="packages/cose-${tag#v}-firefox.zip"
+          unzip -tq "$chromium"
+          unzip -tq "$firefox"
+          if gh release view "$tag" --json isDraft > release.json; then
+            if ! jq -e '.isDraft' release.json > /dev/null; then
+              published="$RUNNER_TEMP/published"
+              gh release download "$tag" --dir "$published" --pattern "${chromium##*/}" --pattern "${firefox##*/}"
+              for asset in "$chromium" "$firefox"; do
+                cmp "$asset" "$published/${asset##*/}" || { echo "::error::Published asset differs: $asset"; exit 1; }
+              done
+              echo "Release $tag already contains these tested archives"
+              exit 0
+            fi
+          else
+            gh release create "$tag" --verify-tag --draft --title "COSE $tag" --generate-notes
+          fi
+          gh release upload "$tag" "$chromium" "$firefox" --clobber
+          gh release edit "$tag" --draft=false

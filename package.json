@@ -13,7 +13,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "node --test",
-    "prepare": "simple-git-hooks"
+    "prepare": "simple-git-hooks",
+    "smoke:chromium": "node scripts/smoke-chromium.mjs"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm lint-staged"
@@ -23,6 +24,7 @@
   },
   "devDependencies": {
     "lint-staged": "^17.6.0",
+    "playwright-core": "1.65.0",
     "prettier": "^3.9.10",
     "simple-git-hooks": "^2.14.0",
     "typescript": "^5.9.3"

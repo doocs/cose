@@ -119,8 +119,14 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 
 ## 开发者模式测试
 
-1. 克隆或下载本项目
+1. 从本仓库的 GitHub Release 下载 `cose-<版本>-chromium.zip` 并解压，也可以从 Actions 的 CI 运行中下载 `cose-extensions`，再解压其中的 Chromium 包
 2. 打开 Chrome 浏览器，进入 `chrome://extensions/`
 3. 开启右上角的 **开发者模式**
 4. 点击 **加载已解压的扩展程序**
-5. 选择 `cose` 目录
+5. 选择解压后包含 `manifest.json` 的目录。Firefox 的 ZIP 可解压后在 `about:debugging` 临时加载
+
+## 插件测试与发版
+
+提交 PR、推送到 `main`，或在 Actions 手动运行 CI，都会检查格式、在模拟的微信公众号图文编辑器里验证 COSE 会把标题和正文填到正确的位置，并能传入含图片的正文，并构建 Chromium 和 Firefox 的生产包。CI 从 Chromium ZIP 加载扩展，在本地测试页确认页面和后台都能返回微信平台；Firefox 构建还运行 `web-ext lint`。两个包随本次运行保存七天。
+
+发布时，先在 `apps/extension/package.json` 递增版本并合入 `main`。在该提交上打同名版本标签，例如版本为 `1.3.7` 时推送 `v1.3.7` 到目标 COSE 仓库。CI 会核对标签和扩展版本，重新测试这个提交，全部通过后才把两个 ZIP 发布到 GitHub Release。

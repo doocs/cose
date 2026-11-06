@@ -251,12 +251,10 @@ cli
     // Step 4: Target-specific post-processing
     if (options.target === 'firefox') {
       console.log('\nRunning web-ext lint...')
-      try {
-        const result = await execa('pnpm', ['exec', 'web-ext', 'lint', '--source-dir', 'dist'])
-        console.log(result.stdout)
-      } catch (error) {
-        console.error('web-ext lint failed:', error)
-      }
+      await execa('pnpm', ['exec', 'web-ext', 'lint', '--source-dir', 'dist'], {
+        cwd: rootDir,
+        stdio: 'inherit',
+      })
     } else if (options.target === 'safari') {
       await buildSafariExtension(options)
     }
