@@ -9,134 +9,168 @@ const ToutiaoPlatform = {
   type: 'toutiao',
 }
 
-import { injectUtils } from './common.js'
+import { prepareToutiaoFormulas } from './toutiao-formulas.js'
 
-// 今日头条内容填充函数（在页面主世界中执行）
-function fillToutiaoContentInPage(title, body) {
-  // 等待满足条件的元素出现
-  function waitForElement(predicate, timeout = 10000) {
-    return new Promise(resolve => {
-      const el = predicate()
-      if (el) return resolve(el)
-
-      const observer = new MutationObserver(() => {
-        const el = predicate()
-        if (el) {
-          observer.disconnect()
-          resolve(el)
-        }
-      })
-      observer.observe(document.body, { childList: true, subtree: true })
-
-      setTimeout(() => {
-        observer.disconnect()
-        resolve(predicate())
-      }, timeout)
-    })
+// Serialized by chrome.scripting: helpers used in this function must live inside it.
+async function fillToutiaoContentInPage(title, html, images = []) {
+  async function waitFor(read, timeout = 10000) {
+    const deadline = Date.now() + timeout
+    let result
+    while (!(result = read()) && Date.now() < deadline) {
+      await new Promise(resolve => setTimeout(resolve, 200))
+    }
+    return result
   }
 
-  async function fillContent() {
-    // 填充标题 - 头条使用 textarea
-    const titleInput = await waitForElement(() =>
-      document.querySelector('textarea[placeholder*="标题"]')
-    )
-    if (titleInput && title) {
-      titleInput.focus()
-      // 模拟用户输入
-      const nativeSetter = Object.getOwnPropertyDescriptor(
-        window.HTMLTextAreaElement.prototype,
-        'value'
-      ).set
-      nativeSetter.call(titleInput, title)
-      titleInput.dispatchEvent(
-        new InputEvent('input', { bubbles: true, data: title, inputType: 'insertText' })
-      )
-      titleInput.dispatchEvent(new Event('change', { bubbles: true }))
-      titleInput.dispatchEvent(new Event('blur', { bubbles: true }))
-      console.log('[COSE] 头条标题填充成功:', title)
-    } else {
-      console.log('[COSE] 头条未找到标题输入框')
-    }
+  const editor = await waitFor(() => document.querySelector('.ProseMirror[contenteditable="true"]'))
+  if (!editor || !html) return { success: false, error: '未找到头条正文编辑器或文章为空' }
 
-    // 等待编辑器加载
-    await new Promise(resolve => setTimeout(resolve, 500))
+  function select(range) {
+    editor.focus()
+    const selection = window.getSelection()
+    selection.removeAllRanges()
+    selection.addRange(range)
+  }
 
-    // 头条使用 ProseMirror 富文本编辑器
-    const editor = await waitForElement(() => document.querySelector('.ProseMirror'))
-
-    if (editor && body) {
-      editor.focus()
-
-      // 对于 ProseMirror，我们需要更智能的方式来填充内容
-      // 清空现有内容
-      editor.innerHTML = ''
-
-      // 将内容分割成段落
-      const lines = body.split('\n').filter(line => line.trim() !== '')
-
-      // 使用 document.execCommand 插入内容（ProseMirror 兼容）
-      const selection = window.getSelection()
+  function markerRange(marker) {
+    const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT)
+    while (walker.nextNode()) {
+      const node = walker.currentNode
+      const offset = node.data.indexOf(marker)
+      if (offset < 0) continue
       const range = document.createRange()
-      range.selectNodeContents(editor)
-      range.collapse(false)
-      selection.removeAllRanges()
-      selection.addRange(range)
+      range.setStart(node, offset)
+      range.setEnd(node, offset + marker.length)
+      return range
+    }
+    return null
+  }
 
-      // 创建 HTML 内容
-      const htmlContent = lines.map(line => `<p>${line}</p>`).join('')
+  async function uploadFormula(image, index) {
+    const position = markerRange(image.marker)
+    if (!position) throw new Error('未找到正文中的公式位置')
+    position.collapse(false)
+    select(position)
 
-      // 使用 insertHTML 命令
-      document.execCommand('insertHTML', false, htmlContent)
+    const bytes = Uint8Array.from(atob(image.dataUrl.split(',')[1]), ch => ch.charCodeAt(0))
+    const file = new File([bytes], `formula-${index + 1}.png`, { type: 'image/png' })
+    const files = new DataTransfer()
+    files.items.add(file)
+    // Count native cards at the insertion point, including existing article images.
+    const cards = () => Array.from(editor.querySelectorAll('.pgc-image'))
+    const previous = cards()
+    const imageIndex = previous.filter(
+      card =>
+        card.compareDocumentPosition(position.startContainer) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).length
+    // Toutiao's paste handler asks ProseMirror for its current model selection.
+    document.dispatchEvent(new Event('selectionchange'))
+    await new Promise(resolve => setTimeout(resolve, 100))
+    editor.dispatchEvent(
+      new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: files })
+    )
 
-      // 触发事件让 ProseMirror 同步
-      editor.dispatchEvent(new InputEvent('input', { bubbles: true }))
-      editor.dispatchEvent(new Event('change', { bubbles: true }))
-
-      console.log('[COSE] 头条内容填充成功')
-      return { success: true }
-    } else {
-      console.log('[COSE] 头条未找到编辑器')
-      return { success: false, error: '未找到编辑器' }
+    const uploaded = await waitFor(() => {
+      const current = cards()
+      if (current.length <= previous.length) return false
+      const card = current[imageIndex]
+      if (card?.querySelector('.image-error')) throw new Error('头条未能上传此图片')
+      const sources = []
+      editor.pmViewDesc?.node?.descendants(node => {
+        if (node.type.name === 'image') sources.push(node.attrs.data)
+      })
+      const data = sources[imageIndex]
+      // An inline data/blob preview disappears after reopening. Wait for the
+      // URL written by Toutiao's own upload handler in the document model.
+      return data && /^(https?:)?\/\//i.test(data.url) && data.needCheck !== true
+    }, 30000)
+    if (!uploaded) throw new Error('未收到头条上传后的图片地址')
+    const placeholder = markerRange(image.marker)
+    if (placeholder) {
+      select(placeholder)
+      if (!document.execCommand('delete')) throw new Error('未能移除公式占位文字')
     }
   }
 
-  return fillContent()
+  const titleInput = await waitFor(() => document.querySelector('textarea[placeholder*="标题"]'))
+  if (title && titleInput) {
+    const setValue = Object.getOwnPropertyDescriptor(
+      window.HTMLTextAreaElement.prototype,
+      'value'
+    ).set
+    setValue.call(titleInput, title)
+    titleInput.dispatchEvent(
+      new InputEvent('input', { bubbles: true, data: title, inputType: 'insertText' })
+    )
+    titleInput.dispatchEvent(new Event('change', { bubbles: true }))
+    titleInput.dispatchEvent(new Event('blur', { bubbles: true }))
+  }
+
+  const entireBody = document.createRange()
+  entireBody.selectNodeContents(editor)
+  select(entireBody)
+  if (!document.execCommand('insertHTML', false, html)) {
+    return { success: false, error: '头条未接受文章正文' }
+  }
+  editor.dispatchEvent(new InputEvent('input', { bubbles: true }))
+  editor.dispatchEvent(new Event('change', { bubbles: true }))
+
+  for (const [index, image] of images.entries()) {
+    try {
+      await uploadFormula(image, index)
+    } catch (error) {
+      for (const pending of images.slice(index)) {
+        const placeholder = markerRange(pending.marker)
+        if (placeholder) {
+          select(placeholder)
+          document.execCommand('insertText', false, '〔公式未上传〕')
+        }
+      }
+      return { success: false, error: `第 ${index + 1} 张公式图片同步失败：${error.message}` }
+    }
+  }
+  return { success: true }
 }
 
-/**
- * 今日头条同步处理器
- * @param {object} tab - Chrome tab 对象
- * @param {object} content - 内容对象 { title, body, markdown }
- * @param {object} helpers - 帮助函数 { chrome, waitForTab, addTabToSyncGroup }
- * @returns {Promise<{success: boolean, message?: string, tabId?: number}>}
- */
-async function syncToutiaoContent(tab, content, helpers) {
-  const { chrome, waitForTab } = helpers
-
-  // 等待页面加载完成
+async function syncToutiaoContent(tab, content, { chrome, waitForTab }) {
   await waitForTab(tab.id)
-
-  // 额外等待一下让编辑器完全加载
-  await new Promise(resolve => setTimeout(resolve, 2500))
-
-  // 先注入公共工具函数
-  await injectUtils(chrome, tab.id)
-
-  // 在页面中执行填充
-  const result = await chrome.scripting.executeScript({
-    target: { tabId: tab.id },
-    func: fillToutiaoContentInPage,
-    args: [content.title, content.body || content.markdown || ''],
-    world: 'MAIN',
-  })
-
-  const fillResult = result?.[0]?.result
-  if (fillResult?.success) {
+  const target = { tabId: tab.id }
+  const body = content.body || ''
+  const markdown = content.markdown || ''
+  try {
+    let html
+    let images = []
+    if (/<[a-z][\w:-]*(?:\s[^>]*|\s*\/?)>/i.test(body)) {
+      const [prepared] = await chrome.scripting.executeScript({
+        target,
+        func: prepareToutiaoFormulas,
+        args: [body, markdown],
+      })
+      if (typeof prepared?.result?.html !== 'string' || !Array.isArray(prepared.result.images)) {
+        throw new Error('未能准备头条正文和公式')
+      }
+      ;({ html, images } = prepared.result)
+    } else {
+      html = (body || markdown)
+        .split('\n')
+        .filter(line => line.trim())
+        .map(line => {
+          const text = line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          return `<p>${text}</p>`
+        })
+        .join('')
+    }
+    const [filled] = await chrome.scripting.executeScript({
+      target,
+      func: fillToutiaoContentInPage,
+      args: [content.title || '', html, images],
+      world: 'MAIN',
+    })
+    if (!filled?.result?.success) throw new Error(filled?.result?.error || '内容填充失败')
     return { success: true, message: '已打开头条号并填充内容', tabId: tab.id }
-  } else {
-    return { success: false, message: fillResult?.error || '内容填充失败', tabId: tab.id }
+  } catch (error) {
+    return { success: false, message: error.message }
   }
 }
 
-// 导出
 export { ToutiaoPlatform, fillToutiaoContentInPage, syncToutiaoContent }

@@ -63,6 +63,7 @@
     const pending = pendingRequests.get(resId)
     if (pending) {
       pendingRequests.delete(resId)
+      clearTimeout(pending.timer)
       try {
         if (error) {
           // 检查是否是扩展上下文失效的错误
@@ -86,25 +87,32 @@
   function sendMessage(type, payload) {
     return new Promise((resolve, reject) => {
       const id = ++requestId
-      pendingRequests.set(id, { resolve, reject })
+      // Toutiao uploads rendered SVG formulas one by one and waits up to 30s for each.
+      const body =
+        type === 'SYNC_TO_PLATFORM' && payload?.platformId === 'toutiao' && payload.content?.body
+      const svgCount = typeof body === 'string' ? (body.match(/<svg(?=[\s/>])/gi) || []).length : 0
+      const timeoutMs = Math.min(2_147_483_647, 120_000 + svgCount * 35_000)
+      const timer = setTimeout(() => {
+        pendingRequests.delete(id)
+        reject(new Error('Request timeout'))
+      }, timeoutMs)
+      pendingRequests.set(id, { resolve, reject, timer })
 
-      window.postMessage(
-        {
-          source: 'cose-page',
-          type,
-          requestId: id,
-          payload,
-        },
-        '*'
-      )
-
-      // 超时处理
-      setTimeout(() => {
-        if (pendingRequests.has(id)) {
-          pendingRequests.delete(id)
-          reject(new Error('Request timeout'))
-        }
-      }, 120000)
+      try {
+        window.postMessage(
+          {
+            source: 'cose-page',
+            type,
+            requestId: id,
+            payload,
+          },
+          '*'
+        )
+      } catch (error) {
+        clearTimeout(timer)
+        pendingRequests.delete(id)
+        reject(error)
+      }
     })
   }
 
