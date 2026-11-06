@@ -1,118 +1,158 @@
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
 import test from 'node:test'
+import vm from 'node:vm'
 
-import {
-  fillToutiaoContentInPage,
-  syncToutiaoContent,
-} from '../packages/core/src/platforms/toutiao.js'
+import { syncToutiaoContent } from '../packages/core/src/platforms/toutiao.js'
 
-async function withToutiaoEnvironment(callback) {
-  const previousGlobals = {
-    document: globalThis.document,
-    window: globalThis.window,
-    InputEvent: globalThis.InputEvent,
-    Event: globalThis.Event,
-    setTimeout: globalThis.setTimeout,
-  }
-  const insertedHtml = []
-  const titleInput = {
-    value: '',
-    focus() {},
-    dispatchEvent() {},
-  }
-  const editor = {
-    innerHTML: '',
-    focus() {},
-    dispatchEvent() {},
-  }
-
-  class TestEvent {
-    constructor(type, init = {}) {
-      this.type = type
-      Object.assign(this, init)
-    }
-  }
-
-  class TestTextArea {}
-  Object.defineProperty(TestTextArea.prototype, 'value', {
-    set(value) {
-      titleInput.value = value
-    },
-  })
-
-  globalThis.InputEvent = TestEvent
-  globalThis.Event = TestEvent
-  globalThis.setTimeout = callback => {
-    callback()
-    return 0
-  }
-  globalThis.window = {
-    HTMLTextAreaElement: TestTextArea,
-    getSelection: () => ({ removeAllRanges() {}, addRange() {} }),
-  }
-  globalThis.document = {
-    body: {},
-    querySelector: selector => {
-      if (selector === 'textarea[placeholder*="标题"]') return titleInput
-      if (selector === '.ProseMirror') return editor
-      return null
-    },
-    createRange: () => ({ selectNodeContents() {}, collapse() {} }),
-    execCommand: (command, _showUi, html) => {
-      assert.equal(command, 'insertHTML')
-      insertedHtml.push(html)
-      return true
+function mockToutiaoTab({ prepared, filled = { success: true } } = {}) {
+  const calls = { prepare: [], fill: [] }
+  const helpers = {
+    waitForTab: async () => {},
+    chrome: {
+      scripting: {
+        async executeScript({ func, args }) {
+          if (args) assert.ok(!args.includes(undefined), 'Chrome requires serializable arguments')
+          if (func?.name === 'prepareToutiaoFormulas') {
+            calls.prepare.push(args)
+            return prepared ? [{ result: prepared }] : []
+          }
+          if (func?.name === 'fillToutiaoContentInPage') {
+            calls.fill.push(args)
+            return [{ result: filled }]
+          }
+          assert.fail('Unexpected page script')
+        },
+      },
     },
   }
-
-  try {
-    await callback({ editor, insertedHtml, titleInput })
-  } finally {
-    for (const [key, value] of Object.entries(previousGlobals)) {
-      if (value === undefined) delete globalThis[key]
-      else globalThis[key] = value
-    }
-  }
+  return { calls, sync: content => syncToutiaoContent({ id: 1 }, content, helpers) }
 }
 
-test('Toutiao receives rendered HTML so formula markup is preserved', async () => {
-  const formulaHtml = '<section class="katex-block"><svg><text>x = y</text></svg></section>'
-
-  await withToutiaoEnvironment(async ({ insertedHtml }) => {
-    await fillToutiaoContentInPage('Title', '$$x = y$$', formulaHtml)
-    assert.deepEqual(insertedHtml, [formulaHtml])
-  })
-})
-
-test('Toutiao retains the plain-text fallback when rendered HTML is unavailable', async () => {
-  await withToutiaoEnvironment(async ({ insertedHtml }) => {
-    await fillToutiaoContentInPage('Title', 'first line\nsecond line')
-    assert.deepEqual(insertedHtml, ['<p>first line</p><p>second line</p>'])
-  })
-})
-
-test('Toutiao sync forwards the rendered HTML to the page script', async () => {
-  const formulaHtml = '<section class="katex-block"><svg><text>x = y</text></svg></section>'
-
-  await withToutiaoEnvironment(async () => {
-    const calls = []
-    const result = await syncToutiaoContent(
-      { id: 1 },
-      { title: 'Title', body: '$$x = y$$', wechatHtml: formulaHtml },
-      {
-        chrome: {
-          scripting: {
-            executeScript: async options => {
-              calls.push(options)
-              return [{ result: { success: true } }]
-            },
+async function mockEditorPage(t) {
+  const readClipboard = t.mock.fn(async () => [])
+  const messages = []
+  const timeouts = []
+  const active = new Set()
+  let receive
+  const window = {
+    addEventListener(_type, listener) {
+      receive = listener
+    },
+    dispatchEvent() {},
+    postMessage(message) {
+      messages.push(message)
+      queueMicrotask(() =>
+        receive({
+          source: window,
+          data: {
+            source: 'cose-extension',
+            requestId: message.requestId,
+            result: { success: true },
           },
-        },
-        waitForTab: async () => {},
-      }
-    )
-
-    assert.equal(result.success, true)
-    assert.deepEqual(calls.at(-1).args, ['Title', '$$x = y$$', formulaHtml])
+        })
+      )
+    },
+  }
+  const script = await readFile(new URL('../apps/extension/src/inject.js', import.meta.url), 'utf8')
+  vm.runInNewContext(script, {
+    window,
+    document: { querySelector: () => ({ click() {} }) },
+    navigator: { clipboard: { read: readClipboard } },
+    CustomEvent,
+    setTimeout(callback, delay) {
+      timeouts.push(delay)
+      active.add(timeouts.length)
+      if (delay < 120_000) queueMicrotask(callback)
+      return timeouts.length
+    },
+    clearTimeout: id => active.delete(id),
   })
+  function sync(post, platformId) {
+    return new Promise(resolve => {
+      window.$cose.addTask({ post, accounts: [{ uid: platformId, checked: true }] }, null, resolve)
+    })
+  }
+  return { sync, readClipboard, messages, timeouts, active }
+}
+
+test('selecting only Toutiao never reads the system clipboard', async t => {
+  const page = await mockEditorPage(t)
+  const post = { title: 'Current', content: '<p>Current article</p>', markdown: 'Current article' }
+  await page.sync(post, 'toutiao')
+
+  assert.equal(page.readClipboard.mock.callCount(), 0)
+  const { content } = page.messages.find(message => message.type === 'SYNC_TO_PLATFORM').payload
+  assert.equal(content.body, post.content)
+  assert.equal(content.markdown, post.markdown)
+  assert.ok(!content.wechatHtml)
+})
+
+test('only Toutiao gets a per-formula time budget and answered requests release their timers', async t => {
+  const page = await mockEditorPage(t)
+  const post = {
+    content: '<section class="katex-block"><svg viewBox="0 0 10 10"></svg></section>'.repeat(5),
+  }
+  await page.sync(post, 'toutiao')
+  const [batchTimeout, toutiaoTimeout] = page.timeouts
+  assert.equal(batchTimeout, 120_000)
+  assert.ok(toutiaoTimeout >= batchTimeout + 5 * 30_000)
+  assert.equal(page.active.size, 0)
+
+  await page.sync(post, 'zhihu')
+  assert.equal(page.timeouts.at(-1), batchTimeout)
+  assert.equal(page.active.size, 0)
+})
+
+test('Toutiao prepares the current article and inserts its prepared HTML and formula images', async () => {
+  const body = '<p>Current article</p><section class="katex-block"><svg></svg></section>'
+  const markdown = 'Current article\n\n$$x = y$$'
+  const prepared = {
+    html: '<p>Current article</p><p>formula-marker</p>',
+    images: [{ marker: 'formula-marker', dataUrl: 'data:image/png;base64,AA==' }],
+  }
+  const tab = mockToutiaoTab({ prepared })
+
+  const result = await tab.sync({
+    title: 'Title',
+    body,
+    markdown,
+    wechatHtml: '<p>Other document</p>',
+  })
+
+  assert.equal(result.success, true)
+  assert.deepEqual(tab.calls.prepare, [[body, markdown]])
+  assert.deepEqual(tab.calls.fill, [['Title', prepared.html, prepared.images]])
+})
+
+test('Toutiao can sync without clipboard data and escapes a Markdown-only article', async () => {
+  const tab = mockToutiaoTab()
+  const result = await tab.sync({ title: 'Title', markdown: 'First & second\n<img src=x>' })
+
+  assert.equal(result.success, true)
+  assert.deepEqual(tab.calls.prepare, [])
+  assert.equal(tab.calls.fill.length, 1)
+  const [title, html] = tab.calls.fill[0]
+  assert.equal(title, 'Title')
+  assert.match(html, /First &amp; second/)
+  assert.match(html, /&lt;img src=x&gt;/)
+  assert.doesNotMatch(html, /<img\b/)
+})
+
+test('Toutiao stops before touching the editor if formula preparation returns no result', async () => {
+  const tab = mockToutiaoTab()
+  const result = await tab.sync({ title: 'Title', body: '<p>Current article</p>' })
+
+  assert.equal(result.success, false)
+  assert.equal(tab.calls.prepare.length, 1)
+  assert.deepEqual(tab.calls.fill, [])
+})
+
+test('Toutiao reports an editor failure back to the sync caller', async () => {
+  const tab = mockToutiaoTab({ filled: { success: false, error: 'editor rejected insertion' } })
+  const result = await tab.sync({ title: 'Title', markdown: 'Current article' })
+
+  assert.equal(tab.calls.fill.length, 1)
+  assert.equal(result.success, false)
+  assert.equal(result.message, 'editor rejected insertion')
 })
