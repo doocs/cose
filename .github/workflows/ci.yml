@@ -19,6 +19,7 @@ concurrency:
 
 jobs:
   build-and-test:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     outputs:
       release_tag: ${{ steps.version.outputs.release_tag }}
@@ -254,3 +255,28 @@ jobs:
           fi
           gh release upload "$tag" "$chromium" "$firefox" --clobber
           gh release edit "$tag" --draft=false
+
+  amo-lookup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Check existing AMO validation submission without resubmitting
+        env:
+          WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
+          WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: |
+          status=0
+          node scripts/download-firefox-xpi.mjs 1.3.7.1 "$RUNNER_TEMP/verification.xpi" || status=$?
+          if [[ "$status" == 4 ]]; then
+            echo "Existing Mozilla submission is awaiting review"
+          elif [[ "$status" == 0 ]]; then
+            echo "Existing Mozilla submission is signed"
+          else
+            echo "::error::Could not retrieve existing AMO submission (exit $status)"
+            exit 1
+          fi
