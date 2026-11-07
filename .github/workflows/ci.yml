@@ -17,6 +17,11 @@ on:
         type: choice
         default: none
         options: [none, status, submit]
+      edge_store_action:
+        description: Edge Add-ons action (submit requires release_commit)
+        type: choice
+        default: none
+        options: [none, submit]
 
 # Fork PRs receive a read-only GITHUB_TOKEN; no repository secrets required.
 permissions:
@@ -220,6 +225,38 @@ jobs:
           RELEASE_TAG: ${{ needs.build-and-test.outputs.release_tag }}
           CWS_ACTION: ${{ inputs.chrome_store_action == 'status' && 'status' || 'submit' }}
         run: node scripts/submit-chrome-web-store.mjs
+
+  submit-edge-addons:
+    needs: build-and-test
+    if: >-
+      github.repository == 'doocs/cose' && github.ref == 'refs/heads/main' &&
+      vars.EDGE_PRODUCT_ID != '' && vars.EDGE_CLIENT_ID != '' &&
+      needs.build-and-test.outputs.release_tag != '' &&
+      (github.event_name == 'push' ||
+       (github.event_name == 'workflow_dispatch' && inputs.edge_store_action == 'submit'))
+    concurrency:
+      group: edge-addons
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v8
+        with:
+          name: cose-extensions
+          path: packages
+      - name: Submit the tested Chromium ZIP to Edge Add-ons
+        env:
+          EDGE_API_KEY: ${{ secrets.EDGE_API_KEY }}
+          EDGE_CLIENT_ID: ${{ vars.EDGE_CLIENT_ID }}
+          EDGE_PRODUCT_ID: ${{ vars.EDGE_PRODUCT_ID }}
+          RELEASE_TAG: ${{ needs.build-and-test.outputs.release_tag }}
+        run: node scripts/submit-edge-addons.mjs
 
   sign-firefox:
     needs: [build-and-test, publish-chromium]
