@@ -230,7 +230,6 @@ jobs:
     needs: build-and-test
     if: >-
       github.repository == 'doocs/cose' && github.ref == 'refs/heads/main' &&
-      vars.EDGE_PRODUCT_ID != '' && vars.EDGE_CLIENT_ID != '' &&
       needs.build-and-test.outputs.release_tag != '' &&
       (github.event_name == 'push' ||
        (github.event_name == 'workflow_dispatch' && inputs.edge_store_action == 'submit'))
@@ -240,21 +239,41 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - name: Check Edge credentials are configured
+        id: edge-config
+        env:
+          EDGE_API_KEY: ${{ secrets.EDGE_API_KEY }}
+          EDGE_CLIENT_ID: ${{ secrets.EDGE_CLIENT_ID || vars.EDGE_CLIENT_ID }}
+          EDGE_PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID || vars.EDGE_PRODUCT_ID }}
+        shell: bash
+        run: |
+          if [[ -n "$EDGE_API_KEY" && -n "$EDGE_CLIENT_ID" && -n "$EDGE_PRODUCT_ID" ]]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          elif [[ "$GITHUB_EVENT_NAME" == workflow_dispatch || -n "$EDGE_API_KEY$EDGE_CLIENT_ID$EDGE_PRODUCT_ID" ]]; then
+            echo "::error::Configure EDGE_API_KEY, EDGE_CLIENT_ID and EDGE_PRODUCT_ID to submit to Edge Add-ons"
+            exit 1
+          else
+            echo "Edge Add-ons credentials are not configured. Skipping submission."
+          fi
       - uses: actions/checkout@v7
+        if: steps.edge-config.outputs.configured == 'true'
         with:
           persist-credentials: false
       - uses: actions/setup-node@v7
+        if: steps.edge-config.outputs.configured == 'true'
         with:
           node-version: 22
       - uses: actions/download-artifact@v8
+        if: steps.edge-config.outputs.configured == 'true'
         with:
           name: cose-extensions
           path: packages
       - name: Submit the tested Chromium ZIP to Edge Add-ons
+        if: steps.edge-config.outputs.configured == 'true'
         env:
           EDGE_API_KEY: ${{ secrets.EDGE_API_KEY }}
-          EDGE_CLIENT_ID: ${{ vars.EDGE_CLIENT_ID }}
-          EDGE_PRODUCT_ID: ${{ vars.EDGE_PRODUCT_ID }}
+          EDGE_CLIENT_ID: ${{ secrets.EDGE_CLIENT_ID || vars.EDGE_CLIENT_ID }}
+          EDGE_PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID || vars.EDGE_PRODUCT_ID }}
           RELEASE_TAG: ${{ needs.build-and-test.outputs.release_tag }}
         run: node scripts/submit-edge-addons.mjs
 

@@ -66,7 +66,7 @@ async function waitForOperation(path, id, label, attempts) {
 
 if (!EDGE_API_KEY || !EDGE_CLIENT_ID || !EDGE_PRODUCT_ID) {
   throw new Error(
-    'Configure EDGE_PRODUCT_ID and EDGE_CLIENT_ID as variables and EDGE_API_KEY as a secret'
+    'Configure EDGE_PRODUCT_ID and EDGE_CLIENT_ID as secrets or variables and EDGE_API_KEY as a secret'
   )
 }
 if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(EDGE_PRODUCT_ID)) {
