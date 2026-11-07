@@ -12,6 +12,11 @@ on:
         description: Full commit SHA from main to publish or resume after Mozilla approval
         type: string
         required: false
+      chrome_store_action:
+        description: Chrome Web Store action (submit requires release_commit)
+        type: choice
+        default: none
+        options: [none, status, submit]
 
 # Fork PRs receive a read-only GITHUB_TOKEN; no repository secrets required.
 permissions:
@@ -167,6 +172,54 @@ jobs:
           RELEASE_TAG: ${{ needs.build-and-test.outputs.release_tag }}
           RELEASE_SHA: ${{ needs.build-and-test.outputs.release_sha }}
         run: bash scripts/publish-extension-release.sh chromium
+
+  submit-chrome-web-store:
+    needs: build-and-test
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      vars.CWS_PUBLISHER_ID != '' && vars.CWS_EXTENSION_ID != '' &&
+      vars.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && vars.GCP_SERVICE_ACCOUNT != '' &&
+      ((github.event_name == 'push' && needs.build-and-test.outputs.release_tag != '') ||
+       (github.event_name == 'workflow_dispatch' &&
+        (inputs.chrome_store_action == 'status' ||
+         (inputs.chrome_store_action == 'submit' && needs.build-and-test.outputs.release_tag != ''))))
+    concurrency:
+      group: chrome-web-store
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v8
+        if: inputs.chrome_store_action != 'status'
+        with:
+          name: cose-extensions
+          path: packages
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        id: chrome-auth
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/chromewebstore
+          create_credentials_file: false
+          export_environment_variables: false
+      - name: Check status or submit Chromium for staged publishing
+        env:
+          CWS_TOKEN: ${{ steps.chrome-auth.outputs.access_token }}
+          CWS_PUBLISHER_ID: ${{ vars.CWS_PUBLISHER_ID }}
+          CWS_EXTENSION_ID: ${{ vars.CWS_EXTENSION_ID }}
+          RELEASE_TAG: ${{ needs.build-and-test.outputs.release_tag }}
+          CWS_ACTION: ${{ inputs.chrome_store_action == 'status' && 'status' || 'submit' }}
+        run: node scripts/submit-chrome-web-store.mjs
 
   sign-firefox:
     needs: [build-and-test, publish-chromium]
