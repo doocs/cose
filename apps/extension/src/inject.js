@@ -260,7 +260,7 @@
       icon: 'https://www.bilibili.com/favicon.ico',
       title: 'B站专栏',
       type: 'bilibili',
-      url: 'https://member.bilibili.com/article-text/home?newEditor=-1',
+      url: 'https://member.bilibili.com/york/read-editor',
     },
     {
       id: 'weibo',
@@ -495,13 +495,12 @@
         // 开始新的同步批次，将所有 tab 放入一个 group
         await sendMessage('START_SYNC_BATCH', {})
 
-        // 检查是否需要同步到微信公众号或百家号或网易号或 Medium 或少数派或B站专栏或微博头条或小红书（需要使用剪贴板 HTML）
+        // 检查是否需要同步到微信公众号或百家号或网易号或 Medium 或少数派或微博头条或小红书（需要使用剪贴板 HTML）
         const hasWechat = syncAccounts.some(a => (a.uid || a.type) === 'wechat')
         const hasBaijiahao = syncAccounts.some(a => (a.uid || a.type) === 'baijiahao')
         const hasWangyihao = syncAccounts.some(a => (a.uid || a.type) === 'wangyihao')
         const hasMedium = syncAccounts.some(a => (a.uid || a.type) === 'medium')
         const hasSspai = syncAccounts.some(a => (a.uid || a.type) === 'sspai')
-        const hasBilibili = syncAccounts.some(a => (a.uid || a.type) === 'bilibili')
         const hasWeibo = syncAccounts.some(a => (a.uid || a.type) === 'weibo')
         const hasXiaohongshu = syncAccounts.some(a => (a.uid || a.type) === 'xiaohongshu')
         let clipboardHtmlContent = null
@@ -511,7 +510,6 @@
           hasWangyihao ||
           hasMedium ||
           hasSspai ||
-          hasBilibili ||
           hasWeibo ||
           hasXiaohongshu
         ) {
@@ -561,14 +559,13 @@
                 markdown: post.markdown,
                 thumb: post.thumb,
                 desc: post.desc,
-                // 微信公众号、百家号、网易号、Medium、少数派、B站专栏、微博头条和小红书使用剪贴板中带样式的 HTML
+                // 微信公众号、百家号、网易号、Medium、少数派、微博头条和小红书使用剪贴板中带样式的 HTML
                 wechatHtml:
                   platformId === 'wechat' ||
                   platformId === 'baijiahao' ||
                   platformId === 'wangyihao' ||
                   platformId === 'medium' ||
                   platformId === 'sspai' ||
-                  platformId === 'bilibili' ||
                   platformId === 'weibo' ||
                   platformId === 'xiaohongshu'
                     ? clipboardHtmlContent
