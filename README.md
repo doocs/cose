@@ -119,11 +119,13 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 
 ## 开发者模式测试
 
+Firefox 140 及更新的桌面版可从 GitHub Releases 下载签名后的 `cose-<版本>-firefox.xpi`，在 `about:addons` 的齿轮菜单中选择「从文件安装附加组件」。测试构建的 Firefox ZIP 可在 `about:debugging` 中临时加载。
+
 1. 从本仓库的 GitHub Release 下载 `cose-<版本>-chromium.zip` 并解压，也可以从 Actions 的 CI 运行中下载 `cose-extensions`，再解压其中的 Chromium 包
 2. 打开 Chrome 浏览器，进入 `chrome://extensions/`
 3. 开启右上角的 **开发者模式**
 4. 点击 **加载已解压的扩展程序**
-5. 选择解压后包含 `manifest.json` 的目录。Firefox 的 ZIP 可解压后在 `about:debugging` 临时加载
+5. 选择解压后包含 `manifest.json` 的目录
 
 ## 插件测试与发版
 
@@ -131,4 +133,12 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 
 合并前由维护者决定是否发版。新增平台、修复同步失败或内容丢失、恢复浏览器或平台兼容性，以及用户需要尽快安装的安全修复，都可以随 PR 发版。文档、测试、内部重构和常规依赖维护通常可以等到下一次发布。多个小修复也可以先合入，再用一个版本 PR 一起发。
 
-要随 PR 发版，就在 `apps/extension/package.json` 递增版本。一般修复升补丁版本，例如从 `1.3.7` 升到 `1.3.8`，向后兼容的新功能可升次版本。合并到 `main` 后，CI 比较这次推送前后的版本，测试通过后为本次构建的提交创建同名标签，并把本次验证过的 Chromium 和 Firefox ZIP 发布到 GitHub Releases。版本相同的合并只运行 CI。需要手动补发时，仍可推送与对应提交版本匹配的 `v*` 标签。
+要随 PR 发版，就在 `apps/extension/package.json` 递增版本。一般修复升补丁版本，例如从 `1.3.7` 升到 `1.3.8`，向后兼容的新功能可升次版本。合并到 `main` 后，CI 比较这次推送前后的版本。测试通过后，CI 将 Firefox 构建提交给 Mozilla 签名。签名完成后，CI 为本次构建的提交创建同名标签，并将 Chromium ZIP 和签名后的 Firefox XPI 一起发布到 GitHub Releases。版本相同的合并只运行 CI。需要手动补发时，仍可推送与对应提交版本匹配的 `v*` 标签。
+
+### Firefox 签名配置
+
+1. 使用维护 `cose@doocs.org` 的 Mozilla Add-ons 账号生成 [AMO API 凭据](https://addons.mozilla.org/en-US/developers/addon/api/key/)。
+2. 在 [GitHub Actions Secrets](https://github.com/doocs/cose/settings/secrets/actions) 保存两个仓库密钥，`AMO_JWT_ISSUER` 对应 JWT issuer，`AMO_JWT_SECRET` 对应 JWT secret。
+3. 发版任务使用 Unlisted 渠道。提交后只检查一次审核状态。如果 AMO 仍在审核，运行会结束并跳过发布。收到 Mozilla 审核通过通知后，在原来的 Actions 运行中选择「Re-run all jobs」。CI 会取回同版本的已签名 XPI，核对它与本次构建的内容，再继续发布。密钥缺失或审核失败时，任务会报错。
+
+Mozilla 审核者可用 Node.js 22 和仓库指定的 pnpm 版本复现 Firefox 构建。在提交的源码归档根目录运行 `pnpm install --frozen-lockfile`，再运行 `pnpm -C apps/extension run build:release --target firefox`，产物位于 `apps/extension/dist`。

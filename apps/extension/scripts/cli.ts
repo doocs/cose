@@ -49,6 +49,10 @@ interface Manifest {
   browser_specific_settings?: {
     gecko: {
       id: string
+      strict_min_version: string
+      data_collection_permissions: {
+        required: string[]
+      }
     }
   }
 }
@@ -150,11 +154,18 @@ const genManifest = async (options: BuildOptions) => {
       scripts: [manifest.background.service_worker],
       type: 'module',
     }
+    manifest.permissions = manifest.permissions.filter(
+      permission => permission !== 'debugger' && permission !== 'offscreen'
+    )
 
     // Add Firefox-specific settings
     manifest.browser_specific_settings = {
       gecko: {
         id: 'cose@doocs.org',
+        strict_min_version: '140.0',
+        data_collection_permissions: {
+          required: ['websiteContent', 'authenticationInfo'],
+        },
       },
     }
 

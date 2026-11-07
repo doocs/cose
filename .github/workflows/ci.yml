@@ -114,11 +114,102 @@ jobs:
           name: cose-extensions
           path: ${{ runner.temp }}/packages/*.zip
           if-no-files-found: error
+          overwrite: true
+          retention-days: 7
+
+  sign-firefox:
+    needs: build-and-test
+    if: needs.build-and-test.outputs.release_tag != ''
+    concurrency:
+      group: firefox-sign-${{ needs.build-and-test.outputs.release_tag }}
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    outputs:
+      xpi_ready: ${{ steps.sign.outputs.xpi_ready }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.build-and-test.outputs.release_sha }}
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: cose-extensions
+          path: packages
+
+      - name: Submit or retrieve the Firefox package from Mozilla
+        id: sign
+        env:
+          RELEASE_TAG: ${{ needs.build-and-test.outputs.release_tag }}
+          RELEASE_SHA: ${{ needs.build-and-test.outputs.release_sha }}
+          WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
+          WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        shell: bash
+        run: |
+          if [[ -z "$WEB_EXT_API_KEY" || -z "$WEB_EXT_API_SECRET" ]]; then
+            echo "::error::Configure the AMO_JWT_ISSUER and AMO_JWT_SECRET repository secrets"
+            exit 1
+          fi
+          tag_ref="refs/tags/$RELEASE_TAG"
+          refs=$(git ls-remote origin "$tag_ref" "$tag_ref^{}")
+          target=$(awk -v ref="$tag_ref" '$2 == ref { tag = $1 } $2 == ref "^{}" { commit = $1 } END { print (commit ? commit : tag) }' <<< "$refs")
+          if [[ "$target" != "$RELEASE_SHA" && ( -n "$target" || "$GITHUB_REF" != refs/heads/main ) ]]; then
+            echo "::error::$RELEASE_TAG does not point to the tested commit $RELEASE_SHA"
+            exit 1
+          fi
+          version="${RELEASE_TAG#v}"
+          tested="packages/cose-$version-firefox.zip"
+          signed="packages/cose-$version-firefox.xpi"
+          status=0
+          node scripts/download-firefox-xpi.mjs "$version" "$signed" || status=$?
+          if [[ "$status" == 3 ]]; then
+            unzip -q "$tested" -d "$RUNNER_TEMP/firefox-submission"
+            git archive --format=zip --output="$RUNNER_TEMP/cose-source.zip" HEAD
+            pnpm -C apps/extension exec web-ext sign --channel unlisted \
+              --source-dir "$RUNNER_TEMP/firefox-submission" \
+              --artifacts-dir "$RUNNER_TEMP/amo-signed" \
+              --upload-source-code "$RUNNER_TEMP/cose-source.zip" \
+              --timeout 90000 --approval-timeout 0
+            status=0
+            node scripts/download-firefox-xpi.mjs "$version" "$signed" || status=$?
+          fi
+          if [[ "$status" == 3 || "$status" == 4 ]]; then
+            echo "::notice::AMO approval is pending for $version. Re-run all jobs after approval to publish this release."
+            echo "Firefox $version is awaiting AMO approval. Re-run all jobs after Mozilla signs it." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          [[ "$status" == 0 ]] || exit "$status"
+          unzip -tq "$signed"
+          unzip -p "$signed" manifest.json |
+            jq -e --arg version "$version" '.version == $version and .browser_specific_settings.gecko.id == "cose@doocs.org"'
+          unzip -p "$signed" META-INF/mozilla.rsa > "$RUNNER_TEMP/mozilla.rsa"
+          test -s "$RUNNER_TEMP/mozilla.rsa"
+          unzip -q "$tested" -d "$RUNNER_TEMP/firefox-tested"
+          unzip -q "$signed" -d "$RUNNER_TEMP/firefox-signed"
+          diff -qr -x META-INF "$RUNNER_TEMP/firefox-tested" "$RUNNER_TEMP/firefox-signed"
+          echo "xpi_ready=true" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v7
+        if: steps.sign.outputs.xpi_ready == 'true'
+        with:
+          name: cose-firefox-signed
+          path: packages/*.xpi
+          if-no-files-found: error
+          overwrite: true
           retention-days: 7
 
   release:
-    needs: build-and-test
-    if: needs.build-and-test.outputs.release_tag != ''
+    needs: [build-and-test, sign-firefox]
+    if: needs.sign-firefox.outputs.xpi_ready == 'true'
     concurrency:
       group: release-${{ needs.build-and-test.outputs.release_tag }}
       cancel-in-progress: false
@@ -131,7 +222,12 @@ jobs:
           name: cose-extensions
           path: packages
 
-      - name: Publish both tested archives
+      - uses: actions/download-artifact@v8
+        with:
+          name: cose-firefox-signed
+          path: packages
+
+      - name: Publish Chromium ZIP and signed Firefox XPI
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -141,7 +237,7 @@ jobs:
         run: |
           tag="$RELEASE_TAG"
           chromium="packages/cose-${tag#v}-chromium.zip"
-          firefox="packages/cose-${tag#v}-firefox.zip"
+          firefox="packages/cose-${tag#v}-firefox.xpi"
           unzip -tq "$chromium"
           unzip -tq "$firefox"
           tag_ref="refs/tags/$tag"
