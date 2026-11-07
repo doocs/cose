@@ -7,6 +7,11 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      release_commit:
+        description: Full commit SHA from main to publish or resume after Mozilla approval
+        type: string
+        required: false
 
 # Fork PRs receive a read-only GITHUB_TOKEN; no repository secrets required.
 permissions:
@@ -27,6 +32,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
+          fetch-depth: ${{ github.event_name == 'workflow_dispatch' && inputs.release_commit != '' && '0' || '1' }}
           persist-credentials: false
 
       - name: Setup pnpm
@@ -43,12 +49,27 @@ jobs:
         env:
           PREVIOUS_SHA: ${{ github.event.before }}
           REF_DELETED: ${{ github.event.deleted }}
+          RELEASE_COMMIT: ${{ inputs.release_commit }}
         shell: bash
         run: |
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch && -n "$RELEASE_COMMIT" ]]; then
+            if [[ "$GITHUB_REF" != refs/heads/main || ! "$RELEASE_COMMIT" =~ ^[a-f0-9]{40}$ ]] ||
+                ! git merge-base --is-ancestor "$RELEASE_COMMIT" HEAD; then
+              echo "::error::Specify the full SHA of a commit on main and run this workflow from main"
+              exit 1
+            fi
+            git checkout --detach "$RELEASE_COMMIT"
+          fi
           version=$(node -p "require('./apps/extension/package.json').version")
           echo "VERSION=$version" >> "$GITHUB_ENV"
-          [[ "$GITHUB_EVENT_NAME" == push && "$REF_DELETED" != true ]] || exit 0
-          if [[ "$GITHUB_REF_TYPE" == tag ]]; then
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch && -n "$RELEASE_COMMIT" ]]; then
+            if [[ ! "$version" =~ ^(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*)){2,3}$ ]]; then
+              echo "::error::Invalid extension version $version"
+              exit 1
+            fi
+          elif [[ "$GITHUB_EVENT_NAME" != push || "$REF_DELETED" == true ]]; then
+            exit 0
+          elif [[ "$GITHUB_REF_TYPE" == tag ]]; then
             if [[ "$GITHUB_REF_NAME" != "v$version" ]]; then
               echo "::error::Tag $GITHUB_REF_NAME does not match extension version $version"
               exit 1
@@ -117,9 +138,39 @@ jobs:
           overwrite: true
           retention-days: 7
 
-  sign-firefox:
+  publish-chromium:
     needs: build-and-test
     if: needs.build-and-test.outputs.release_tag != ''
+    concurrency:
+      group: release-${{ needs.build-and-test.outputs.release_tag }}
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      firefox_pending: ${{ steps.publish.outputs.firefox_pending }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: cose-extensions
+          path: packages
+
+      - name: Publish Chromium as a pre-release
+        id: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.build-and-test.outputs.release_tag }}
+          RELEASE_SHA: ${{ needs.build-and-test.outputs.release_sha }}
+        run: bash scripts/publish-extension-release.sh chromium
+
+  sign-firefox:
+    needs: [build-and-test, publish-chromium]
+    if: needs.publish-chromium.outputs.firefox_pending == 'true'
     concurrency:
       group: firefox-sign-${{ needs.build-and-test.outputs.release_tag }}
       cancel-in-progress: false
@@ -162,7 +213,7 @@ jobs:
           tag_ref="refs/tags/$RELEASE_TAG"
           refs=$(git ls-remote origin "$tag_ref" "$tag_ref^{}")
           target=$(awk -v ref="$tag_ref" '$2 == ref { tag = $1 } $2 == ref "^{}" { commit = $1 } END { print (commit ? commit : tag) }' <<< "$refs")
-          if [[ "$target" != "$RELEASE_SHA" && ( -n "$target" || "$GITHUB_REF" != refs/heads/main ) ]]; then
+          if [[ "$target" != "$RELEASE_SHA" ]]; then
             echo "::error::$RELEASE_TAG does not point to the tested commit $RELEASE_SHA"
             exit 1
           fi
@@ -183,8 +234,8 @@ jobs:
             node scripts/download-firefox-xpi.mjs "$version" "$signed" || status=$?
           fi
           if [[ "$status" == 3 || "$status" == 4 ]]; then
-            echo "::notice::AMO approval is pending for $version. Re-run all jobs after approval to publish this release."
-            echo "Firefox $version is awaiting AMO approval. Re-run all jobs after Mozilla signs it." >> "$GITHUB_STEP_SUMMARY"
+            echo "::notice::Chromium is available as a pre-release. Re-run all jobs after Mozilla approves Firefox."
+            echo "Firefox $version is awaiting AMO approval. Re-run all jobs after Mozilla signs it to add the XPI and promote the release." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           [[ "$status" == 0 ]] || exit "$status"
@@ -207,7 +258,7 @@ jobs:
           overwrite: true
           retention-days: 7
 
-  release:
+  promote-release:
     needs: [build-and-test, sign-firefox]
     if: needs.sign-firefox.outputs.xpi_ready == 'true'
     concurrency:
@@ -217,52 +268,19 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/checkout@v7
         with:
-          name: cose-extensions
-          path: packages
+          persist-credentials: false
 
       - uses: actions/download-artifact@v8
         with:
           name: cose-firefox-signed
           path: packages
 
-      - name: Publish Chromium ZIP and signed Firefox XPI
+      - name: Add the signed Firefox XPI and promote the release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ needs.build-and-test.outputs.release_tag }}
           RELEASE_SHA: ${{ needs.build-and-test.outputs.release_sha }}
-        shell: bash
-        run: |
-          tag="$RELEASE_TAG"
-          chromium="packages/cose-${tag#v}-chromium.zip"
-          firefox="packages/cose-${tag#v}-firefox.xpi"
-          unzip -tq "$chromium"
-          unzip -tq "$firefox"
-          tag_ref="refs/tags/$tag"
-          refs=$(git ls-remote "$GITHUB_SERVER_URL/$GH_REPO.git" "$tag_ref" "$tag_ref^{}")
-          # Prefer the peeled commit when the tag is annotated.
-          target=$(awk -v ref="$tag_ref" '$2 == ref { tag = $1 } $2 == ref "^{}" { commit = $1 } END { print (commit ? commit : tag) }' <<< "$refs")
-          if [[ -z "$target" && "$GITHUB_REF" == refs/heads/main ]]; then
-            # The Actions token does not trigger another tag-push workflow.
-            gh api --method POST "repos/$GH_REPO/git/refs" -f ref="$tag_ref" -f sha="$RELEASE_SHA" --silent
-          elif [[ "$target" != "$RELEASE_SHA" ]]; then
-            echo "::error::$tag does not point to the tested commit $RELEASE_SHA"
-            exit 1
-          fi
-          if gh release view "$tag" --json isDraft > release.json; then
-            if ! jq -e '.isDraft' release.json > /dev/null; then
-              published="$RUNNER_TEMP/published"
-              gh release download "$tag" --dir "$published" --pattern "${chromium##*/}" --pattern "${firefox##*/}"
-              for asset in "$chromium" "$firefox"; do
-                cmp "$asset" "$published/${asset##*/}" || { echo "::error::Published asset differs: $asset"; exit 1; }
-              done
-              echo "Release $tag already contains these tested archives"
-              exit 0
-            fi
-          else
-            gh release create "$tag" --verify-tag --draft --title "COSE $tag" --generate-notes
-          fi
-          gh release upload "$tag" "$chromium" "$firefox" --clobber
-          gh release edit "$tag" --draft=false
+        run: bash scripts/publish-extension-release.sh firefox
