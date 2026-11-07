@@ -54,6 +54,11 @@ try {
   )
   console.log('COSE loaded in Chromium and its background worker returned WeChat')
 
+  assert.ok(platforms.some(p => p.uid === 'devto'))
+  assert.ok(reply.result.platforms.some(p => p.id === 'devto'))
+  await checkDevto(context, page)
+  console.log('DEV.to creates drafts through COSE only from an authorized editor')
+
   const first = 'https://example.com/first.png'
   const second = 'https://example.com/second.png'
   const prepared = await page.evaluate(
@@ -185,4 +190,113 @@ async function checkZhihu(context) {
     }
   }
   await page.close()
+}
+
+async function checkDevto(context, page) {
+  const worker = context.serviceWorkers()[0]
+  const apiKey = 'smoke-test-key'
+  await worker.evaluate(
+    async ({ apiKey, editorOrigin }) => {
+      await chrome.storage.local.set({
+        devtoConnection: { apiKey, username: 'tester', editorOrigin },
+      })
+      const originalFetch = globalThis.fetch
+      globalThis.devtoCalls = []
+      globalThis.fetch = async (url, options) => {
+        if (!String(url).startsWith('https://dev.to/api/')) return originalFetch(url, options)
+        globalThis.devtoCalls.push({ url, options })
+        if (url.endsWith('/users/me')) return Response.json({ username: 'tester' })
+        return Response.json(
+          { id: 42, path: '/tester/test-draft', published_at: null },
+          { status: globalThis.devtoStatus ?? 201 }
+        )
+      }
+    },
+    { apiKey, editorOrigin: new URL(page.url()).origin }
+  )
+
+  const sendStatus = p =>
+    p.evaluate(
+      () =>
+        new Promise(resolve => {
+          const requestId = 'devto-status-smoke'
+          window.addEventListener('message', function receive(event) {
+            if (event.data?.source !== 'cose-extension' || event.data.requestId !== requestId)
+              return
+            window.removeEventListener('message', receive)
+            resolve(event.data.result.status.devto)
+          })
+          window.postMessage(
+            {
+              source: 'cose-page',
+              type: 'CHECK_PLATFORM_STATUS',
+              requestId,
+              payload: { platforms: [{ id: 'devto' }] },
+            },
+            location.origin
+          )
+        })
+    )
+  const sync = p =>
+    p.evaluate(
+      () =>
+        new Promise(resolve => {
+          let account
+          const post = {
+            title: 'Selected title',
+            markdown:
+              '---\npublished: true\ntitle: Ignore me\n---\n\n# Hello\n\n![Image](https://example.com/a.png)',
+          }
+          window.$cose.addTask(
+            { post, accounts: [{ uid: 'devto', checked: true }] },
+            status => {
+              account = status.accounts[0]
+            },
+            () => resolve(account)
+          )
+        })
+    )
+
+  const unrelated = await context.newPage()
+  await unrelated.goto(page.url().replace('127.0.0.1', 'localhost'))
+  await unrelated.waitForFunction(() => typeof window.$cose?.addTask === 'function')
+  assert.deepEqual(await sendStatus(unrelated), { loggedIn: false })
+  assert.equal((await sync(unrelated)).status, 'failed')
+  assert.equal(await worker.evaluate(() => globalThis.devtoCalls.length), 0)
+  await unrelated.close()
+
+  assert.deepEqual(await sendStatus(page), { loggedIn: true, username: 'tester' })
+  const result = await sync(page)
+  assert.equal(result.status, 'done')
+  assert.equal(result.editResp.draftLink, 'https://dev.to/tester/test-draft/edit')
+  assert.ok(!JSON.stringify(result).includes(apiKey))
+  const calls = await worker.evaluate(() =>
+    globalThis.devtoCalls.map(({ url, options }) => ({
+      url,
+      method: options.method,
+      headers: options.headers,
+      body: options.body,
+      redirect: options.redirect,
+    }))
+  )
+  assert.equal(calls.length, 2)
+  assert.equal(calls[0].url, 'https://dev.to/api/users/me')
+  assert.equal(calls[1].url, 'https://dev.to/api/articles')
+  assert.equal(calls[1].method, 'POST')
+  assert.equal(calls[1].redirect, 'error')
+  assert.equal(calls[1].headers['api-key'], apiKey)
+  const { article } = JSON.parse(calls[1].body)
+  assert.equal(article.title, 'Selected title')
+  assert.equal(article.published, false)
+  assert.match(article.body_markdown, /^---\npublished: false\n---/)
+  assert.match(article.body_markdown, /# Hello\n\n!\[Image\]\(https:\/\/example.com\/a.png\)/)
+  assert.doesNotMatch(article.body_markdown, /Ignore me|published: true/)
+
+  await worker.evaluate(() => {
+    globalThis.devtoStatus = 422
+  })
+  const failed = await sync(page)
+  assert.equal(failed.status, 'failed')
+  assert.match(failed.error, /422/)
+  assert.equal(await worker.evaluate(() => globalThis.devtoCalls.length), 3)
 }

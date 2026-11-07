@@ -22,6 +22,7 @@ export default defineConfig({
         inject: resolve(__dirname, 'src/inject.js'),
         offscreen: resolve(__dirname, 'src/offscreen.js'),
         popup: resolve(__dirname, 'src/popup.js'),
+        'devto-connect': resolve(__dirname, 'src/devto-connect.js'),
       },
       output: {
         entryFileNames: 'bundles/[name].js',

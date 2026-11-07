@@ -12,9 +12,9 @@ COSE runs in your browser and has no COSE-operated collection server, analytics,
 
 ## Data Usage
 
-- **Article Content**: Your article title, body, and formatting are only read from md.doocs.org and transferred directly to the target publishing platforms within your browser.
+- **Article Content**: Your article title, body, and formatting are read from your Markdown editor and transferred directly to the target publishing platforms within your browser.
 - **Login Status**: The extension checks platform cookies and may use existing session credentials in requests to the corresponding platform to identify the signed-in account or fill a draft. COSE does not send these credentials to a COSE-operated server.
-- **User Preferences**: COSE does not persist user preferences or settings.
+- **DEV.to Connection**: If you connect DEV.to, COSE saves the API key, account name, and optional editor origin in local extension storage. The key is sent only to DEV.to to verify the account and create drafts. Disconnecting removes the local connection.
 
 ## Permissions Explained
 

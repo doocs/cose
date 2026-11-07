@@ -4,6 +4,7 @@
 ;(function () {
   'use strict'
 
+  const injectedScriptUrl = document.currentScript?.src
   let requestId = 0
   const pendingRequests = new Map()
 
@@ -119,6 +120,14 @@
 
   // 平台配置（与 background.js 保持一致）
   const PLATFORMS = [
+    {
+      id: 'devto',
+      name: 'DEV.to',
+      icon: 'https://media2.dev.to/dynamic/image/width=32,height=,fit=scale-down,gravity=auto,format=auto/https%3A%2F%2Fdev-to-uploads.s3.amazonaws.com%2Fuploads%2Farticles%2F8j7kvp660rqzt99zui8e.png',
+      title: 'DEV.to',
+      type: 'devto',
+      url: 'https://dev.to/settings/extensions',
+    },
     {
       id: 'csdn',
       name: 'CSDN',
@@ -385,14 +394,21 @@
       }))
     },
 
+    getDevtoSetupUrl() {
+      return injectedScriptUrl ? new URL('../devto-connect.html', injectedScriptUrl).href : null
+    },
+
     // 获取账号列表（带登录状态）
-    async getAccounts(callback) {
+    async getAccounts(callback, platformIds) {
+      const platforms = Array.isArray(platformIds)
+        ? PLATFORMS.filter(platform => platformIds.includes(platform.id))
+        : PLATFORMS
       try {
         // 获取登录状态
-        const result = await sendMessage('CHECK_PLATFORM_STATUS', { platforms: PLATFORMS })
+        const result = await sendMessage('CHECK_PLATFORM_STATUS', { platforms })
         const status = result?.status || {}
 
-        const accounts = PLATFORMS.map(p => {
+        const accounts = platforms.map(p => {
           const platformStatus = status[p.id] || {}
           const isLoggedIn = platformStatus.loggedIn || false
           return {
@@ -421,7 +437,7 @@
         ) {
           throw new Error('扩展已重新加载，请刷新页面后重试')
         }
-        const accounts = PLATFORMS.map(p => ({
+        const accounts = platforms.map(p => ({
           uid: p.id,
           type: p.type,
           title: p.title,
@@ -577,7 +593,7 @@
             if (result?.success) {
               status.accounts[i].status = 'done'
               status.accounts[i].msg = '同步成功'
-              status.accounts[i].editResp = { draftLink: '' }
+              status.accounts[i].editResp = { draftLink: result.draftLink || '' }
             } else {
               status.accounts[i].status = 'failed'
               status.accounts[i].error = result?.message || '同步失败'

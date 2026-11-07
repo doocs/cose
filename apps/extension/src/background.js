@@ -1,5 +1,6 @@
 // 平台配置
 import { PLATFORMS, LOGIN_CHECK_CONFIG, SYNC_HANDLERS } from '@cose/core/src/platforms/index.js'
+import { checkDevtoLogin, syncDevtoDraft } from '@cose/core/src/platforms/devto.js'
 import { qianfanIntercept } from '@cose/core/src/platforms/qianfan.js'
 import { convertAvatarToBase64 } from '@cose/detection/src/utils.js'
 // [DISABLED] import { fillAlipayOpenContent } from '@cose/core/src/platforms/alipayopen.js'
@@ -465,16 +466,17 @@ async function handleMessage(request, sender) {
     case 'GET_PLATFORMS':
       return { platforms: PLATFORMS }
     case 'CHECK_PLATFORM_STATUS':
-      return { status: await checkAllPlatforms(request.platforms || PLATFORMS) }
+      return { status: await checkAllPlatforms(request.platforms || PLATFORMS, sender) }
     case 'CHECK_PLATFORM_STATUS_PROGRESSIVE':
       // 渐进式检测：每个平台检测完成后立即返回结果
-      checkAllPlatformsProgressive(request.platforms || PLATFORMS, sender.tab?.id)
+      checkAllPlatformsProgressive(request.platforms || PLATFORMS, sender)
       return { started: true, total: (request.platforms || PLATFORMS).length }
     case 'START_SYNC_BATCH':
       // 开始新的同步批次，重置 tab group
       currentSyncGroupId = null
       return { success: true }
     case 'SYNC_TO_PLATFORM':
+      if (request.platformId === 'devto') return await syncDevtoDraft(request.content, sender)
       return await syncToPlatform(request.platformId, request.content)
     case 'CACHE_USER_INFO':
       // 缓存用户信息
@@ -512,7 +514,7 @@ async function handleMessage(request, sender) {
 }
 
 // 检查所有平台登录状态
-async function checkAllPlatforms(platforms) {
+async function checkAllPlatforms(platforms, sender) {
   const status = {}
   try {
     // 过滤掉无效的平台配置
@@ -520,7 +522,7 @@ async function checkAllPlatforms(platforms) {
     const results = await Promise.allSettled(
       validPlatforms.map(async platform => {
         try {
-          const result = await checkPlatformLogin(platform)
+          const result = await checkPlatformLogin(platform, sender)
           return { id: platform.id, result }
         } catch (e) {
           return { id: platform.id, result: { loggedIn: false, error: e.message } }
@@ -539,7 +541,8 @@ async function checkAllPlatforms(platforms) {
 }
 
 // 渐进式检查所有平台登录状态（每个平台完成后立即返回结果）
-async function checkAllPlatformsProgressive(platforms, tabId) {
+async function checkAllPlatformsProgressive(platforms, sender) {
+  const tabId = sender.tab?.id
   const validPlatforms = (platforms || []).filter(p => p && p.id)
   let completed = 0
   const total = validPlatforms.length
@@ -547,20 +550,28 @@ async function checkAllPlatformsProgressive(platforms, tabId) {
   // 并行检查所有平台，每个完成后立即发送结果
   const promises = validPlatforms.map(async platform => {
     try {
-      const result = await checkPlatformLogin(platform)
+      const result = await checkPlatformLogin(platform, sender)
       completed++
 
       // 通过 content script 发送单个平台结果回页面
       if (tabId) {
         try {
-          await chrome.tabs.sendMessage(tabId, {
+          const update = {
             type: 'PLATFORM_STATUS_UPDATE',
             platformId: platform.id,
-            platform: platform,
-            result: result,
-            completed: completed,
-            total: total,
-          })
+            platform,
+            result,
+            completed,
+            total,
+          }
+          if (platform.id === 'devto') {
+            await chrome.tabs.sendMessage(tabId, update, {
+              frameId: sender.frameId,
+              ...(sender.documentId && { documentId: sender.documentId }),
+            })
+          } else {
+            await chrome.tabs.sendMessage(tabId, update)
+          }
         } catch (e) {
           console.log('[COSE] 发送平台状态更新失败:', platform.id, e.message)
         }
@@ -608,10 +619,11 @@ async function checkAllPlatformsProgressive(platforms, tabId) {
 import { detectUser } from '@cose/detection'
 
 // 检查单个平台登录状态
-async function checkPlatformLogin(platform) {
+async function checkPlatformLogin(platform, sender) {
   if (!platform || !platform.id) {
     return { loggedIn: false, error: '无效的平台配置' }
   }
+  if (platform.id === 'devto') return await checkDevtoLogin(sender)
   return await detectUser(platform.id)
 }
 async function pasteWithDebugger(tabId) {

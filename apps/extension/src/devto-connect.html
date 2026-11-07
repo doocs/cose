@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="color-scheme" content="light dark" />
+    <title>DEV.to connection</title>
+    <style>
+      body {
+        margin: 0;
+        font:
+          14px system-ui,
+          sans-serif;
+        color: CanvasText;
+        background: Canvas;
+      }
+      form {
+        display: flow-root;
+      }
+      label {
+        display: block;
+        margin-bottom: 6px;
+        font-weight: 600;
+      }
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      input,
+      button {
+        min-height: 34px;
+        box-sizing: border-box;
+        border: 1px solid GrayText;
+        border-radius: 6px;
+        padding: 4px 10px;
+        font: inherit;
+      }
+      input {
+        flex: 1 1 160px;
+        min-width: 0;
+      }
+      button:not(:disabled) {
+        cursor: pointer;
+      }
+      p {
+        margin: 6px 0 0;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <form id="devtoForm">
+      <label for="devtoKey">DEV.to API Key</label>
+      <div class="controls">
+        <input
+          id="devtoKey"
+          type="password"
+          autocomplete="off"
+          aria-describedby="devtoHelp"
+          required
+        />
+        <button id="devtoConnect" type="submit" disabled>Connect</button>
+        <button id="devtoDisconnect" type="button" hidden>Disconnect</button>
+      </div>
+      <p id="devtoHelp">COSE saves the key in this browser. Enter a new key here to replace it.</p>
+      <p id="devtoStatus" role="status"></p>
+    </form>
+    <script src="bundles/devto-connect.js" type="module"></script>
+  </body>
+</html>
