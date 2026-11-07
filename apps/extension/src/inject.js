@@ -123,7 +123,7 @@
     {
       id: 'devto',
       name: 'DEV.to',
-      icon: 'https://dev.to/favicon.ico',
+      icon: 'https://media2.dev.to/dynamic/image/width=32,height=,fit=scale-down,gravity=auto,format=auto/https%3A%2F%2Fdev-to-uploads.s3.amazonaws.com%2Fuploads%2Farticles%2F8j7kvp660rqzt99zui8e.png',
       title: 'DEV.to',
       type: 'devto',
       url: 'https://dev.to/settings/extensions',
