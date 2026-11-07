@@ -159,7 +159,7 @@ jobs:
           name: cose-extensions
           path: packages
 
-      - name: Publish Chromium as a pre-release
+      - name: Publish the Chromium ZIP
         id: publish
         env:
           GH_TOKEN: ${{ github.token }}
@@ -234,8 +234,8 @@ jobs:
             node scripts/download-firefox-xpi.mjs "$version" "$signed" || status=$?
           fi
           if [[ "$status" == 3 || "$status" == 4 ]]; then
-            echo "::notice::Chromium is available as a pre-release. Re-run all jobs after Mozilla approves Firefox."
-            echo "Firefox $version is awaiting AMO approval. Re-run all jobs after Mozilla signs it to add the XPI and promote the release." >> "$GITHUB_STEP_SUMMARY"
+            echo "::notice::Chromium is published. Re-run all jobs after Mozilla approves Firefox."
+            echo "Firefox $version is awaiting AMO approval. Re-run all jobs after Mozilla signs it to add the XPI to the existing release." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           [[ "$status" == 0 ]] || exit "$status"
@@ -258,7 +258,7 @@ jobs:
           overwrite: true
           retention-days: 7
 
-  promote-release:
+  publish-firefox:
     needs: [build-and-test, sign-firefox]
     if: needs.sign-firefox.outputs.xpi_ready == 'true'
     concurrency:
@@ -277,7 +277,7 @@ jobs:
           name: cose-firefox-signed
           path: packages
 
-      - name: Add the signed Firefox XPI and promote the release
+      - name: Add the signed Firefox XPI to the release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}

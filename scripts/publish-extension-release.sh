@@ -18,13 +18,8 @@ fi
 
 if ! release=$(gh release view "$tag" --json isDraft,isPrerelease,assets); then
   [[ "$phase" == chromium ]]
-  gh release create "$tag" --verify-tag --draft --prerelease --title "COSE $tag" --generate-notes
+  gh release create "$tag" --verify-tag --draft --title "COSE $tag" --generate-notes
   release=$(gh release view "$tag" --json isDraft,isPrerelease,assets)
-fi
-
-# Reruns leave an already published stable release intact.
-if jq -e '(.isDraft or .isPrerelease) | not' <<< "$release" > /dev/null; then
-  exit 0
 fi
 
 has_asset() {
@@ -48,14 +43,17 @@ upload_asset() {
 
 if [[ "$phase" == chromium ]]; then
   upload_asset "$chromium"
-  if jq -e '.isDraft' <<< "$release" > /dev/null; then
-    gh release edit "$tag" --draft=false --prerelease --latest=false
+  if jq -e '.isDraft or .isPrerelease' <<< "$release" > /dev/null; then
+    release_id=$(gh release view "$tag" --json databaseId --jq '.databaseId')
+    gh api --method PATCH "repos/$GH_REPO/releases/$release_id" \
+      -F draft=false -F prerelease=false -f make_latest=legacy --silent
   fi
-  echo "firefox_pending=true" >> "$GITHUB_OUTPUT"
+  if ! has_asset "${firefox##*/}"; then
+    echo "firefox_pending=true" >> "$GITHUB_OUTPUT"
+  fi
   echo "Chromium is available at $GITHUB_SERVER_URL/$GH_REPO/releases/tag/$tag." >> "$GITHUB_STEP_SUMMARY"
 else
+  jq -e '(.isDraft or .isPrerelease) | not' <<< "$release" > /dev/null
   has_asset "${chromium##*/}"
   upload_asset "$firefox"
-  gh api --method PATCH "repos/$GH_REPO/releases/$(gh release view "$tag" --json databaseId --jq '.databaseId')" \
-    -F draft=false -F prerelease=false -f make_latest=legacy --silent
 fi
