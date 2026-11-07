@@ -142,3 +142,11 @@ Firefox 140 及更新的桌面版可从 GitHub Releases 下载签名后的 `cose
 3. 发版任务使用 Unlisted 渠道。提交后只检查一次审核状态。如果 AMO 仍在审核，运行会结束并跳过发布。收到 Mozilla 审核通过通知后，在原来的 Actions 运行中选择「Re-run all jobs」。CI 会取回同版本的已签名 XPI，核对它与本次构建的内容，再继续发布。密钥缺失或审核失败时，任务会报错。
 
 Mozilla 审核者可用 Node.js 22 和仓库指定的 pnpm 版本复现 Firefox 构建。在提交的源码归档根目录运行 `pnpm install --frozen-lockfile`，再运行 `pnpm -C apps/extension run build:release --target firefox`，产物位于 `apps/extension/dist`。
+
+### Edge 商店自动提交
+
+1. 在 Microsoft Partner Center 的 **Microsoft Edge → Publish API** 启用 API v1.1，获取 Client ID 和 API Key。在 COSE 的产品概览页获取 Product ID（GUID）。商店详情链接中的扩展 ID 用于定位公开页面。
+2. 在仓库的 [Actions Secrets](https://github.com/doocs/cose/settings/secrets/actions) 新增 `EDGE_API_KEY`、`EDGE_CLIENT_ID` 和 `EDGE_PRODUCT_ID`。两个 ID 也可以存到 [Actions Variables](https://github.com/doocs/cose/settings/variables/actions)，同名 Secret 优先。
+3. 版本号递增合入 `main` 且 CI 通过后，Edge 任务会上传与 Chrome 商店相同的 Chromium ZIP。任务确认上传成功后提交审核，操作 ID 会出现在日志中，审核进度可在 Partner Center 查看。
+
+补提已有版本时，在 Actions 的 CI 工作流选择 `main`，将 `edge_store_action` 设为 `submit`，并在 `release_commit` 填入要提交的完整提交 SHA。若上一次请求仍在处理或审核中，先在 Partner Center 核对状态。
