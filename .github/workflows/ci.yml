@@ -116,8 +116,71 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  release:
+  sign-firefox:
     needs: build-and-test
+    if: needs.build-and-test.outputs.release_tag != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.build-and-test.outputs.release_sha }}
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: cose-extensions
+          path: packages
+
+      - name: Sign the tested Firefox extension through Mozilla
+        env:
+          RELEASE_TAG: ${{ needs.build-and-test.outputs.release_tag }}
+          WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
+          WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        shell: bash
+        run: |
+          if [[ -z "$WEB_EXT_API_KEY" || -z "$WEB_EXT_API_SECRET" ]]; then
+            echo "::error::Configure the AMO_JWT_ISSUER and AMO_JWT_SECRET repository secrets"
+            exit 1
+          fi
+          version="${RELEASE_TAG#v}"
+          unzip -q "packages/cose-$version-firefox.zip" -d "$RUNNER_TEMP/firefox-extension"
+          git archive --format=zip --output="$RUNNER_TEMP/cose-source.zip" HEAD
+          pnpm -C apps/extension exec web-ext sign --channel unlisted \
+            --source-dir "$RUNNER_TEMP/firefox-extension" \
+            --artifacts-dir "$RUNNER_TEMP/amo-signed" \
+            --upload-source-code "$RUNNER_TEMP/cose-source.zip" \
+            --approval-timeout 1800000
+          shopt -s nullglob
+          signed=("$RUNNER_TEMP"/amo-signed/*.xpi)
+          if [[ "${#signed[@]}" != 1 ]]; then
+            echo "::error::Expected exactly one signed XPI from Mozilla"
+            exit 1
+          fi
+          unzip -tq "${signed[0]}"
+          unzip -p "${signed[0]}" manifest.json |
+            jq -e --arg version "$version" '.version == $version and .browser_specific_settings.gecko.id == "cose@doocs.org"'
+          unzip -p "${signed[0]}" META-INF/mozilla.rsa > "$RUNNER_TEMP/mozilla.rsa"
+          test -s "$RUNNER_TEMP/mozilla.rsa"
+          cp "${signed[0]}" "packages/cose-$version-firefox.xpi"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: cose-firefox-signed
+          path: packages/*.xpi
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    needs: [build-and-test, sign-firefox]
     if: needs.build-and-test.outputs.release_tag != ''
     concurrency:
       group: release-${{ needs.build-and-test.outputs.release_tag }}
@@ -131,7 +194,12 @@ jobs:
           name: cose-extensions
           path: packages
 
-      - name: Publish both tested archives
+      - uses: actions/download-artifact@v8
+        with:
+          name: cose-firefox-signed
+          path: packages
+
+      - name: Publish Chromium ZIP and signed Firefox XPI
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -141,7 +209,7 @@ jobs:
         run: |
           tag="$RELEASE_TAG"
           chromium="packages/cose-${tag#v}-chromium.zip"
-          firefox="packages/cose-${tag#v}-firefox.zip"
+          firefox="packages/cose-${tag#v}-firefox.xpi"
           unzip -tq "$chromium"
           unzip -tq "$firefox"
           tag_ref="refs/tags/$tag"

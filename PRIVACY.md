@@ -8,22 +8,12 @@ COSE (Create Once, Sync Everywhere) is a browser extension that helps users sync
 
 ## Data Collection
 
-**We do not collect any personal data.**
-
-COSE operates entirely locally within your browser. The extension:
-
-- Does **NOT** collect personally identifiable information
-- Does **NOT** collect health, financial, or authentication information
-- Does **NOT** track your browsing history or web activity
-- Does **NOT** send any data to external servers
-- Does **NOT** use analytics or tracking services
+COSE runs in your browser and has no COSE-operated collection server, analytics, or tracking. It communicates directly with the publishing platforms to check login status and sync articles.
 
 ## Data Usage
 
-All data processed by COSE remains on your local device:
-
 - **Article Content**: Your article title, body, and formatting are only read from md.doocs.org and transferred directly to the target publishing platforms within your browser.
-- **Login Status**: The extension checks login cookies on target platforms (CSDN, Juejin, WeChat, etc.) solely to verify if you are logged in. This information is not stored or transmitted.
+- **Login Status**: The extension checks platform cookies and may use existing session credentials in requests to the corresponding platform to identify the signed-in account or fill a draft. COSE does not send these credentials to a COSE-operated server.
 - **User Preferences**: COSE does not persist user preferences or settings.
 
 ## Permissions Explained
@@ -40,18 +30,18 @@ All data processed by COSE remains on your local device:
 
 ## Third-Party Services
 
-COSE interacts with the following third-party publishing platforms only when you explicitly initiate a sync:
+COSE interacts with publishing platforms to check login status or when you initiate a sync, including:
 
 - CSDN (csdn.net)
 - Juejin (juejin.cn)
 - WeChat Official Account (mp.weixin.qq.com)
 - And other supported platforms
 
-These interactions are solely for the purpose of publishing your content. We have no control over the privacy practices of these platforms.
+The publishing platforms handle the data they receive under their own privacy policies.
 
 ## Data Security
 
-Since no data is collected or transmitted to our servers, there is no risk of data breach from our end. All operations occur locally in your browser.
+COSE does not store your articles or credentials on a COSE-operated server.
 
 ## Children's Privacy
 
