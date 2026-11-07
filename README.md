@@ -139,6 +139,6 @@ Firefox 140 及更新的桌面版可从 GitHub Releases 下载签名后的 `cose
 
 1. 使用维护 `cose@doocs.org` 的 Mozilla Add-ons 账号生成 [AMO API 凭据](https://addons.mozilla.org/en-US/developers/addon/api/key/)。
 2. 在 [GitHub Actions Secrets](https://github.com/doocs/cose/settings/secrets/actions) 保存两个仓库密钥，`AMO_JWT_ISSUER` 对应 JWT issuer，`AMO_JWT_SECRET` 对应 JWT secret。
-3. 发版任务使用 Unlisted 渠道，签名后的扩展通过 GitHub Releases 分发。密钥缺失或签名失败时，本次发布会停止。签名成功后如果只在上传 GitHub Release 时失败，可在 Actions 重跑失败任务来复用已签名的产物。
+3. 发版任务使用 Unlisted 渠道。提交后只检查一次审核状态。如果 AMO 仍在审核，运行会结束并跳过发布。收到 Mozilla 审核通过通知后，在原来的 Actions 运行中选择「Re-run all jobs」。CI 会取回同版本的已签名 XPI，核对它与本次构建的内容，再继续发布。密钥缺失或审核失败时，任务会报错。
 
 Mozilla 审核者可用 Node.js 22 和仓库指定的 pnpm 版本复现 Firefox 构建。在提交的源码归档根目录运行 `pnpm install --frozen-lockfile`，再运行 `pnpm -C apps/extension run build:release --target firefox`，产物位于 `apps/extension/dist`。
