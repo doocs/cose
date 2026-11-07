@@ -13,7 +13,7 @@ function mockToutiaoTab({ prepared, filled = { success: true } } = {}) {
       scripting: {
         async executeScript({ func, args }) {
           if (args) assert.ok(!args.includes(undefined), 'Chrome requires serializable arguments')
-          if (func?.name === 'prepareToutiaoFormulas') {
+          if (func?.name === 'prepareToutiaoArticle') {
             calls.prepare.push(args)
             return prepared ? [{ result: prepared }] : []
           }
@@ -88,15 +88,15 @@ test('selecting only Toutiao never reads the system clipboard', async t => {
   assert.ok(!content.wechatHtml)
 })
 
-test('only Toutiao gets a per-formula time budget and answered requests release their timers', async t => {
+test('only Toutiao gets a per-image time budget and answered requests release their timers', async t => {
   const page = await mockEditorPage(t)
   const post = {
-    content: '<section class="katex-block"><svg viewBox="0 0 10 10"></svg></section>'.repeat(5),
+    content: '<p><img src="https://example.com/article.png"></p>'.repeat(5),
   }
   await page.sync(post, 'toutiao')
   const [batchTimeout, toutiaoTimeout] = page.timeouts
   assert.equal(batchTimeout, 120_000)
-  assert.ok(toutiaoTimeout >= batchTimeout + 5 * 30_000)
+  assert.ok(toutiaoTimeout >= batchTimeout + 5 * 40_000)
   assert.equal(page.active.size, 0)
 
   await page.sync(post, 'zhihu')

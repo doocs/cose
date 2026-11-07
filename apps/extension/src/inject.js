@@ -87,11 +87,12 @@
   function sendMessage(type, payload) {
     return new Promise((resolve, reject) => {
       const id = ++requestId
-      // Toutiao uploads rendered SVG formulas one by one and waits up to 30s for each.
+      // Toutiao downloads and uploads article images one by one.
       const body =
         type === 'SYNC_TO_PLATFORM' && payload?.platformId === 'toutiao' && payload.content?.body
-      const svgCount = typeof body === 'string' ? (body.match(/<svg(?=[\s/>])/gi) || []).length : 0
-      const timeoutMs = Math.min(2_147_483_647, 120_000 + svgCount * 35_000)
+      const imageCount =
+        typeof body === 'string' ? (body.match(/<(?:img|svg)(?=[\s/>])/gi) || []).length : 0
+      const timeoutMs = Math.min(2_147_483_647, 120_000 + imageCount * 45_000)
       const timer = setTimeout(() => {
         pendingRequests.delete(id)
         reject(new Error('Request timeout'))

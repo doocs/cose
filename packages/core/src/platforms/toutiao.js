@@ -9,7 +9,7 @@ const ToutiaoPlatform = {
   type: 'toutiao',
 }
 
-import { prepareToutiaoFormulas } from './toutiao-formulas.js'
+import { prepareToutiaoArticle } from './toutiao-article.js'
 
 // Serialized by chrome.scripting: helpers used in this function must live inside it.
 async function fillToutiaoContentInPage(title, html, images = []) {
@@ -46,14 +46,55 @@ async function fillToutiaoContentInPage(title, html, images = []) {
     return null
   }
 
-  async function uploadFormula(image, index) {
+  async function imageFile(image, index) {
+    if (image.dataUrl) {
+      const bytes = Uint8Array.from(atob(image.dataUrl.split(',')[1]), ch => ch.charCodeAt(0))
+      return new File([bytes], `formula-${index + 1}.png`, { type: 'image/png' })
+    }
+
+    if (!/^(https?:\/\/|data:image\/)/i.test(image.src)) {
+      throw new Error('图片地址不可读取，请手动上传')
+    }
+    const response = await fetch(image.src, {
+      credentials: 'omit',
+      referrerPolicy: 'no-referrer',
+      signal: AbortSignal.timeout(10000),
+    })
+    if (!response.ok) throw new Error(`图源返回 HTTP ${response.status}`)
+
+    const type = response.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase()
+    const extension = {
+      'image/png': 'png',
+      'image/jpeg': 'jpg',
+      'image/gif': 'gif',
+      'image/webp': 'webp',
+    }[type]
+    if (!extension || !response.body) throw new Error('图源未返回支持的图片格式')
+
+    const limit = 20 * 1024 * 1024
+    const reader = response.body.getReader()
+    const chunks = []
+    let size = 0
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      size += value.byteLength
+      if (size > limit) {
+        await reader.cancel()
+        throw new Error('图片超过头条的 20 MB 限制')
+      }
+      chunks.push(value)
+    }
+    if (!size) throw new Error('图片内容为空')
+    return new File(chunks, `image-${index + 1}.${extension}`, { type })
+  }
+
+  async function uploadImage(image, file) {
     const position = markerRange(image.marker)
-    if (!position) throw new Error('未找到正文中的公式位置')
+    if (!position) throw new Error('未找到正文中的图片位置')
     position.collapse(false)
     select(position)
 
-    const bytes = Uint8Array.from(atob(image.dataUrl.split(',')[1]), ch => ch.charCodeAt(0))
-    const file = new File([bytes], `formula-${index + 1}.png`, { type: 'image/png' })
     const files = new DataTransfer()
     files.items.add(file)
     // Count native cards at the insertion point, including existing article images.
@@ -88,7 +129,7 @@ async function fillToutiaoContentInPage(title, html, images = []) {
     const placeholder = markerRange(image.marker)
     if (placeholder) {
       select(placeholder)
-      if (!document.execCommand('delete')) throw new Error('未能移除公式占位文字')
+      if (!document.execCommand('delete')) throw new Error('未能移除图片占位文字')
     }
   }
 
@@ -115,20 +156,30 @@ async function fillToutiaoContentInPage(title, html, images = []) {
   editor.dispatchEvent(new InputEvent('input', { bubbles: true }))
   editor.dispatchEvent(new Event('change', { bubbles: true }))
 
+  const failures = []
   for (const [index, image] of images.entries()) {
     try {
-      await uploadFormula(image, index)
-    } catch (error) {
-      for (const pending of images.slice(index)) {
-        const placeholder = markerRange(pending.marker)
-        if (placeholder) {
-          select(placeholder)
-          document.execCommand('insertText', false, '〔公式未上传〕')
+      let file
+      try {
+        file = await imageFile(image, index)
+      } catch (error) {
+        if (error.name === 'TypeError' || error.name === 'TimeoutError') {
+          throw new Error('无法读取图源，可能不可访问或禁止跨域，请手动上传')
         }
+        throw error
       }
-      return { success: false, error: `第 ${index + 1} 张公式图片同步失败：${error.message}` }
+      await uploadImage(image, file)
+    } catch (error) {
+      const label = image.dataUrl ? '公式图片' : '图片'
+      const placeholder = markerRange(image.marker)
+      if (placeholder) {
+        select(placeholder)
+        document.execCommand('insertText', false, `〔第 ${index + 1} 张${label}未上传〕`)
+      }
+      failures.push(`第 ${index + 1} 张${label}同步失败：${error.message}`)
     }
   }
+  if (failures.length) return { success: false, error: failures.join('；') }
   return { success: true }
 }
 
@@ -143,11 +194,11 @@ async function syncToutiaoContent(tab, content, { chrome, waitForTab }) {
     if (/<[a-z][\w:-]*(?:\s[^>]*|\s*\/?)>/i.test(body)) {
       const [prepared] = await chrome.scripting.executeScript({
         target,
-        func: prepareToutiaoFormulas,
+        func: prepareToutiaoArticle,
         args: [body, markdown],
       })
       if (typeof prepared?.result?.html !== 'string' || !Array.isArray(prepared.result.images)) {
-        throw new Error('未能准备头条正文和公式')
+        throw new Error('未能准备头条正文和图片')
       }
       ;({ html, images } = prepared.result)
     } else {
