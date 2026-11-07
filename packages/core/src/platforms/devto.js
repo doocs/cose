@@ -73,7 +73,7 @@ async function checkDevtoLogin(sender) {
 async function syncDevtoDraft(content, sender) {
   const connection = await getDevtoConnection(sender)
   if (!connection) {
-    return { success: false, message: '请在 COSE 扩展弹窗连接 DEV.to 并授权当前 MD 编辑器' }
+    return { success: false, message: '请在 MD 编辑器的发布窗口连接 DEV.to' }
   }
 
   const title = typeof content?.title === 'string' ? content.title.trim() : ''
