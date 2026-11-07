@@ -394,13 +394,16 @@
     },
 
     // 获取账号列表（带登录状态）
-    async getAccounts(callback) {
+    async getAccounts(callback, platformIds) {
+      const platforms = Array.isArray(platformIds)
+        ? PLATFORMS.filter(platform => platformIds.includes(platform.id))
+        : PLATFORMS
       try {
         // 获取登录状态
-        const result = await sendMessage('CHECK_PLATFORM_STATUS', { platforms: PLATFORMS })
+        const result = await sendMessage('CHECK_PLATFORM_STATUS', { platforms })
         const status = result?.status || {}
 
-        const accounts = PLATFORMS.map(p => {
+        const accounts = platforms.map(p => {
           const platformStatus = status[p.id] || {}
           const isLoggedIn = platformStatus.loggedIn || false
           return {
@@ -429,7 +432,7 @@
         ) {
           throw new Error('扩展已重新加载，请刷新页面后重试')
         }
-        const accounts = PLATFORMS.map(p => ({
+        const accounts = platforms.map(p => ({
           uid: p.id,
           type: p.type,
           title: p.title,
