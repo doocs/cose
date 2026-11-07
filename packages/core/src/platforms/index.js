@@ -34,6 +34,7 @@ import { DouyinPlatform } from './douyin.js'
 import { XiaohongshuPlatform } from './xiaohongshu.js'
 import { ElecfansPlatform } from './elecfans.js'
 import { DoubanPlatform } from './douban.js'
+import { DevtoPlatform } from './devto.js'
 
 // 合并平台配置
 const PLATFORMS = [
@@ -68,6 +69,7 @@ const PLATFORMS = [
   XiaohongshuPlatform,
   ElecfansPlatform,
   DoubanPlatform,
+  DevtoPlatform,
 ]
 
 // 根据 hostname 获取平台填充函数

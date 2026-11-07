@@ -15,7 +15,7 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 
 配合 [doocs/md](https://github.com/doocs/md) Markdown 编辑器使用的浏览器扩展，支持一键将文章同步到多个内容平台。
 
-> 本插件完全本地运行，不收集、不存储任何用户信息。**如需添加更多平台或改善同步准确度，欢迎提 [Issue](https://github.com/doocs/cose/issues) 或 [PR](https://github.com/doocs/cose/pulls)**。
+> 本插件在浏览器中运行，不向 COSE 服务发送用户信息。**如需添加更多平台或改善同步准确度，欢迎提 [Issue](https://github.com/doocs/cose/issues) 或 [PR](https://github.com/doocs/cose/pulls)**。
 
 ## 使用方法
 
@@ -26,6 +26,8 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 3. 点击顶部的 **发布** 按钮
 4. 在弹出的对话框中选择要同步的平台
 5. 点击 **确定** 开始同步
+
+同步到 DEV.to 前，请在 [DEV.to 扩展设置](https://dev.to/settings/extensions) 创建 API Key，再到 COSE 扩展弹窗中连接 DEV.to。密钥保存在本地浏览器扩展中。使用自托管 MD 编辑器时，请同时填写编辑器地址。连接后刷新编辑器，选择 **DEV.to** 即可创建未发布的 Markdown 草稿。
 
 ## 特性
 

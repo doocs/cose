@@ -53,6 +53,26 @@
       .btn:hover {
         background: #e64a00;
       }
+      #devtoForm {
+        text-align: left;
+      }
+      #devtoForm label,
+      #devtoForm input {
+        display: block;
+        margin: 6px 0;
+      }
+      #devtoForm input {
+        box-sizing: border-box;
+        width: 100%;
+        padding: 6px;
+      }
+      #devtoForm button {
+        margin: 6px 4px 6px 0;
+        padding: 4px 8px;
+      }
+      #devtoForm p {
+        margin-bottom: 6px;
+      }
       .divider {
         margin: 16px 0;
         border-top: 1px solid #e5e5e5;
@@ -77,6 +97,22 @@
         >也可使用官网编辑器</a
       >
     </div>
+    <div class="divider"></div>
+    <form id="devtoForm">
+      <h2>DEV.to 草稿</h2>
+      <p>
+        <a href="https://dev.to/settings/extensions" target="_blank" rel="noreferrer"
+          >在 DEV.to 创建 API Key</a
+        >
+      </p>
+      <label for="devtoKey">DEV.to API Key</label>
+      <input id="devtoKey" type="password" autocomplete="off" required />
+      <label for="devtoEditor">自托管 MD 编辑器地址（可选）</label>
+      <input id="devtoEditor" type="url" placeholder="https://md.example.com" />
+      <button id="devtoConnect" type="submit">连接 DEV.to</button>
+      <button id="devtoDisconnect" type="button" hidden>断开连接</button>
+      <p id="devtoStatus" role="status"></p>
+    </form>
     <script src="bundles/popup.js" type="module"></script>
   </body>
 </html>

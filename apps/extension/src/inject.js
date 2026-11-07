@@ -120,6 +120,14 @@
   // 平台配置（与 background.js 保持一致）
   const PLATFORMS = [
     {
+      id: 'devto',
+      name: 'DEV.to',
+      icon: 'https://dev.to/favicon.ico',
+      title: 'DEV.to',
+      type: 'devto',
+      url: 'https://dev.to/settings/extensions',
+    },
+    {
       id: 'csdn',
       name: 'CSDN',
       icon: 'https://g.csdnimg.cn/static/logo/favicon32.ico',
@@ -577,7 +585,7 @@
             if (result?.success) {
               status.accounts[i].status = 'done'
               status.accounts[i].msg = '同步成功'
-              status.accounts[i].editResp = { draftLink: '' }
+              status.accounts[i].editResp = { draftLink: result.draftLink || '' }
             } else {
               status.accounts[i].status = 'failed'
               status.accounts[i].error = result?.message || '同步失败'

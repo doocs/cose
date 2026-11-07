@@ -57,6 +57,7 @@
     "https://*.xiaohongshu.com/*",
     "https://*.elecfans.com/*"
   ],
+  "optional_host_permissions": ["https://dev.to/*"],
   "action": {
     "default_icon": {
       "16": "icons/cose_16.png",
