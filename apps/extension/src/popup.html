@@ -73,6 +73,15 @@
       #devtoForm p {
         margin-bottom: 6px;
       }
+      #devtoSteps {
+        margin: 8px 0 12px;
+        padding-left: 20px;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      #devtoSteps li + li {
+        margin-top: 4px;
+      }
       .divider {
         margin: 16px 0;
         border-top: 1px solid #e5e5e5;
@@ -88,8 +97,8 @@
       <h1>COSE - 多平台文章同步</h1>
       <p>插件安装完成！</p>
       <p>
-        打开<a href="https://github.com/doocs/md" target="_blank">自托管的编辑器</a
-        >即可自动检测到，无需多余配置。
+        在 <a href="https://md.doocs.org" target="_blank">Doocs MD</a> 或
+        <a href="https://github.com/doocs/md" target="_blank">自托管编辑器</a>中选择发布平台。
       </p>
       <div class="divider"></div>
       <p class="hint">没有自托管编辑器？</p>
@@ -99,19 +108,45 @@
     </div>
     <div class="divider"></div>
     <form id="devtoForm">
-      <h2>DEV.to 草稿</h2>
-      <p>
-        <a href="https://dev.to/settings/extensions" target="_blank" rel="noreferrer"
-          >在 DEV.to 创建 API Key</a
-        >
-      </p>
+      <h2>连接 DEV.to</h2>
+      <ol id="devtoSteps">
+        <li>
+          登录 DEV.to，打开
+          <a href="https://dev.to/settings/extensions" target="_blank" rel="noreferrer"
+            >Settings → Extensions</a
+          >。
+        </li>
+        <li>
+          在 <strong>DEV Community API Keys</strong> 输入名称（例如 COSE），点击
+          <strong>Generate API Key</strong>，复制生成的密钥。
+        </li>
+        <li>把密钥粘贴到下面，点击「连接 DEV.to」，并允许 COSE 访问 dev.to。</li>
+      </ol>
       <label for="devtoKey">DEV.to API Key</label>
-      <input id="devtoKey" type="password" autocomplete="off" required />
+      <input
+        id="devtoKey"
+        type="password"
+        autocomplete="off"
+        aria-describedby="devtoKeyHelp"
+        required
+      />
+      <p id="devtoKeyHelp" class="hint">密钥保存在此浏览器的扩展中，仅用于连接 DEV.to。</p>
       <label for="devtoEditor">自托管 MD 编辑器地址（可选）</label>
-      <input id="devtoEditor" type="url" placeholder="https://md.example.com" />
+      <input
+        id="devtoEditor"
+        type="url"
+        placeholder="https://md.example.com"
+        aria-describedby="devtoEditorHelp"
+      />
+      <p id="devtoEditorHelp" class="hint">
+        使用 md.doocs.org 时留空。使用自托管编辑器时，填入地址栏里的编辑器网址。
+      </p>
       <button id="devtoConnect" type="submit">连接 DEV.to</button>
       <button id="devtoDisconnect" type="button" hidden>断开连接</button>
       <p id="devtoStatus" role="status"></p>
+      <p id="devtoNext" class="hint" hidden>
+        回到 MD 编辑器并刷新页面，再选择「发布 → DEV.to」创建草稿。
+      </p>
     </form>
     <script src="bundles/popup.js" type="module"></script>
   </body>

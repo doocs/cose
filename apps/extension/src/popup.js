@@ -11,12 +11,14 @@ const devtoForm = document.getElementById('devtoForm')
 const keyInput = document.getElementById('devtoKey')
 const editorInput = document.getElementById('devtoEditor')
 const status = document.getElementById('devtoStatus')
+const nextStep = document.getElementById('devtoNext')
 const connect = document.getElementById('devtoConnect')
 const disconnect = document.getElementById('devtoDisconnect')
 
 function showConnection(connection) {
   editorInput.value = connection?.editorOrigin ?? ''
   disconnect.hidden = !connection
+  nextStep.hidden = !connection
   status.textContent = connection ? `已连接 @${connection.username}` : '尚未连接 DEV.to'
 }
 
