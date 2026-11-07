@@ -36,7 +36,7 @@ jobs:
       - name: Submit the tested Chromium ZIP to Edge Add-ons
         env:
           EDGE_API_KEY: ${{ secrets.EDGE_API_KEY }}
-          EDGE_CLIENT_ID: ${{ vars.EDGE_CLIENT_ID }}
-          EDGE_PRODUCT_ID: ${{ vars.EDGE_PRODUCT_ID }}
+          EDGE_CLIENT_ID: ${{ secrets.EDGE_CLIENT_ID || vars.EDGE_CLIENT_ID }}
+          EDGE_PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID || vars.EDGE_PRODUCT_ID }}
           RELEASE_TAG: v1.3.8
         run: node scripts/submit-edge-addons.mjs
