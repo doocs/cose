@@ -13,12 +13,16 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+  # Every main push must get a chance to publish its version bump.
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    outputs:
+      release_tag: ${{ steps.version.outputs.release_tag }}
+      release_sha: ${{ steps.version.outputs.release_sha }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -34,14 +38,43 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      - name: Read extension version and verify release tag
+      - name: Read extension version and decide whether to release
+        id: version
+        env:
+          PREVIOUS_SHA: ${{ github.event.before }}
+          REF_DELETED: ${{ github.event.deleted }}
+        shell: bash
         run: |
           version=$(node -p "require('./apps/extension/package.json').version")
-          if [[ "$GITHUB_REF_TYPE" == tag && "$GITHUB_REF_NAME" != "v$version" ]]; then
-            echo "::error::Tag $GITHUB_REF_NAME does not match extension version $version"
-            exit 1
-          fi
           echo "VERSION=$version" >> "$GITHUB_ENV"
+          [[ "$GITHUB_EVENT_NAME" == push && "$REF_DELETED" != true ]] || exit 0
+          if [[ "$GITHUB_REF_TYPE" == tag ]]; then
+            if [[ "$GITHUB_REF_NAME" != "v$version" ]]; then
+              echo "::error::Tag $GITHUB_REF_NAME does not match extension version $version"
+              exit 1
+            fi
+          elif [[ "$GITHUB_REF" == refs/heads/main && -n "$PREVIOUS_SHA" && ! "$PREVIOUS_SHA" =~ ^0+$ ]]; then
+            git fetch --no-tags --depth=1 origin "$PREVIOUS_SHA"
+            previous=$(git show "$PREVIOUS_SHA:apps/extension/package.json" | jq -er '.version')
+            [[ "$version" != "$previous" ]] || exit 0
+            if ! node --input-type=module - "$previous" "$version" <<'JS'
+          const versions = process.argv.slice(2).map(version => {
+            if (!/^(0|[1-9]\d*)(\.(0|[1-9]\d*)){2,3}$/.test(version)) process.exit(1)
+            const parts = version.split('.').map(Number)
+            if (parts.some(part => part > 65535)) process.exit(1)
+            return Array.from({ length: 4 }, (_, index) => String(parts[index] ?? 0).padStart(5, '0')).join('')
+          })
+          if (versions[1] <= versions[0]) process.exit(1)
+          JS
+            then
+              echo "::error::Extension version must increase from $previous to a valid version"
+              exit 1
+            fi
+          else
+            exit 0
+          fi
+          echo "release_tag=v$version" >> "$GITHUB_OUTPUT"
+          echo "release_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -85,7 +118,10 @@ jobs:
 
   release:
     needs: build-and-test
-    if: github.event_name == 'push' && github.ref_type == 'tag' && !github.event.deleted
+    if: needs.build-and-test.outputs.release_tag != ''
+    concurrency:
+      group: release-${{ needs.build-and-test.outputs.release_tag }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -99,12 +135,26 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.build-and-test.outputs.release_tag }}
+          RELEASE_SHA: ${{ needs.build-and-test.outputs.release_sha }}
+        shell: bash
         run: |
-          tag="$GITHUB_REF_NAME"
+          tag="$RELEASE_TAG"
           chromium="packages/cose-${tag#v}-chromium.zip"
           firefox="packages/cose-${tag#v}-firefox.zip"
           unzip -tq "$chromium"
           unzip -tq "$firefox"
+          tag_ref="refs/tags/$tag"
+          refs=$(git ls-remote "$GITHUB_SERVER_URL/$GH_REPO.git" "$tag_ref" "$tag_ref^{}")
+          # Prefer the peeled commit when the tag is annotated.
+          target=$(awk -v ref="$tag_ref" '$2 == ref { tag = $1 } $2 == ref "^{}" { commit = $1 } END { print (commit ? commit : tag) }' <<< "$refs")
+          if [[ -z "$target" && "$GITHUB_REF" == refs/heads/main ]]; then
+            # The Actions token does not trigger another tag-push workflow.
+            gh api --method POST "repos/$GH_REPO/git/refs" -f ref="$tag_ref" -f sha="$RELEASE_SHA" --silent
+          elif [[ "$target" != "$RELEASE_SHA" ]]; then
+            echo "::error::$tag does not point to the tested commit $RELEASE_SHA"
+            exit 1
+          fi
           if gh release view "$tag" --json isDraft > release.json; then
             if ! jq -e '.isDraft' release.json > /dev/null; then
               published="$RUNNER_TEMP/published"
