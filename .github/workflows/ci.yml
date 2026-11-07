@@ -119,6 +119,9 @@ jobs:
   sign-firefox:
     needs: build-and-test
     if: needs.build-and-test.outputs.release_tag != ''
+    concurrency:
+      group: firefox-sign-${{ needs.build-and-test.outputs.release_tag }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -143,12 +146,20 @@ jobs:
       - name: Sign the tested Firefox extension through Mozilla
         env:
           RELEASE_TAG: ${{ needs.build-and-test.outputs.release_tag }}
+          RELEASE_SHA: ${{ needs.build-and-test.outputs.release_sha }}
           WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
           WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
         shell: bash
         run: |
           if [[ -z "$WEB_EXT_API_KEY" || -z "$WEB_EXT_API_SECRET" ]]; then
             echo "::error::Configure the AMO_JWT_ISSUER and AMO_JWT_SECRET repository secrets"
+            exit 1
+          fi
+          tag_ref="refs/tags/$RELEASE_TAG"
+          refs=$(git ls-remote origin "$tag_ref" "$tag_ref^{}")
+          target=$(awk -v ref="$tag_ref" '$2 == ref { tag = $1 } $2 == ref "^{}" { commit = $1 } END { print (commit ? commit : tag) }' <<< "$refs")
+          if [[ "$target" != "$RELEASE_SHA" && ( -n "$target" || "$GITHUB_REF" != refs/heads/main ) ]]; then
+            echo "::error::$RELEASE_TAG does not point to the tested commit $RELEASE_SHA"
             exit 1
           fi
           version="${RELEASE_TAG#v}"
