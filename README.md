@@ -27,7 +27,7 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 4. 在弹出的对话框中选择要同步的平台
 5. 点击 **确定** 开始同步
 
-同步到 DEV.to 前，请在 [DEV.to 扩展设置](https://dev.to/settings/extensions) 创建 API Key，再到 COSE 扩展弹窗中连接 DEV.to。密钥保存在本地浏览器扩展中。使用自托管 MD 编辑器时，请同时填写编辑器地址。连接后刷新编辑器，选择 **DEV.to** 即可创建未发布的 Markdown 草稿。
+首次同步到 DEV.to 时，在 MD 发布列表的 **DEV.to** 一行点击「连接」。在 [DEV.to 扩展设置](https://dev.to/settings/extensions) 创建 API Key，粘贴到发布窗口中 COSE 提供的密码输入框，然后点击「连接」。密钥保存在本地浏览器扩展中。需要更换时，在同一行点击「更换 Key」并输入新密钥。
 
 ## 特性
 

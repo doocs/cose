@@ -53,35 +53,6 @@
       .btn:hover {
         background: #e64a00;
       }
-      #devtoForm {
-        text-align: left;
-      }
-      #devtoForm label,
-      #devtoForm input {
-        display: block;
-        margin: 6px 0;
-      }
-      #devtoForm input {
-        box-sizing: border-box;
-        width: 100%;
-        padding: 6px;
-      }
-      #devtoForm button {
-        margin: 6px 4px 6px 0;
-        padding: 4px 8px;
-      }
-      #devtoForm p {
-        margin-bottom: 6px;
-      }
-      #devtoSteps {
-        margin: 8px 0 12px;
-        padding-left: 20px;
-        font-size: 13px;
-        line-height: 1.5;
-      }
-      #devtoSteps li + li {
-        margin-top: 4px;
-      }
       .divider {
         margin: 16px 0;
         border-top: 1px solid #e5e5e5;
@@ -106,49 +77,6 @@
         >也可使用官网编辑器</a
       >
     </div>
-    <div class="divider"></div>
-    <form id="devtoForm">
-      <h2>连接 DEV.to</h2>
-      <ol id="devtoSteps">
-        <li>
-          登录 DEV.to，打开
-          <a href="https://dev.to/settings/extensions" target="_blank" rel="noreferrer"
-            >Settings → Extensions</a
-          >。
-        </li>
-        <li>
-          在 <strong>DEV Community API Keys</strong> 输入名称（例如 COSE），点击
-          <strong>Generate API Key</strong>，复制生成的密钥。
-        </li>
-        <li>把密钥粘贴到下面，点击「连接 DEV.to」，并允许 COSE 访问 dev.to。</li>
-      </ol>
-      <label for="devtoKey">DEV.to API Key</label>
-      <input
-        id="devtoKey"
-        type="password"
-        autocomplete="off"
-        aria-describedby="devtoKeyHelp"
-        required
-      />
-      <p id="devtoKeyHelp" class="hint">密钥保存在此浏览器的扩展中，仅用于连接 DEV.to。</p>
-      <label for="devtoEditor">自托管 MD 编辑器地址（可选）</label>
-      <input
-        id="devtoEditor"
-        type="url"
-        placeholder="https://md.example.com"
-        aria-describedby="devtoEditorHelp"
-      />
-      <p id="devtoEditorHelp" class="hint">
-        使用 md.doocs.org 时留空。使用自托管编辑器时，填入地址栏里的编辑器网址。
-      </p>
-      <button id="devtoConnect" type="submit">连接 DEV.to</button>
-      <button id="devtoDisconnect" type="button" hidden>断开连接</button>
-      <p id="devtoStatus" role="status"></p>
-      <p id="devtoNext" class="hint" hidden>
-        回到 MD 编辑器，打开「发布 → DEV.to」，点击「检查连接」。看到账号后即可勾选 DEV.to
-        创建草稿。
-      </p>
-    </form>
     <script src="bundles/popup.js" type="module"></script>
   </body>
 </html>

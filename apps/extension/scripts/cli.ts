@@ -123,7 +123,7 @@ const copyResources = async () => {
     }
   }
 
-  for (const name of ['popup.html', 'offscreen.html'] as const) {
+  for (const name of ['popup.html', 'offscreen.html', 'devto-connect.html'] as const) {
     const from = path.join(rootDir, 'src', name)
     const to = path.join(rootDir, 'dist', name)
     await fs.copyFile(from, to)

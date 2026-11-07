@@ -4,6 +4,7 @@
 ;(function () {
   'use strict'
 
+  const injectedScriptUrl = document.currentScript?.src
   let requestId = 0
   const pendingRequests = new Map()
 
@@ -391,6 +392,10 @@
         home: '',
         checked: false,
       }))
+    },
+
+    getDevtoSetupUrl() {
+      return injectedScriptUrl ? new URL('../devto-connect.html', injectedScriptUrl).href : null
     },
 
     // 获取账号列表（带登录状态）
