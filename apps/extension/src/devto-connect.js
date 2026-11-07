@@ -21,6 +21,13 @@ document.getElementById('devtoHelp').textContent = text(
 const source = window.parent !== window && editorOrigin(document.referrer)
 let connection
 
+if (source) {
+  new ResizeObserver(() => {
+    const height = Math.ceil(form.getBoundingClientRect().height)
+    window.parent.postMessage({ type: 'cose-devto-form-height', height }, source)
+  }).observe(form)
+}
+
 function notifyParent() {
   window.parent.postMessage({ type: 'cose-devto-connection-changed' }, source)
 }
