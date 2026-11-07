@@ -1,7 +1,8 @@
 // Keep all helpers inside the function: chrome.scripting serializes it into the target page.
-export async function prepareToutiaoFormulas(html, markdown = '') {
+export async function prepareToutiaoArticle(html, markdown = '') {
   if (typeof html !== 'string') throw new Error('头条正文必须是 HTML 字符串')
-  if (!/katex-(inline|block)|mjx-container|MathJax_SVG/i.test(html)) return { html, images: [] }
+  if (!/<img(?=[\s/>])|katex-(inline|block)|mjx-container|MathJax_SVG/i.test(html))
+    return { html, images: [] }
 
   // Template contents are inert. Parsing an article must not load its images or execute its scripts.
   const template = document.createElement('template')
@@ -11,7 +12,10 @@ export async function prepareToutiaoFormulas(html, markdown = '') {
   const formulas = Array.from(article.querySelectorAll(selector)).filter(
     node => node.querySelector('svg') && !node.parentElement?.closest(selector)
   )
-  if (!formulas.length) return { html, images: [] }
+  const candidates = Array.from(article.querySelectorAll(`img, ${selector}`)).filter(node =>
+    node.matches('img') ? !formulas.includes(node.closest(selector)) : formulas.includes(node)
+  )
+  if (!candidates.length) return { html, images: [] }
 
   function isBlock(node) {
     return node.matches('.katex-block, [display="true"]') || !!node.closest('.MathJax_SVG_Display')
@@ -232,22 +236,22 @@ export async function prepareToutiaoFormulas(html, markdown = '') {
     }
   }
 
-  function insertMarker(formula, marker) {
+  function insertMarker(node, marker) {
     const placeholder = document.createElement('p')
     placeholder.textContent = marker
-    const paragraph = formula.parentElement?.closest('p,h1,h2,h3,h4,h5,h6')
+    const paragraph = node.parentElement?.closest('p,h1,h2,h3,h4,h5,h6')
     if (!paragraph) {
-      formula.replaceWith(placeholder)
+      node.replaceWith(placeholder)
       return
     }
-    // Split the paragraph around an inline image, retaining formatting and adjacent text.
+    // Split the paragraph around the image, retaining formatting and adjacent text.
     const range = paragraph.ownerDocument.createRange()
     range.selectNodeContents(paragraph)
-    range.setEndBefore(formula)
+    range.setEndBefore(node)
     const before = paragraph.cloneNode(false)
     before.removeAttribute('id')
     before.append(range.extractContents())
-    formula.remove()
+    node.remove()
     if (before.textContent.trim() || before.querySelector('img,svg,br')) paragraph.before(before)
     paragraph.before(placeholder)
     if (!paragraph.textContent.trim() && !paragraph.querySelector('img,svg,br')) paragraph.remove()
@@ -255,7 +259,16 @@ export async function prepareToutiaoFormulas(html, markdown = '') {
 
   const images = []
   const batch = crypto.randomUUID()
-  for (const [i, node] of formulas.entries()) {
+  for (const [index, node] of candidates.entries()) {
+    const marker = 'COSEIMAGE' + batch.replaceAll('-', '') + 'N' + index + 'END'
+    if (node.matches('img')) {
+      const src = (node.getAttribute('src') || '').trim()
+      images.push({ marker, src: src.startsWith('//') ? 'https:' + src : src })
+      insertMarker(node, marker)
+      continue
+    }
+
+    const i = formulas.indexOf(node)
     const svg = node.querySelector('svg')
     const embedded =
       node.getAttribute('data-latex') ||
@@ -269,7 +282,6 @@ export async function prepareToutiaoFormulas(html, markdown = '') {
     }
     try {
       const dataUrl = await rasterize(svg, node)
-      const marker = 'COSEFORMULA' + batch.replaceAll('-', '') + 'N' + i + 'END'
       images.push({ marker, dataUrl })
       insertMarker(node, marker)
     } catch (error) {

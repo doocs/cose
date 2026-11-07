@@ -4,6 +4,8 @@ import { createServer } from 'node:http'
 import { resolve } from 'node:path'
 import { chromium } from 'playwright-core'
 
+import { prepareToutiaoArticle } from '../packages/core/src/platforms/toutiao-article.js'
+
 const extension = resolve(process.argv[2] ?? 'apps/extension/dist')
 const server = createServer((_req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/html' })
@@ -50,6 +52,26 @@ try {
     'The worker must expose WeChat'
   )
   console.log('COSE loaded in Chromium and its background worker returned WeChat')
+
+  const first = 'https://example.com/first.png'
+  const second = 'https://example.com/second.png'
+  const prepared = await page.evaluate(
+    prepareToutiaoArticle,
+    `<p>Before<img src="${first}">Between</p>
+     <div class="katex-block"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="30"
+     viewBox="0 0 40 30"><text x="2" y="20">x=y</text></svg></div>
+     <p><img src="${second}">After</p>`
+  )
+  assert.deepEqual(
+    prepared.images.map(image => image.src),
+    [first, undefined, second]
+  )
+  assert.match(prepared.images[1].dataUrl, /^data:image\/png;base64,/)
+  assert.doesNotMatch(prepared.html, /<img\b/)
+  assert.ok(prepared.html.indexOf('Before') < prepared.html.indexOf(prepared.images[0].marker))
+  assert.ok(prepared.html.indexOf(prepared.images[0].marker) < prepared.html.indexOf('Between'))
+  assert.ok(prepared.html.indexOf(prepared.images[2].marker) < prepared.html.indexOf('After'))
+  console.log('Toutiao queues ordinary images and rendered formulas in article order')
 } finally {
   await context?.close()
   server.close()
