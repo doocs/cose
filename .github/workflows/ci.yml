@@ -47,6 +47,11 @@ jobs:
         run: |
           version=$(node -p "require('./apps/extension/package.json').version")
           echo "VERSION=$version" >> "$GITHUB_ENV"
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+            echo "release_tag=v$version" >> "$GITHUB_OUTPUT"
+            echo "release_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           [[ "$GITHUB_EVENT_NAME" == push && "$REF_DELETED" != true ]] || exit 0
           if [[ "$GITHUB_REF_TYPE" == tag ]]; then
             if [[ "$GITHUB_REF_NAME" != "v$version" ]]; then
@@ -158,7 +163,7 @@ jobs:
           tag_ref="refs/tags/$RELEASE_TAG"
           refs=$(git ls-remote origin "$tag_ref" "$tag_ref^{}")
           target=$(awk -v ref="$tag_ref" '$2 == ref { tag = $1 } $2 == ref "^{}" { commit = $1 } END { print (commit ? commit : tag) }' <<< "$refs")
-          if [[ "$target" != "$RELEASE_SHA" && ( -n "$target" || "$GITHUB_REF" != refs/heads/main ) ]]; then
+          if [[ "$target" != "$RELEASE_SHA" && ( -n "$target" || "$GITHUB_REF" != refs/heads/main && "$GITHUB_EVENT_NAME" != workflow_dispatch ) ]]; then
             echo "::error::$RELEASE_TAG does not point to the tested commit $RELEASE_SHA"
             exit 1
           fi
@@ -192,7 +197,7 @@ jobs:
 
   release:
     needs: [build-and-test, sign-firefox]
-    if: needs.build-and-test.outputs.release_tag != ''
+    if: github.event_name == 'push' && needs.build-and-test.outputs.release_tag != ''
     concurrency:
       group: release-${{ needs.build-and-test.outputs.release_tag }}
       cancel-in-progress: false
