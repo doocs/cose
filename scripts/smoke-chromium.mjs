@@ -8,9 +8,22 @@ import { prepareToutiaoArticle } from '../packages/core/src/platforms/toutiao-ar
 import { syncZhihuContent } from '../packages/core/src/platforms/zhihu.js'
 
 const extension = resolve(process.argv[2] ?? 'apps/extension/dist')
-const server = createServer((_req, res) => {
+const server = createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/html' })
-  res.end('<!doctype html><title>COSE smoke test</title>')
+  const preview = '<div id="preview"><div id="output"></div></div>'
+  if (req.url === '/self-hosted/editor/') {
+    const layout = '<div id="editor"></div>' + preview
+    res.end(`<!doctype html><title>Custom editor</title><div id="app"></div>
+      <script>setTimeout(() => { document.getElementById('app').innerHTML = ${JSON.stringify(layout)} }, 1200)</script>`)
+  } else if (req.url === '/legacy/') {
+    res.end(`<!doctype html><div id="app"><textarea id="editor"></textarea>${preview}</div>`)
+  } else {
+    res.end(`<!doctype html><title>微信 Markdown 编辑器 | Doocs</title>
+      <meta name="keywords" content="doocs,markdown-editor">
+      <meta name="description" content="Wechat Markdown Editor">
+      <div id="app"><div id="editor" class="codemirror-container"><div class="cm-editor"></div></div>
+      <div id="preview"></div></div>`)
+  }
 })
 server.listen(0, '127.0.0.1')
 await once(server, 'listening')
@@ -22,7 +35,43 @@ try {
     args: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`],
   })
   const page = await context.newPage()
-  await page.goto(`http://127.0.0.1:${server.address().port}`)
+  const origin = `http://127.0.0.1:${server.address().port}`
+  for (const url of [origin, origin.replace('127.0.0.1', 'localhost')]) {
+    await page.goto(url)
+    const ordinary = await page.evaluate(async () => {
+      let answered = false
+      window.addEventListener('message', event => {
+        if (event.data?.source === 'cose-extension' && event.data.requestId === 'ordinary-page')
+          answered = true
+      })
+      window.postMessage(
+        { source: 'cose-page', type: 'SYNC_TO_PLATFORM', requestId: 'ordinary-page' },
+        location.origin
+      )
+      await new Promise(resolve => setTimeout(resolve, 500))
+      return {
+        api: typeof window.$cose,
+        loaded: performance
+          .getEntriesByType('resource')
+          .some(({ name }) => name.endsWith('/bundles/inject.js')),
+        answered,
+      }
+    })
+    assert.deepEqual(ordinary, { api: 'undefined', loaded: false, answered: false })
+  }
+
+  const officialEditor = 'https://md.doocs.org/'
+  await page.route(officialEditor, route =>
+    route.fulfill({
+      contentType: 'text/html',
+      body: '<!doctype html><title>Official editor</title>',
+    })
+  )
+  await page.goto(officialEditor)
+  await page.waitForFunction(() => typeof window.$cose?.getPlatforms === 'function')
+  await page.goto(`${origin}/legacy/`)
+  await page.waitForFunction(() => typeof window.$cose?.getPlatforms === 'function')
+  await page.goto(`${origin}/self-hosted/editor/`)
   await page.waitForFunction(() => typeof window.$cose?.getPlatforms === 'function', null, {
     timeout: 15000,
   })
@@ -52,7 +101,9 @@ try {
     reply.result?.platforms?.some(p => p.id === 'wechat'),
     'The worker must expose WeChat'
   )
-  console.log('COSE loaded in Chromium and its background worker returned WeChat')
+  console.log(
+    'COSE loads on official and self-hosted editors and leaves ordinary pages without a bridge'
+  )
 
   assert.ok(platforms.some(p => p.uid === 'devto'))
   assert.ok(reply.result.platforms.some(p => p.id === 'devto'))
