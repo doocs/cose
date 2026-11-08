@@ -53,6 +53,7 @@
     "https://*.byteacctimg.com/*",
     "https://*.douyin.com/*",
     "https://*.xiaohongshu.com/*",
+    "https://creator.rednote.com/*",
     "https://*.elecfans.com/*"
   ],
   "optional_host_permissions": ["https://*/*"],

@@ -6,7 +6,7 @@ const XiaohongshuPlatform = {
   icon: 'https://www.xiaohongshu.com/favicon.ico',
   url: 'https://creator.xiaohongshu.com',
   publishUrl: 'https://creator.xiaohongshu.com/publish/publish?from=menu&target=article',
-  title: '小红书',
+  title: '小红书（国内）',
   type: 'xiaohongshu',
 }
 

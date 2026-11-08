@@ -9,6 +9,8 @@ import {
   wordPressSite,
 } from '@cose/core/src/platforms/wordpress.js'
 import { checkXueqiuLogin } from '@cose/core/src/platforms/xueqiu.js'
+import { saveRednoteDraft } from '@cose/core/src/platforms/rednote.js'
+import { fetchRednoteUser } from '@cose/detection/src/platforms/xiaohongshu.js'
 import { qianfanIntercept } from '@cose/core/src/platforms/qianfan.js'
 import {
   insertTwitterTables,
@@ -661,6 +663,26 @@ async function checkPlatformLogin(platform, sender) {
   if (platform.id === 'devto') return await checkDevtoLogin(sender)
   if (platform.id === 'wordpress') return await checkWordPressLogin(sender)
   if (platform.id === 'xueqiu') return await checkXueqiuLogin()
+  if (platform.id === 'rednote') {
+    if (chrome.offscreen) {
+      const result = await sendOffscreenMessage({ type: 'OFFSCREEN_DETECT_REDNOTE' }, 6000).catch(
+        () => null
+      )
+      if (result?.data?.loggedIn) return result.data
+    }
+    const account = await fetchRednoteUser()
+    if (account.loggedIn) return account
+    const tabs = await chrome.tabs.query({ url: 'https://creator.rednote.com/*' })
+    const tab = tabs.find(tab => tab.id && !tab.discarded)
+    if (tab) {
+      const [response] = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: fetchRednoteUser,
+      })
+      if (response?.result) return response.result
+    }
+    return account
+  }
   return await detectUser(platform.id)
 }
 async function pasteWithDebugger(tabId) {
@@ -724,6 +746,51 @@ async function pasteWithDebugger(tabId) {
   }
 }
 
+const rednoteDraftSaves = new Map()
+
+async function syncRednoteDraft(platform, content) {
+  // Fingerprint the editor payload, which is stable across clipboard reads.
+  const input = new TextEncoder().encode(JSON.stringify([content.title, content.body]))
+  const digest = await crypto.subtle.digest('SHA-256', input)
+  const hash = Array.from(new Uint8Array(digest), value =>
+    value.toString(16).padStart(2, '0')
+  ).join('')
+  const key = `rednoteDraft:${hash}`
+  if (rednoteDraftSaves.has(key)) return await rednoteDraftSaves.get(key)
+
+  const save = (async () => {
+    const stored = await chrome.storage.local.get(key)
+    const ids = stored[key] || []
+    const tab = await chrome.tabs.create({ url: platform.publishUrl, active: true })
+    await addTabToSyncGroup(tab.id, tab.windowId)
+    await waitForTab(tab.id)
+    const [response] = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: saveRednoteDraft,
+      args: [content.title, content.wechatHtml || content.body, ids],
+      world: 'MAIN',
+    })
+    const result = response?.result
+    if (!result?.success) {
+      return {
+        success: false,
+        message: result?.message || 'RedNote 未返回草稿保存结果',
+        tabId: tab.id,
+      }
+    }
+    if (!ids.includes(result.draftId)) {
+      await chrome.storage.local.set({ [key]: [...ids, result.draftId] })
+    }
+    return { success: true, message: result.message, draftLink: platform.publishUrl, tabId: tab.id }
+  })()
+  rednoteDraftSaves.set(key, save)
+  try {
+    return await save
+  } finally {
+    rednoteDraftSaves.delete(key)
+  }
+}
+
 // 同步到平台
 async function syncToPlatform(platformId, content) {
   const platform = PLATFORMS.find(p => p && p.id === platformId)
@@ -732,6 +799,8 @@ async function syncToPlatform(platformId, content) {
   }
 
   try {
+    if (platformId === 'rednote') return await syncRednoteDraft(platform, content)
+
     let tab
 
     // 检查是否有平台特定的同步处理器

@@ -1,3 +1,4 @@
+import { fetchRednoteUser } from '@cose/detection/src/platforms/xiaohongshu.js'
 import { DomUtils, parseDocument } from 'htmlparser2'
 
 // Offscreen document for making fetch requests with cookies
@@ -41,6 +42,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     handleDetectCnblogs()
       .then(result => sendResponse({ success: true, data: result }))
       .catch(err => sendResponse({ success: false, error: err.message }))
+    return true
+  }
+
+  if (message.type === 'OFFSCREEN_DETECT_REDNOTE') {
+    fetchRednoteUser().then(result => sendResponse({ success: true, data: result }))
     return true
   }
 

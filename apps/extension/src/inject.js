@@ -370,9 +370,17 @@
       id: 'xiaohongshu',
       name: 'Xiaohongshu',
       icon: 'https://www.xiaohongshu.com/favicon.ico',
-      title: '小红书',
+      title: '小红书（国内）',
       type: 'xiaohongshu',
       url: 'https://creator.xiaohongshu.com/publish/publish?from=menu&target=article',
+    },
+    {
+      id: 'rednote',
+      name: 'RedNote',
+      icon: 'https://www.rednote.com/favicon.ico',
+      title: '小红书（海外）',
+      type: 'rednote',
+      url: 'https://creator.rednote.com/',
     },
     {
       id: 'elecfans',
@@ -547,7 +555,9 @@
         const hasMedium = syncAccounts.some(a => (a.uid || a.type) === 'medium')
         const hasSspai = syncAccounts.some(a => (a.uid || a.type) === 'sspai')
         const hasWeibo = syncAccounts.some(a => (a.uid || a.type) === 'weibo')
-        const hasXiaohongshu = syncAccounts.some(a => (a.uid || a.type) === 'xiaohongshu')
+        const hasXiaohongshu = syncAccounts.some(a =>
+          ['xiaohongshu', 'rednote'].includes(a.uid || a.type)
+        )
         let clipboardHtmlContent = null
         if (
           hasWechat ||
@@ -613,7 +623,8 @@
                   platformId === 'medium' ||
                   platformId === 'sspai' ||
                   platformId === 'weibo' ||
-                  platformId === 'xiaohongshu'
+                  platformId === 'xiaohongshu' ||
+                  platformId === 'rednote'
                     ? clipboardHtmlContent
                     : null,
               },
