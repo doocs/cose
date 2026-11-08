@@ -2,6 +2,10 @@
 import { PLATFORMS, LOGIN_CHECK_CONFIG, SYNC_HANDLERS } from '@cose/core/src/platforms/index.js'
 import { checkDevtoLogin, syncDevtoDraft } from '@cose/core/src/platforms/devto.js'
 import { qianfanIntercept } from '@cose/core/src/platforms/qianfan.js'
+import {
+  insertTwitterTables,
+  prepareTwitterTables,
+} from '@cose/core/src/platforms/twitter-tables.js'
 import { convertAvatarToBase64 } from '@cose/detection/src/utils.js'
 // [DISABLED] import { fillAlipayOpenContent } from '@cose/core/src/platforms/alipayopen.js'
 
@@ -1050,7 +1054,9 @@ async function syncToPlatform(platformId, content) {
         await restorePreviousTab()
         throw error
       })
-      const markdownContent = content.markdown || content.body || ''
+      const { markdown: markdownContent, tables } = prepareTwitterTables(
+        content.markdown || content.body || ''
+      )
       const fillRequest = chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: async (title, markdown) => {
@@ -1330,7 +1336,17 @@ async function syncToPlatform(platformId, content) {
         args: [content.title, markdownContent],
         world: 'MAIN',
       })
-      const [fill] = await fillRequest.finally(restorePreviousTab)
+      const [fill] = await fillRequest
+        .then(result => {
+          if (!tables.length || !result?.[0]?.result?.success) return result
+          return chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            func: insertTwitterTables,
+            args: [tables],
+            world: 'MAIN',
+          })
+        })
+        .finally(restorePreviousTab)
 
       if (!fill?.result?.success) {
         return {

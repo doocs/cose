@@ -10,6 +10,7 @@
     "./utils": "./src/utils.js"
   },
   "dependencies": {
-    "@cose/detection": "workspace:*"
+    "@cose/detection": "workspace:*",
+    "marked": "^18.1.3"
   }
 }
