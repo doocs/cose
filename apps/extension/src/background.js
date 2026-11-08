@@ -987,102 +987,81 @@ async function syncToPlatform(platformId, content) {
 
       return { success: true, message: '已同步到小红书', tabId: tab.id }
     } else if (platformId === 'twitter') {
-      // Twitter Articles：需要先打开草稿列表页，然后点击 create 按钮创建新文章
-      // 注意：Twitter 使用 Page Visibility API，后台标签页不会渲染编辑器
-      // 解决方案：短暂激活 Tab，等编辑器加载后切回原 Tab
-
-      // 记录当前活动的 Tab
+      // Keep X in the foreground until the editor has accepted the draft.
       const [currentTab] = await chrome.tabs.query({ active: true, currentWindow: true })
-
-      // 第一步：打开草稿列表页（激活状态，触发编辑器渲染）
       tab = await chrome.tabs.create({ url: platform.publishUrl, active: true })
       await addTabToSyncGroup(tab.id, tab.windowId)
       await waitForTab(tab.id)
 
-      // 等待页面加载
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      async function restorePreviousTab() {
+        if (!currentTab?.id) return
+        try {
+          if ((await chrome.tabs.get(tab.id)).active) {
+            await chrome.tabs.update(currentTab.id, { active: true })
+          }
+        } catch {
+          // Either tab may have been closed by the user.
+        }
+      }
 
-      // 第二步：点击 create 按钮并等待编辑器加载完成
-      const clickResult = await chrome.scripting.executeScript({
+      const creationRequest = chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: async () => {
-          const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
-
-          // 查找 create 按钮
-          const createBtn =
-            document.querySelector('button[aria-label="create"]') ||
-            Array.from(document.querySelectorAll('button')).find(
-              b => b.getAttribute('aria-label')?.toLowerCase() === 'create'
+          const deadline = Date.now() + 10000
+          do {
+            const createButton = Array.from(document.querySelectorAll('button')).find(
+              button =>
+                [button.getAttribute('aria-label'), button.textContent].some(label =>
+                  /^(create|write)$/i.test(label?.trim() || '')
+                ) &&
+                !button.matches(':disabled,[aria-disabled="true"]') &&
+                button.getClientRects().length
             )
-
-          if (createBtn) {
-            createBtn.click()
-            console.log('[COSE] Twitter Articles 已点击 create 按钮')
-
-            // 等待编辑器加载（等待标题输入框出现）
-            const waitForEditor = async (timeout = 10000) => {
-              const start = Date.now()
-              while (Date.now() - start < timeout) {
-                const titleInput = document.querySelector('textarea[placeholder="Add a title"]')
-                if (titleInput) return true
-                await sleep(200)
-              }
-              return false
+            if (createButton) {
+              createButton.click()
+              return { success: true }
             }
-
-            const editorLoaded = await waitForEditor()
-            return {
-              success: editorLoaded,
-              message: editorLoaded ? 'Editor loaded' : 'Editor timeout',
-            }
+            await new Promise(resolve => setTimeout(resolve, 200))
+          } while (Date.now() < deadline)
+          return {
+            success: false,
+            error: '未找到创建文章按钮，请确认已登录且账号可以创建 X Articles',
           }
-
-          return { success: false, message: 'Create button not found' }
         },
         world: 'MAIN',
       })
+      const [creation] = await creationRequest.catch(async error => {
+        await restorePreviousTab()
+        throw error
+      })
 
-      console.log('[COSE] Twitter Articles create 结果:', clickResult[0]?.result)
-
-      // 编辑器加载完成后，切回原 Tab
-      if (currentTab?.id) {
-        try {
-          await chrome.tabs.update(currentTab.id, { active: true })
-          console.log('[COSE] Twitter 已切回原 Tab')
-        } catch (e) {
-          // 原 Tab 可能已关闭，忽略
-        }
-      }
-
-      if (!clickResult[0]?.result?.success) {
+      if (!creation?.result?.success) {
+        await restorePreviousTab()
         return {
           success: false,
           message:
-            'Twitter Articles 创建文章失败: ' + (clickResult[0]?.result?.message || '未知错误'),
+            'Twitter Articles 创建文章失败: ' + (creation?.result?.error || '页面未返回结果'),
+          tabId: tab.id,
         }
       }
 
-      // 等待页面稳定
-      await new Promise(resolve => setTimeout(resolve, 500))
-
-      // 使用 Markdown 内容
+      // Wait again because creating a draft may navigate to another document.
+      await waitForTab(tab.id, 12000).catch(async error => {
+        await restorePreviousTab()
+        throw error
+      })
       const markdownContent = content.markdown || content.body || ''
-      console.log('[COSE] Twitter Articles Markdown 内容长度:', markdownContent?.length || 0)
-
-      // 第三步：填充标题和内容
-      const fillResult = await chrome.scripting.executeScript({
+      const fillRequest = chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: async (title, markdown) => {
-          // ========== 工具函数 ==========
           const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
-
-          const waitForElement = async (selector, timeout = 10000) => {
-            const start = Date.now()
-            while (Date.now() - start < timeout) {
-              const el = document.querySelector(selector)
-              if (el) return el
+          async function waitFor(predicate, timeout) {
+            const deadline = Date.now() + timeout
+            do {
+              const result = predicate()
+              if (result) return result
               await sleep(200)
-            }
+            } while (Date.now() < deadline)
             return null
           }
 
@@ -1277,20 +1256,32 @@ async function syncToPlatform(platformId, content) {
             return result.join('\n')
           }
 
-          // ========== 主流程 ==========
-          try {
-            console.log('[COSE] Twitter Articles 开始填充内容...')
-
-            // 使用内置解析器转换 Markdown 为 HTML
-            const htmlContent = parseMarkdownToHtml(markdown)
-            console.log('[COSE] Markdown 已转换为 HTML')
-
-            // 第一步：填充标题
-            const titleInput = await waitForElement(
-              'textarea[placeholder="Add a title"], textarea[name="Article Title"]',
-              5000
+          const titleSelector =
+            'textarea[placeholder="Add a title"], textarea[name="Article Title"]'
+          const bodySelector =
+            '.public-DraftEditor-content[contenteditable="true"], .DraftEditor-root [contenteditable="true"]'
+          const findBody = () =>
+            Array.from(document.querySelectorAll(bodySelector)).find(
+              element => element.isContentEditable && element.getClientRects().length
             )
-            if (titleInput && title) {
+
+          try {
+            const html = parseMarkdownToHtml(markdown)
+            if (!html.trim()) return { success: false, error: '没有可同步的正文' }
+
+            const fields = await waitFor(() => {
+              const titleInput = Array.from(document.querySelectorAll(titleSelector)).find(
+                input =>
+                  !input.matches(':disabled,[readonly],[aria-disabled="true"]') &&
+                  input.getClientRects().length
+              )
+              const editor = findBody()
+              return titleInput && editor ? { titleInput, editor } : null
+            }, 15000)
+            if (!fields) return { success: false, error: '等待可编辑的标题和正文超时' }
+
+            const { titleInput, editor } = fields
+            if (title) {
               titleInput.focus()
               const nativeSetter = Object.getOwnPropertyDescriptor(
                 window.HTMLTextAreaElement.prototype,
@@ -1299,53 +1290,56 @@ async function syncToPlatform(platformId, content) {
               nativeSetter.call(titleInput, title)
               titleInput.dispatchEvent(new Event('input', { bubbles: true }))
               titleInput.dispatchEvent(new Event('change', { bubbles: true }))
-              console.log('[COSE] Twitter Articles 标题填充成功')
-            } else {
-              console.log('[COSE] Twitter Articles 未找到标题输入框')
             }
 
-            await sleep(500)
-
-            // 第二步：填充内容
-            const contentEl = await waitForElement(
-              '.public-DraftEditor-content[contenteditable="true"], .DraftEditor-root [contenteditable="true"]',
-              5000
-            )
-            if (contentEl && htmlContent) {
-              contentEl.focus()
-
-              const dt = new DataTransfer()
-              dt.setData('text/html', htmlContent)
-              dt.setData('text/plain', htmlContent.replace(/<[^>]*>/g, ''))
-
-              const pasteEvent = new ClipboardEvent('paste', {
+            const previousHtml = editor.innerHTML
+            editor.focus()
+            const clipboardData = new DataTransfer()
+            clipboardData.setData('text/html', html)
+            clipboardData.setData('text/plain', html.replace(/<[^>]*>/g, ''))
+            editor.dispatchEvent(
+              new ClipboardEvent('paste', {
                 bubbles: true,
                 cancelable: true,
-                clipboardData: dt,
+                clipboardData,
               })
+            )
 
-              contentEl.dispatchEvent(pasteEvent)
-              console.log('[COSE] Twitter Articles 内容填充成功')
-              return { success: true, method: 'paste-html', length: htmlContent.length }
-            } else {
-              console.log('[COSE] Twitter Articles 未找到内容编辑器')
-              return { success: false, error: 'Content editor not found' }
+            const accepted = await waitFor(() => {
+              const currentEditor = findBody()
+              return (
+                currentEditor?.innerHTML &&
+                currentEditor.innerHTML !== previousHtml &&
+                (currentEditor.textContent.trim() || currentEditor.querySelector('img,video'))
+              )
+            }, 3000)
+            if (!accepted) return { success: false, error: '正文未写入 X Articles 编辑器' }
+            if (
+              title &&
+              !Array.from(document.querySelectorAll(titleSelector)).some(
+                input => input.getClientRects().length && input.value === title
+              )
+            ) {
+              return { success: false, error: '标题未写入 X Articles 编辑器' }
             }
-          } catch (e) {
-            console.error('[COSE] Twitter Articles 同步失败:', e)
-            return { success: false, error: e.message }
+            return { success: true }
+          } catch (error) {
+            return { success: false, error: error.message }
           }
         },
         args: [content.title, markdownContent],
         world: 'MAIN',
       })
+      const [fill] = await fillRequest.finally(restorePreviousTab)
 
-      console.log('[COSE] Twitter Articles 填充结果:', fillResult[0]?.result)
-
-      // 等待内容注入完成
-      await new Promise(resolve => setTimeout(resolve, 1000))
-
-      return { success: true, message: '已同步到 Twitter Articles', tabId: tab.id }
+      if (!fill?.result?.success) {
+        return {
+          success: false,
+          message: 'Twitter Articles 同步失败: ' + (fill?.result?.error || '页面未返回结果'),
+          tabId: tab.id,
+        }
+      }
+      return { success: true, message: '已填充 Twitter Articles 编辑器', tabId: tab.id }
     }
 
     // 百度千帆开发者社区：注入 Markdown 并确认转换
