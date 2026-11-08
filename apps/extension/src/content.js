@@ -1,10 +1,30 @@
-// Content Script - 在 md.doocs.org 或本地开发环境中运行
-// 注入 $cose 全局对象供页面使用
+async function isDoocsEditor() {
+  if (window.location.origin === 'https://md.doocs.org') return true
 
-console.log('[COSE Content Script] Loaded!')
-console.log('[COSE Content Script] URL:', window.location.href)
-console.log('[COSE Content Script] Hostname:', window.location.hostname)
-;(function () {
+  const app = document.getElementById('app')
+  if (!app) return false
+
+  const hasEditorLayout = () =>
+    app.querySelector('#editor') !== null && app.querySelector('#preview #output') !== null
+  if (hasEditorLayout()) return true
+
+  // A self-hosted build may still be mounting when the content script runs.
+  return new Promise(resolve => {
+    const observer = new MutationObserver(() => {
+      if (!hasEditorLayout()) return
+      clearTimeout(timeout)
+      observer.disconnect()
+      resolve(true)
+    })
+    const timeout = setTimeout(() => {
+      observer.disconnect()
+      resolve(false)
+    }, 10000)
+    observer.observe(app, { childList: true, subtree: true })
+  })
+}
+
+;(async function () {
   'use strict'
 
   // 华为云开发者博客页面：自动获取并缓存用户信息
@@ -244,6 +264,9 @@ console.log('[COSE Content Script] Hostname:', window.location.hostname)
     }
   }
 
+  // Keep platform login detection above independent of the editor bridge.
+  if (!(await isDoocsEditor())) return
+
   // 注入脚本到页面主世界
   const script = document.createElement('script')
   script.src = chrome.runtime.getURL('bundles/inject.js')
@@ -315,22 +338,6 @@ console.log('[COSE Content Script] Hostname:', window.location.hostname)
     }
   })
 
-  // 监听来自页面的缓存请求（用于手动触发缓存）
-  window.addEventListener('message', event => {
-    if (event.source !== window) return
-
-    if (event.data.type === 'COSE_CACHE_USER' && event.data.platform === 'xiaohongshu') {
-      if (typeof chrome !== 'undefined' && chrome.storage) {
-        console.log('[COSE] 收到缓存请求，保存用户信息')
-        chrome.storage.local
-          .set({ xiaohongshu_user: event.data.userInfo })
-          .then(() => console.log('[COSE] 小红书用户信息已手动缓存'))
-          .catch(e => console.log('[COSE] 缓存失败:', e))
-      } else {
-        console.log('[COSE] Chrome API 不可用，无法保存缓存')
-      }
-    }
-  })
   // 监听来自 background 的消息并转发到页面（用于渐进式状态更新）
   chrome.runtime.onMessage.addListener(message => {
     if (message.type === 'PLATFORM_STATUS_UPDATE' || message.type === 'PLATFORM_STATUS_COMPLETE') {
