@@ -105,3 +105,27 @@ export async function detectXiaohongshuUser() {
     return { loggedIn: false }
   }
 }
+
+// Also injected into an open creator tab when browser cookie policy requires it.
+export async function fetchRednoteUser() {
+  try {
+    const response = await fetch('https://creator.rednote.com/api/galaxy/user/info', {
+      credentials: 'include',
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(5000),
+    })
+    if (response.ok) {
+      const { success, code, data } = await response.json()
+      if (success === true && code === 0 && data?.userId) {
+        return {
+          loggedIn: true,
+          username: data.userName || data.redId || '',
+          avatar: data.userAvatar || '',
+        }
+      }
+    }
+  } catch {
+    // Try the creator tab when the extension request cannot use its session.
+  }
+  return { loggedIn: false }
+}

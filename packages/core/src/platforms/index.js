@@ -32,6 +32,7 @@ import { ModelScopePlatform } from './modelscope.js'
 import { VolcenginePlatform } from './volcengine.js'
 import { DouyinPlatform } from './douyin.js'
 import { XiaohongshuPlatform } from './xiaohongshu.js'
+import { RednotePlatform } from './rednote.js'
 import { ElecfansPlatform } from './elecfans.js'
 import { DoubanPlatform } from './douban.js'
 import { DevtoPlatform } from './devto.js'
@@ -69,6 +70,7 @@ const PLATFORMS = [
   VolcenginePlatform,
   DouyinPlatform,
   XiaohongshuPlatform,
+  RednotePlatform,
   ElecfansPlatform,
   DoubanPlatform,
   DevtoPlatform,

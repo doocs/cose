@@ -9,6 +9,8 @@ import {
   wordPressSite,
 } from '@cose/core/src/platforms/wordpress.js'
 import { checkXueqiuLogin } from '@cose/core/src/platforms/xueqiu.js'
+import { saveRednoteDraft } from '@cose/core/src/platforms/rednote.js'
+import { fetchRednoteUser } from '@cose/detection/src/platforms/xiaohongshu.js'
 import { qianfanIntercept } from '@cose/core/src/platforms/qianfan.js'
 import {
   insertTwitterTables,
@@ -661,6 +663,26 @@ async function checkPlatformLogin(platform, sender) {
   if (platform.id === 'devto') return await checkDevtoLogin(sender)
   if (platform.id === 'wordpress') return await checkWordPressLogin(sender)
   if (platform.id === 'xueqiu') return await checkXueqiuLogin()
+  if (platform.id === 'rednote') {
+    if (chrome.offscreen) {
+      const result = await sendOffscreenMessage({ type: 'OFFSCREEN_DETECT_REDNOTE' }, 6000).catch(
+        () => null
+      )
+      if (result?.data?.loggedIn) return result.data
+    }
+    const account = await fetchRednoteUser()
+    if (account.loggedIn) return account
+    const tabs = await chrome.tabs.query({ url: 'https://creator.rednote.com/*' })
+    const tab = tabs.find(tab => tab.id && !tab.discarded)
+    if (tab) {
+      const [response] = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: fetchRednoteUser,
+      })
+      if (response?.result) return response.result
+    }
+    return account
+  }
   return await detectUser(platform.id)
 }
 async function pasteWithDebugger(tabId) {
@@ -837,6 +859,21 @@ async function syncToPlatform(platformId, content) {
       } catch (e) {
         console.error('[COSE] 简书 API 调用失败:', e)
         return { success: false, message: '简书 API 调用失败: ' + e.message }
+      }
+    } else if (platformId === 'rednote') {
+      tab = await chrome.tabs.create({ url: platform.publishUrl, active: true })
+      await addTabToSyncGroup(tab.id, tab.windowId)
+      await waitForTab(tab.id)
+      const [response] = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: saveRednoteDraft,
+        args: [content.title, content.wechatHtml || content.body],
+        world: 'MAIN',
+      })
+      return {
+        ...(response?.result || { success: false, message: 'RedNote 未返回草稿保存结果' }),
+        ...(response?.result?.success && { draftLink: platform.publishUrl }),
+        tabId: tab.id,
       }
     } else if (platformId === 'xiaohongshu') {
       // 小红书：需要先点击"新的创作"按钮，等待编辑器加载后填充
