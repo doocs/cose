@@ -1,6 +1,7 @@
 // 平台配置
 import { PLATFORMS, LOGIN_CHECK_CONFIG, SYNC_HANDLERS } from '@cose/core/src/platforms/index.js'
 import { checkDevtoLogin, syncDevtoDraft } from '@cose/core/src/platforms/devto.js'
+import { checkXueqiuLogin } from '@cose/core/src/platforms/xueqiu.js'
 import { qianfanIntercept } from '@cose/core/src/platforms/qianfan.js'
 import {
   insertTwitterTables,
@@ -628,6 +629,7 @@ async function checkPlatformLogin(platform, sender) {
     return { loggedIn: false, error: '无效的平台配置' }
   }
   if (platform.id === 'devto') return await checkDevtoLogin(sender)
+  if (platform.id === 'xueqiu') return await checkXueqiuLogin()
   return await detectUser(platform.id)
 }
 async function pasteWithDebugger(tabId) {
