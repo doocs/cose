@@ -32,6 +32,9 @@ importers:
       '@cose/detection':
         specifier: workspace:*
         version: link:../../packages/detection
+      htmlparser2:
+        specifier: 10.1.0
+        version: 10.1.0
     devDependencies:
       cac:
         specifier: ^7.1.0

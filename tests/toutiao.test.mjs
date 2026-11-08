@@ -29,7 +29,7 @@ function mockToutiaoTab({ prepared, filled = { success: true } } = {}) {
   return { calls, sync: content => syncToutiaoContent({ id: 1 }, content, helpers) }
 }
 
-async function mockEditorPage(t) {
+async function mockEditorPage(t, { batchError } = {}) {
   const readClipboard = t.mock.fn(async () => [])
   const messages = []
   const timeouts = []
@@ -49,6 +49,7 @@ async function mockEditorPage(t) {
             source: 'cose-extension',
             requestId: message.requestId,
             result: { success: true },
+            error: message.type === 'START_SYNC_BATCH' ? batchError : undefined,
           },
         })
       )
@@ -68,13 +69,31 @@ async function mockEditorPage(t) {
     },
     clearTimeout: id => active.delete(id),
   })
-  function sync(post, platformId) {
+  function sync(post, platformId, onProgress = null) {
     return new Promise(resolve => {
-      window.$cose.addTask({ post, accounts: [{ uid: platformId, checked: true }] }, null, resolve)
+      window.$cose.addTask(
+        { post, accounts: [{ uid: platformId, checked: true }] },
+        onProgress,
+        resolve
+      )
     })
   }
   return { sync, readClipboard, messages, timeouts, active }
 }
+
+test('a stale extension context ends the sync batch and reports the refresh instruction', async t => {
+  const page = await mockEditorPage(t, { batchError: 'Extension context invalidated.' })
+  const progress = t.mock.fn()
+  await page.sync({ title: 'Current' }, 'toutiao', progress)
+  const [account] = progress.mock.calls.at(-1).arguments[0].accounts
+  assert.equal(account.status, 'failed')
+  assert.match(account.error, /请刷新页面/)
+  assert.deepEqual(
+    page.messages.map(message => message.type),
+    ['START_SYNC_BATCH']
+  )
+  assert.equal(page.active.size, 0)
+})
 
 test('selecting only Toutiao never reads the system clipboard', async t => {
   const page = await mockEditorPage(t)
