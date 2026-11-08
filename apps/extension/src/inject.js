@@ -43,7 +43,7 @@
             : platform.title,
           icon: platform.icon,
           avatar: platformResult.avatar,
-          home: platform.url || '',
+          home: platformResult.home || platform.url || '',
           checked: false,
           loggedIn: platformResult.loggedIn || false,
           isChecking: false,
@@ -134,6 +134,13 @@
       title: 'DEV.to',
       type: 'devto',
       url: 'https://dev.to/settings/extensions',
+    },
+    {
+      id: 'wordpress',
+      name: 'WordPress',
+      icon: 'https://s.w.org/style/images/about/WordPress-logotype-wmark.png',
+      title: 'WordPress',
+      type: 'wordpress',
     },
     {
       id: 'csdn',
@@ -405,6 +412,10 @@
       return injectedScriptUrl ? new URL('../devto-connect.html', injectedScriptUrl).href : null
     },
 
+    getWordPressSetupUrl() {
+      return injectedScriptUrl ? new URL('../wordpress-connect.html', injectedScriptUrl).href : null
+    },
+
     // 获取账号列表（带登录状态）
     async getAccounts(callback, platformIds) {
       const platforms = Array.isArray(platformIds)
@@ -425,7 +436,7 @@
             displayName: isLoggedIn ? platformStatus.username || p.title : p.title,
             icon: p.icon,
             avatar: platformStatus.avatar,
-            home: p.url || '',
+            home: platformStatus.home || p.url || '',
             checked: false,
             loggedIn: isLoggedIn,
           }
@@ -593,6 +604,7 @@
                 markdown: post.markdown,
                 thumb: post.thumb,
                 desc: post.desc,
+                ...(platformId === 'wordpress' && { wordpressSite: account.home }),
                 // 微信公众号、百家号、网易号、Medium、少数派、微博头条和小红书使用剪贴板中带样式的 HTML
                 wechatHtml:
                   platformId === 'wechat' ||

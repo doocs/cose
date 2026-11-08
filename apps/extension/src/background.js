@@ -1,6 +1,13 @@
 // 平台配置
 import { PLATFORMS, LOGIN_CHECK_CONFIG, SYNC_HANDLERS } from '@cose/core/src/platforms/index.js'
 import { checkDevtoLogin, syncDevtoDraft } from '@cose/core/src/platforms/devto.js'
+import {
+  checkWordPressLogin,
+  syncWordPressDraft,
+  wordPressPendingKey,
+  wordPressPermission,
+  wordPressSite,
+} from '@cose/core/src/platforms/wordpress.js'
 import { checkXueqiuLogin } from '@cose/core/src/platforms/xueqiu.js'
 import { qianfanIntercept } from '@cose/core/src/platforms/qianfan.js'
 import {
@@ -476,12 +483,35 @@ async function handleMessage(request, sender) {
       // 渐进式检测：每个平台检测完成后立即返回结果
       checkAllPlatformsProgressive(request.platforms || PLATFORMS, sender)
       return { started: true, total: (request.platforms || PLATFORMS).length }
+    case 'CHECK_WORDPRESS_HOST': {
+      const frameUrl = sender.url && new URL(sender.url)
+      if (
+        !sender.frameId ||
+        !sender.tab?.id ||
+        !frameUrl ||
+        frameUrl.href.split('?')[0] !== chrome.runtime.getURL('wordpress-connect.html')
+      ) {
+        return { granted: false }
+      }
+      const site = wordPressSite(request.site)
+      const permission = wordPressPermission(site)
+      const granted = await chrome.permissions.contains(permission)
+      if (!granted) {
+        const key = wordPressPendingKey(sender.tab.id)
+        await chrome.storage.session.set({
+          [key]: { host: new URL(site).hostname, expires: Date.now() + 5 * 60 * 1000 },
+        })
+      }
+      return { granted }
+    }
     case 'START_SYNC_BATCH':
       // 开始新的同步批次，重置 tab group
       currentSyncGroupId = null
       return { success: true }
     case 'SYNC_TO_PLATFORM':
       if (request.platformId === 'devto') return await syncDevtoDraft(request.content, sender)
+      if (request.platformId === 'wordpress')
+        return await syncWordPressDraft(request.content, sender)
       return await syncToPlatform(request.platformId, request.content)
     case 'CACHE_USER_INFO':
       // 缓存用户信息
@@ -569,7 +599,7 @@ async function checkAllPlatformsProgressive(platforms, sender) {
             completed,
             total,
           }
-          if (platform.id === 'devto') {
+          if (platform.id === 'devto' || platform.id === 'wordpress') {
             await chrome.tabs.sendMessage(tabId, update, {
               frameId: sender.frameId,
               ...(sender.documentId && { documentId: sender.documentId }),
@@ -629,6 +659,7 @@ async function checkPlatformLogin(platform, sender) {
     return { loggedIn: false, error: '无效的平台配置' }
   }
   if (platform.id === 'devto') return await checkDevtoLogin(sender)
+  if (platform.id === 'wordpress') return await checkWordPressLogin(sender)
   if (platform.id === 'xueqiu') return await checkXueqiuLogin()
   return await detectUser(platform.id)
 }
