@@ -8,6 +8,7 @@ import {
   wordPressPermission,
   wordPressSite,
 } from '@cose/core/src/platforms/wordpress.js'
+import { checkXueqiuLogin } from '@cose/core/src/platforms/xueqiu.js'
 import { qianfanIntercept } from '@cose/core/src/platforms/qianfan.js'
 import {
   insertTwitterTables,
@@ -659,6 +660,7 @@ async function checkPlatformLogin(platform, sender) {
   }
   if (platform.id === 'devto') return await checkDevtoLogin(sender)
   if (platform.id === 'wordpress') return await checkWordPressLogin(sender)
+  if (platform.id === 'xueqiu') return await checkXueqiuLogin()
   return await detectUser(platform.id)
 }
 async function pasteWithDebugger(tabId) {
