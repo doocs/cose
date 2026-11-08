@@ -11,7 +11,7 @@ const RednotePlatform = {
 }
 
 // Executed inside RedNote's creator tab.
-async function saveRednoteDraft(title, html) {
+async function saveRednoteDraft(title, html, previousDraftIds = []) {
   if (
     location.origin !== 'https://creator.rednote.com' ||
     location.pathname !== '/publish/publish'
@@ -30,10 +30,54 @@ async function saveRednoteDraft(title, html) {
     return { success: false, message: 'RedNote 长文标题最多支持 64 个字符' }
   }
 
+  const profile = await fetch('/api/galaxy/user/info', {
+    credentials: 'include',
+    signal: AbortSignal.timeout(5000),
+  })
+    .then(response => response.json())
+    .catch(() => null)
+  const uid = profile?.data?.userId
+  if (profile?.success !== true || !uid) {
+    return { success: false, message: '无法确认 RedNote 登录账号，请重新登录后再试' }
+  }
+
+  // RedNote owns this database. Only read it to confirm which drafts exist.
+  const readDrafts = read =>
+    new Promise((resolve, reject) => {
+      const open = indexedDB.open('draft-database-v1')
+      open.onupgradeneeded = () => {
+        open.transaction.abort()
+        resolve([])
+      }
+      open.onerror = () => reject(open.error)
+      open.onsuccess = () => {
+        const db = open.result
+        if (!db.objectStoreNames.contains('article-draft')) {
+          db.close()
+          resolve([])
+          return
+        }
+        try {
+          const store = db.transaction('article-draft', 'readonly').objectStore('article-draft')
+          const request = read(store)
+          request.onsuccess = () => resolve(request.result)
+          request.onerror = () => reject(request.error)
+        } catch (error) {
+          reject(error)
+        }
+        db.close()
+      }
+    })
+  const existingIds = new Set(await readDrafts(store => store.index('uid').getAllKeys(uid)))
+  const existingDraft = previousDraftIds.find(id => existingIds.has(id))
+  if (existingDraft) {
+    return { success: true, message: '这篇文章已有 RedNote 草稿', draftId: existingDraft }
+  }
+
   const waitFor = async (read, timeout = 18000) => {
     const deadline = Date.now() + timeout
     do {
-      const result = read()
+      const result = await read()
       if (result) return result
       await new Promise(resolve => setTimeout(resolve, 150))
     } while (Date.now() < deadline)
@@ -92,7 +136,19 @@ async function saveRednoteDraft(title, html) {
   if (!saved) {
     return { success: false, message: '未能确认 RedNote 草稿已保存，请检查草稿箱后再重试' }
   }
-  return { success: true, message: '已保存到当前浏览器的 RedNote 草稿箱' }
+  const draftId = await waitFor(async () => {
+    const ids = await readDrafts(store => store.index('uid').getAllKeys(uid))
+    for (const id of ids) {
+      if (existingIds.has(id)) continue
+      const draft = await readDrafts(store => store.get(id))
+      if (draft?.content?.articleStore?.articleTitle === normalizedTitle) return id
+    }
+    return null
+  }, 3000)
+  if (!draftId) {
+    return { success: false, message: '未能确认 RedNote 草稿编号，请先检查草稿箱' }
+  }
+  return { success: true, message: '已保存到当前浏览器的 RedNote 草稿箱', draftId }
 }
 
 export { RednotePlatform, saveRednoteDraft }

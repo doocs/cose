@@ -746,6 +746,51 @@ async function pasteWithDebugger(tabId) {
   }
 }
 
+const rednoteDraftSaves = new Map()
+
+async function syncRednoteDraft(platform, content) {
+  // Fingerprint the editor payload, which is stable across clipboard reads.
+  const input = new TextEncoder().encode(JSON.stringify([content.title, content.body]))
+  const digest = await crypto.subtle.digest('SHA-256', input)
+  const hash = Array.from(new Uint8Array(digest), value =>
+    value.toString(16).padStart(2, '0')
+  ).join('')
+  const key = `rednoteDraft:${hash}`
+  if (rednoteDraftSaves.has(key)) return await rednoteDraftSaves.get(key)
+
+  const save = (async () => {
+    const stored = await chrome.storage.local.get(key)
+    const ids = stored[key] || []
+    const tab = await chrome.tabs.create({ url: platform.publishUrl, active: true })
+    await addTabToSyncGroup(tab.id, tab.windowId)
+    await waitForTab(tab.id)
+    const [response] = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: saveRednoteDraft,
+      args: [content.title, content.wechatHtml || content.body, ids],
+      world: 'MAIN',
+    })
+    const result = response?.result
+    if (!result?.success) {
+      return {
+        success: false,
+        message: result?.message || 'RedNote 未返回草稿保存结果',
+        tabId: tab.id,
+      }
+    }
+    if (!ids.includes(result.draftId)) {
+      await chrome.storage.local.set({ [key]: [...ids, result.draftId] })
+    }
+    return { success: true, message: result.message, draftLink: platform.publishUrl, tabId: tab.id }
+  })()
+  rednoteDraftSaves.set(key, save)
+  try {
+    return await save
+  } finally {
+    rednoteDraftSaves.delete(key)
+  }
+}
+
 // 同步到平台
 async function syncToPlatform(platformId, content) {
   const platform = PLATFORMS.find(p => p && p.id === platformId)
@@ -754,6 +799,8 @@ async function syncToPlatform(platformId, content) {
   }
 
   try {
+    if (platformId === 'rednote') return await syncRednoteDraft(platform, content)
+
     let tab
 
     // 检查是否有平台特定的同步处理器
@@ -859,21 +906,6 @@ async function syncToPlatform(platformId, content) {
       } catch (e) {
         console.error('[COSE] 简书 API 调用失败:', e)
         return { success: false, message: '简书 API 调用失败: ' + e.message }
-      }
-    } else if (platformId === 'rednote') {
-      tab = await chrome.tabs.create({ url: platform.publishUrl, active: true })
-      await addTabToSyncGroup(tab.id, tab.windowId)
-      await waitForTab(tab.id)
-      const [response] = await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        func: saveRednoteDraft,
-        args: [content.title, content.wechatHtml || content.body],
-        world: 'MAIN',
-      })
-      return {
-        ...(response?.result || { success: false, message: 'RedNote 未返回草稿保存结果' }),
-        ...(response?.result?.success && { draftLink: platform.publishUrl }),
-        tabId: tab.id,
       }
     } else if (platformId === 'xiaohongshu') {
       // 小红书：需要先点击"新的创作"按钮，等待编辑器加载后填充
