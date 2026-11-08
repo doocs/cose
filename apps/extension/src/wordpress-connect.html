@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Connect WordPress · COSE</title>
+    <style>
+      body {
+        margin: 0;
+        color: CanvasText;
+        background: Canvas;
+        font:
+          14px/1.45 system-ui,
+          sans-serif;
+      }
+      form {
+        display: flow-root;
+      }
+      p {
+        margin: 6px 0 0;
+        font-size: 12px;
+      }
+      p:empty {
+        display: none;
+      }
+      label {
+        display: block;
+        margin: 0 0 8px;
+      }
+      input {
+        display: block;
+        box-sizing: border-box;
+        width: 100%;
+      }
+      input,
+      button {
+        min-height: 34px;
+        border: 1px solid GrayText;
+        border-radius: 6px;
+        padding: 4px 10px;
+        font: inherit;
+      }
+    </style>
+  </head>
+  <body>
+    <form id="connection">
+      <label>
+        <span id="site-label">WordPress installation URL</span>
+        <input id="site" type="url" placeholder="https://blog.example.com/" required />
+      </label>
+      <label>
+        <span id="username-label">WordPress username</span>
+        <input id="username" autocomplete="off" required />
+      </label>
+      <label>
+        <span id="password-label">Application password</span>
+        <input id="password" type="password" autocomplete="off" required />
+      </label>
+      <button id="connect" type="submit" disabled>Connect</button>
+      <button id="disconnect" type="button" hidden>Disconnect</button>
+      <p id="help">
+        Create an application password in your self-hosted site's WordPress user profile.
+      </p>
+      <p id="status" role="status"></p>
+    </form>
+    <script src="bundles/wordpress-connect.js" type="module"></script>
+  </body>
+</html>

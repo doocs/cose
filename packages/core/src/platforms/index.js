@@ -35,6 +35,7 @@ import { XiaohongshuPlatform } from './xiaohongshu.js'
 import { ElecfansPlatform } from './elecfans.js'
 import { DoubanPlatform } from './douban.js'
 import { DevtoPlatform } from './devto.js'
+import { WordPressPlatform } from './wordpress.js'
 import { XueqiuPlatform, syncXueqiuDraft } from './xueqiu.js'
 
 // 合并平台配置
@@ -71,6 +72,7 @@ const PLATFORMS = [
   ElecfansPlatform,
   DoubanPlatform,
   DevtoPlatform,
+  WordPressPlatform,
   XueqiuPlatform,
 ]
 

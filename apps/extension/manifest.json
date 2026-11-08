@@ -29,8 +29,6 @@
     "https://cdnfile.sspai.com/*",
     "https://*.xueqiu.com/*",
     "https://*.eastmoney.com/*",
-    "https://*.wordpress.com/*",
-    "https://*.wordpress.org/*",
     "https://md.doocs.org/*",
     "https://*.cnblogs.com/*",
     "https://*.oschina.net/*",
@@ -57,7 +55,7 @@
     "https://*.xiaohongshu.com/*",
     "https://*.elecfans.com/*"
   ],
-  "optional_host_permissions": ["https://dev.to/*"],
+  "optional_host_permissions": ["https://*/*"],
   "action": {
     "default_icon": {
       "16": "icons/cose_16.png",
@@ -85,7 +83,12 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["bundles/inject.js", "bundles/platforms/*.js", "devto-connect.html"],
+      "resources": [
+        "bundles/inject.js",
+        "bundles/platforms/*.js",
+        "devto-connect.html",
+        "wordpress-connect.html"
+      ],
       "matches": ["<all_urls>"]
     }
   ]
