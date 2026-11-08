@@ -35,6 +35,7 @@ import { XiaohongshuPlatform } from './xiaohongshu.js'
 import { ElecfansPlatform } from './elecfans.js'
 import { DoubanPlatform } from './douban.js'
 import { DevtoPlatform } from './devto.js'
+import { XueqiuPlatform, syncXueqiuDraft } from './xueqiu.js'
 
 // 合并平台配置
 const PLATFORMS = [
@@ -70,6 +71,7 @@ const PLATFORMS = [
   ElecfansPlatform,
   DoubanPlatform,
   DevtoPlatform,
+  XueqiuPlatform,
 ]
 
 // 根据 hostname 获取平台填充函数
@@ -119,6 +121,7 @@ const SYNC_HANDLERS = {
   toutiao: syncToutiaoContent,
   bilibili: syncBilibiliContent,
   wangyihao: syncWangyihaoContent,
+  xueqiu: syncXueqiuDraft,
 }
 
 // 导出

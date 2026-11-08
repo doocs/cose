@@ -120,6 +120,14 @@
   // 平台配置（与 background.js 保持一致）
   const PLATFORMS = [
     {
+      id: 'xueqiu',
+      name: 'Xueqiu',
+      icon: 'https://www.xueqiu.com/favicon.ico',
+      title: '雪球',
+      type: 'xueqiu',
+      url: 'https://www.xueqiu.com/',
+    },
+    {
       id: 'devto',
       name: 'DEV.to',
       icon: 'https://media2.dev.to/dynamic/image/width=32,height=,fit=scale-down,gravity=auto,format=auto/https%3A%2F%2Fdev-to-uploads.s3.amazonaws.com%2Fuploads%2Farticles%2F8j7kvp660rqzt99zui8e.png',
