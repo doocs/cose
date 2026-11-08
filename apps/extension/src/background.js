@@ -1,6 +1,11 @@
 // 平台配置
 import { PLATFORMS, LOGIN_CHECK_CONFIG, SYNC_HANDLERS } from '@cose/core/src/platforms/index.js'
 import { checkDevtoLogin, syncDevtoDraft } from '@cose/core/src/platforms/devto.js'
+import {
+  checkWordPressLogin,
+  syncWordPressDraft,
+  wordPressEditor,
+} from '@cose/core/src/platforms/wordpress.js'
 import { qianfanIntercept } from '@cose/core/src/platforms/qianfan.js'
 import {
   insertTwitterTables,
@@ -475,12 +480,25 @@ async function handleMessage(request, sender) {
       // 渐进式检测：每个平台检测完成后立即返回结果
       checkAllPlatformsProgressive(request.platforms || PLATFORMS, sender)
       return { started: true, total: (request.platforms || PLATFORMS).length }
+    case 'OPEN_WORDPRESS_SETUP': {
+      const editor = wordPressEditor(sender)
+      if (!editor) return { error: 'WordPress setup must be opened from the editor.' }
+      const url = new URL(chrome.runtime.getURL('wordpress-connect.html'))
+      url.searchParams.set('editor', editor)
+      if (['zh-CN', 'zh-TW', 'en-US', 'ja-JP'].includes(request.locale)) {
+        url.searchParams.set('lang', request.locale)
+      }
+      await chrome.tabs.create({ url: url.href, openerTabId: sender.tab.id })
+      return { success: true }
+    }
     case 'START_SYNC_BATCH':
       // 开始新的同步批次，重置 tab group
       currentSyncGroupId = null
       return { success: true }
     case 'SYNC_TO_PLATFORM':
       if (request.platformId === 'devto') return await syncDevtoDraft(request.content, sender)
+      if (request.platformId === 'wordpress')
+        return await syncWordPressDraft(request.content, sender)
       return await syncToPlatform(request.platformId, request.content)
     case 'CACHE_USER_INFO':
       // 缓存用户信息
@@ -568,7 +586,7 @@ async function checkAllPlatformsProgressive(platforms, sender) {
             completed,
             total,
           }
-          if (platform.id === 'devto') {
+          if (platform.id === 'devto' || platform.id === 'wordpress') {
             await chrome.tabs.sendMessage(tabId, update, {
               frameId: sender.frameId,
               ...(sender.documentId && { documentId: sender.documentId }),
@@ -628,6 +646,7 @@ async function checkPlatformLogin(platform, sender) {
     return { loggedIn: false, error: '无效的平台配置' }
   }
   if (platform.id === 'devto') return await checkDevtoLogin(sender)
+  if (platform.id === 'wordpress') return await checkWordPressLogin(sender)
   return await detectUser(platform.id)
 }
 async function pasteWithDebugger(tabId) {

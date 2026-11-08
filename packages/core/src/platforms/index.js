@@ -35,6 +35,7 @@ import { XiaohongshuPlatform } from './xiaohongshu.js'
 import { ElecfansPlatform } from './elecfans.js'
 import { DoubanPlatform } from './douban.js'
 import { DevtoPlatform } from './devto.js'
+import { WordPressPlatform } from './wordpress.js'
 
 // 合并平台配置
 const PLATFORMS = [
@@ -70,6 +71,7 @@ const PLATFORMS = [
   ElecfansPlatform,
   DoubanPlatform,
   DevtoPlatform,
+  WordPressPlatform,
 ]
 
 // 根据 hostname 获取平台填充函数
