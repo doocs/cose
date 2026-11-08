@@ -69,7 +69,6 @@
         if (error) {
           // 检查是否是扩展上下文失效的错误
           if (error.includes && error.includes('Extension context invalidated')) {
-            console.warn('[COSE] 扩展已重新加载，请刷新页面')
             pending.reject(new Error('扩展已重新加载，请刷新页面'))
           } else {
             pending.reject(new Error(error))
@@ -510,7 +509,17 @@
       // 依次同步到各平台
       const syncAll = async () => {
         // 开始新的同步批次，将所有 tab 放入一个 group
-        await sendMessage('START_SYNC_BATCH', {})
+        try {
+          await sendMessage('START_SYNC_BATCH', {})
+        } catch (error) {
+          for (const account of status.accounts) {
+            account.status = 'failed'
+            account.error = error.message || '无法开始同步'
+          }
+          if (typeof onProgress === 'function') onProgress({ ...status })
+          if (typeof onComplete === 'function') onComplete()
+          return
+        }
 
         // 检查是否需要同步到微信公众号或百家号或网易号或 Medium 或少数派或微博头条或小红书（需要使用剪贴板 HTML）
         const hasWechat = syncAccounts.some(a => (a.uid || a.type) === 'wechat')

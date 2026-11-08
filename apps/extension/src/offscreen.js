@@ -1,3 +1,5 @@
+import { DomUtils, parseDocument } from 'htmlparser2'
+
 // Offscreen document for making fetch requests with cookies
 // This runs in a document context where credentials: 'include' actually works
 // (unlike the service worker where cookies are not sent/received automatically)
@@ -122,7 +124,7 @@ async function handleApiFetch(payload) {
 }
 
 /**
- * 51CTO detection: fetch home.51cto.com/space and parse with DOMParser.
+ * 51CTO detection: fetch home.51cto.com/space and extract profile fields.
  * Same approach as 爱贝壳 extension - runs in document context (offscreen).
  */
 async function handleDetectCto51() {
@@ -131,11 +133,15 @@ async function handleDetectCto51() {
       credentials: 'include',
     })
     const html = await resp.text()
-    const doc = new DOMParser().parseFromString(html, 'text/html')
+    // Parse remote markup without creating browser elements or registering event handlers.
+    const { children } = parseDocument(html)
 
     // Avatar: <img alt="头像">
-    const avatarEl = doc.querySelector("img[alt='头像']")
-    const avatar = avatarEl ? avatarEl.getAttribute('src') : ''
+    const avatarEl = DomUtils.findOne(
+      element => element.name === 'img' && element.attribs.alt === '头像',
+      children
+    )
+    const avatar = avatarEl ? (avatarEl.attribs.src ?? null) : ''
 
     // UID from avatar URL: uid=(\d+)
     let uid = ''
@@ -145,12 +151,20 @@ async function handleDetectCto51() {
     }
 
     // Nickname: div.name > a
-    const nameEl = doc.querySelector('div.name > a')
-    const username = nameEl ? nameEl.textContent.trim() : ''
+    const nameEl = DomUtils.findOne(element => {
+      const parent = element.parent
+      return (
+        element.name === 'a' &&
+        parent?.name === 'div' &&
+        parent.attribs.class?.split(/\s+/).includes('name')
+      )
+    }, children)
+    const username = nameEl ? DomUtils.textContent(nameEl).trim() : ''
 
     if (!username && !uid) {
       // Return debug info to help diagnose
-      const title = doc.querySelector('title')?.textContent || ''
+      const titleEl = DomUtils.findOne(element => element.name === 'title', children)
+      const title = titleEl ? DomUtils.textContent(titleEl) : ''
       return {
         loggedIn: false,
         _debug: { status: resp.status, url: resp.url, htmlLen: html.length, title },

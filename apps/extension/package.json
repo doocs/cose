@@ -16,7 +16,8 @@
   },
   "dependencies": {
     "@cose/core": "workspace:*",
-    "@cose/detection": "workspace:*"
+    "@cose/detection": "workspace:*",
+    "htmlparser2": "10.1.0"
   },
   "devDependencies": {
     "cac": "^7.1.0",

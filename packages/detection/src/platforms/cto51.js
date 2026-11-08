@@ -3,7 +3,7 @@ import { convertAvatarToBase64 } from '../utils.js'
 /**
  * 51CTO platform detection logic (same approach as 爱贝壳)
  * Fetch https://home.51cto.com/space via offscreen document,
- * parse HTML with DOMParser to extract avatar, uid, nickname.
+ * extract the avatar, uid and nickname from the response HTML.
  */
 export async function detectCTO51User() {
   try {
