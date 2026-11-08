@@ -404,9 +404,8 @@
       return injectedScriptUrl ? new URL('../devto-connect.html', injectedScriptUrl).href : null
     },
 
-    async openWordPressSetup(locale) {
-      const result = await sendMessage('OPEN_WORDPRESS_SETUP', { locale })
-      if (!result?.success) throw new Error(result?.error || 'Could not open WordPress setup')
+    getWordPressSetupUrl() {
+      return injectedScriptUrl ? new URL('../wordpress-connect.html', injectedScriptUrl).href : null
     },
 
     // 获取账号列表（带登录状态）

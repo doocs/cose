@@ -83,7 +83,12 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["bundles/inject.js", "bundles/platforms/*.js", "devto-connect.html"],
+      "resources": [
+        "bundles/inject.js",
+        "bundles/platforms/*.js",
+        "devto-connect.html",
+        "wordpress-connect.html"
+      ],
       "matches": ["<all_urls>"]
     }
   ]

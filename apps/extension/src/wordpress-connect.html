@@ -7,16 +7,26 @@
     <title>Connect WordPress · COSE</title>
     <style>
       body {
-        max-width: 34rem;
-        margin: 3rem auto;
-        padding: 0 1rem;
+        margin: 0;
+        color: CanvasText;
+        background: Canvas;
         font:
-          16px/1.5 system-ui,
+          14px/1.45 system-ui,
           sans-serif;
+      }
+      form {
+        display: flow-root;
+      }
+      p {
+        margin: 6px 0 0;
+        font-size: 12px;
+      }
+      p:empty {
+        display: none;
       }
       label {
         display: block;
-        margin: 1rem 0;
+        margin: 0 0 8px;
       }
       input {
         display: block;
@@ -25,17 +35,15 @@
       }
       input,
       button {
-        padding: 0.45rem 0.65rem;
+        min-height: 34px;
+        border: 1px solid GrayText;
+        border-radius: 6px;
+        padding: 4px 10px;
         font: inherit;
       }
     </style>
   </head>
   <body>
-    <h1 id="heading">Connect WordPress</h1>
-    <p id="help">
-      Create an application password in your self-hosted site's WordPress user profile.
-    </p>
-    <p id="editor"></p>
     <form id="connection">
       <label>
         <span id="site-label">WordPress installation URL</span>
@@ -51,8 +59,11 @@
       </label>
       <button id="connect" type="submit" disabled>Connect</button>
       <button id="disconnect" type="button" hidden>Disconnect</button>
+      <p id="help">
+        Create an application password in your self-hosted site's WordPress user profile.
+      </p>
+      <p id="status" role="status"></p>
     </form>
-    <p id="status" role="status"></p>
     <script src="bundles/wordpress-connect.js" type="module"></script>
   </body>
 </html>

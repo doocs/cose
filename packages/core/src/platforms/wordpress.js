@@ -16,6 +16,10 @@ function wordPressConnectionKey(origin) {
   return `wordpressConnection:${origin}`
 }
 
+function wordPressPendingKey(tabId) {
+  return `wordpressPendingHost:${tabId}`
+}
+
 function wordPressSite(value) {
   const url = new URL(value.trim())
   if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) {
@@ -172,7 +176,7 @@ export {
   connectWordPress,
   syncWordPressDraft,
   wordPressConnectionKey,
-  wordPressEditor,
+  wordPressPendingKey,
   wordPressPermission,
   wordPressSite,
 }

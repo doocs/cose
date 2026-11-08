@@ -7,8 +7,8 @@ import {
 } from '@cose/core/src/platforms/wordpress.js'
 
 const params = new URLSearchParams(location.search)
-const origin = editorOrigin(params.get('editor'))
-const storageKey = wordPressConnectionKey(origin)
+let origin
+let storageKey
 const locale = params.get('lang') || 'en'
 const t = (en, zh, tw, ja) => {
   if (locale === 'zh-TW') return tw
@@ -25,19 +25,12 @@ const disconnect = element('disconnect')
 const status = element('status')
 
 document.documentElement.lang = locale
-element('heading').textContent = t(
-  'Connect WordPress',
-  '连接 WordPress',
-  '連接 WordPress',
-  'WordPress に接続'
-)
 element('help').textContent = t(
   "Create an application password in your self-hosted site's WordPress user profile. COSE stores it in this browser.",
   '请在自建 WordPress 站点的用户资料页生成应用程序密码。COSE 将凭据保存在此浏览器。',
   '請在自架 WordPress 網站的使用者個人資料頁面產生應用程式密碼。COSE 會將憑證儲存在此瀏覽器。',
   '自分でホストする WordPress のプロフィールでアプリケーションパスワードを作成してください。認証情報はこのブラウザーに保存されます。'
 )
-element('editor').textContent = origin
 element('site-label').textContent = t(
   'WordPress installation URL',
   'WordPress 安装地址',
@@ -63,14 +56,7 @@ function showConnection(connection) {
   site.value = connection?.site || ''
   username.value = connection?.username || ''
   disconnect.hidden = !connection
-  status.textContent = connection
-    ? t(
-        'Connected. Return to the editor to sync.',
-        '已连接，请返回编辑器同步。',
-        '已連接，請返回編輯器同步。',
-        '接続しました。エディターに戻って同期してください。'
-      )
-    : ''
+  status.textContent = connection ? t('Connected.', '已连接。', '已連接。', '接続しました。') : ''
 }
 
 function setBusy(busy) {
@@ -78,7 +64,13 @@ function setBusy(busy) {
   disconnect.disabled = busy
 }
 
-element('connection').addEventListener('submit', async event => {
+const form = element('connection')
+
+function notifyParent() {
+  window.parent.postMessage({ type: 'cose-wordpress-connection-changed' }, origin)
+}
+
+form.addEventListener('submit', async event => {
   event.preventDefault()
   if (!origin || connect.disabled || !username.value.trim() || !password.value.trim()) return
   let address
@@ -95,22 +87,34 @@ element('connection').addEventListener('submit', async event => {
   }
   const user = username.value
   const secret = password.value
-  password.value = ''
   setBusy(true)
   status.textContent = ''
   try {
-    if (!(await chrome.permissions.request(wordPressPermission(address)))) {
-      status.textContent = t(
-        'Allow access to this site to connect.',
-        '请允许访问此站点。',
-        '請允許存取此網站。',
-        'このサイトへのアクセスを許可してください。'
-      )
+    const permission = wordPressPermission(address)
+    const granted = chrome.permissions
+      ? await chrome.permissions.request(permission)
+      : (await chrome.runtime.sendMessage({ type: 'CHECK_WORDPRESS_HOST', site: address }))?.granted
+    if (!granted) {
+      status.textContent = chrome.permissions
+        ? t(
+            'Allow access to this site to connect.',
+            '请允许访问此站点。',
+            '請允許存取此網站。',
+            'このサイトへのアクセスを許可してください。'
+          )
+        : t(
+            'In the Firefox toolbar, open COSE and allow the WordPress site. Then click Connect again.',
+            '请在 Firefox 工具栏打开 COSE，授权此 WordPress 站点，然后再次点击「连接」。',
+            '請在 Firefox 工具列開啟 COSE，授權此 WordPress 網站，然後再點擊「連接」。',
+            'Firefox のツールバーで COSE を開いてサイトへのアクセスを許可し、もう一度「接続」を押してください。'
+          )
       return
     }
+    password.value = ''
     const connection = await connectWordPress(address, user, secret)
     await chrome.storage.local.set({ [storageKey]: connection })
     showConnection(connection)
+    notifyParent()
   } catch {
     status.textContent = t(
       'Connection failed. Check the installation URL, username, application password and REST API access.',
@@ -130,6 +134,7 @@ disconnect.addEventListener('click', async () => {
     await chrome.storage.local.remove(storageKey)
     password.value = ''
     showConnection(null)
+    notifyParent()
   } catch {
     status.textContent = t(
       'Could not disconnect.',
@@ -142,7 +147,23 @@ disconnect.addEventListener('click', async () => {
   }
 })
 
-if (origin) {
+function initialize(event) {
+  if (
+    window.parent === window ||
+    window.parent !== window.top ||
+    event.source !== window.parent ||
+    event.data?.type !== 'cose-wordpress-initialize'
+  )
+    return
+  const parentOrigin = editorOrigin(event.origin)
+  if (!parentOrigin) return
+  window.removeEventListener('message', initialize)
+  origin = parentOrigin
+  storageKey = wordPressConnectionKey(origin)
+  new ResizeObserver(() => {
+    const height = Math.ceil(form.getBoundingClientRect().height)
+    window.parent.postMessage({ type: 'cose-wordpress-form-height', height }, origin)
+  }).observe(form)
   chrome.storage.local.get(storageKey).then(
     ({ [storageKey]: connection }) => {
       showConnection(connection)
@@ -158,3 +179,5 @@ if (origin) {
     }
   )
 }
+
+window.addEventListener('message', initialize)

@@ -4,7 +4,9 @@ import { checkDevtoLogin, syncDevtoDraft } from '@cose/core/src/platforms/devto.
 import {
   checkWordPressLogin,
   syncWordPressDraft,
-  wordPressEditor,
+  wordPressPendingKey,
+  wordPressPermission,
+  wordPressSite,
 } from '@cose/core/src/platforms/wordpress.js'
 import { qianfanIntercept } from '@cose/core/src/platforms/qianfan.js'
 import {
@@ -480,16 +482,26 @@ async function handleMessage(request, sender) {
       // 渐进式检测：每个平台检测完成后立即返回结果
       checkAllPlatformsProgressive(request.platforms || PLATFORMS, sender)
       return { started: true, total: (request.platforms || PLATFORMS).length }
-    case 'OPEN_WORDPRESS_SETUP': {
-      const editor = wordPressEditor(sender)
-      if (!editor) return { error: 'WordPress setup must be opened from the editor.' }
-      const url = new URL(chrome.runtime.getURL('wordpress-connect.html'))
-      url.searchParams.set('editor', editor)
-      if (['zh-CN', 'zh-TW', 'en-US', 'ja-JP'].includes(request.locale)) {
-        url.searchParams.set('lang', request.locale)
+    case 'CHECK_WORDPRESS_HOST': {
+      const frameUrl = sender.url && new URL(sender.url)
+      if (
+        !sender.frameId ||
+        !sender.tab?.id ||
+        !frameUrl ||
+        frameUrl.href.split('?')[0] !== chrome.runtime.getURL('wordpress-connect.html')
+      ) {
+        return { granted: false }
       }
-      await chrome.tabs.create({ url: url.href, openerTabId: sender.tab.id })
-      return { success: true }
+      const site = wordPressSite(request.site)
+      const permission = wordPressPermission(site)
+      const granted = await chrome.permissions.contains(permission)
+      if (!granted) {
+        const key = wordPressPendingKey(sender.tab.id)
+        await chrome.storage.session.set({
+          [key]: { host: new URL(site).hostname, expires: Date.now() + 5 * 60 * 1000 },
+        })
+      }
+      return { granted }
     }
     case 'START_SYNC_BATCH':
       // 开始新的同步批次，重置 tab group

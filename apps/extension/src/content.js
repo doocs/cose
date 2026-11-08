@@ -300,9 +300,6 @@ async function isDoocsEditor() {
             platforms: payload?.platforms,
           })
           break
-        case 'OPEN_WORDPRESS_SETUP':
-          result = await chrome.runtime.sendMessage({ type, locale: payload?.locale })
-          break
         case 'START_SYNC_BATCH':
           result = await chrome.runtime.sendMessage({ type: 'START_SYNC_BATCH' })
           break
