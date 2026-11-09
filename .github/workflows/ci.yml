@@ -217,7 +217,7 @@ jobs:
           access_token_scopes: https://www.googleapis.com/auth/chromewebstore
           create_credentials_file: false
           export_environment_variables: false
-      - name: Check status or submit Chromium for staged publishing
+      - name: Check status or submit Chromium for automatic publishing after review
         env:
           CWS_TOKEN: ${{ steps.chrome-auth.outputs.access_token }}
           CWS_PUBLISHER_ID: ${{ vars.CWS_PUBLISHER_ID }}
