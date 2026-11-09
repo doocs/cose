@@ -1,6 +1,15 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+overrides:
+  'ajv>fast-uri': 3.1.9
+  'cheerio>undici': 7.30.2
+  'css-tree>source-map-js': 1.2.2
+  '@devicefarmer/adbkit>node-forge': 1.4.3
+  '@eslint/eslintrc>js-yaml': 4.3.2
+  'minimatch@3>brace-expansion': 1.1.21
+  # rimraf 5 pins the vulnerable glob 10 line.
+  'flat-cache@4>rimraf': 6.1.4
 allowBuilds:
   core-js: false
   dtrace-provider: false
