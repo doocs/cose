@@ -86,12 +86,12 @@ if (CWS_ACTION === 'status') {
   const submission = await request(`/v2/${item}:publish`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ publishType: 'STAGED_PUBLISH', blockOnWarnings: true }),
+    body: JSON.stringify({ publishType: 'DEFAULT_PUBLISH', blockOnWarnings: true }),
   })
-  if (!['PENDING_REVIEW', 'STAGED'].includes(submission.state)) {
+  if (!['PENDING_REVIEW', 'PUBLISHED'].includes(submission.state)) {
     throw new Error(`Unexpected Chrome Web Store submission state: ${submission.state}`)
   }
   console.log(
-    `Chrome Web Store ${version}: ${submission.state}. Publish from the dashboard after approval.`
+    `Chrome Web Store ${version}: ${submission.state}. The store publishes automatically after approval.`
   )
 }
