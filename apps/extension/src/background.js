@@ -1,5 +1,6 @@
 // 平台配置
 import { PLATFORMS, LOGIN_CHECK_CONFIG, SYNC_HANDLERS } from '@cose/core/src/platforms/index.js'
+import { mcpArticleContent, resolveMcpPlatform } from '@cose/core/src/mcp.js'
 import { checkDevtoLogin, syncDevtoDraft } from '@cose/core/src/platforms/devto.js'
 import {
   checkWordPressLogin,
@@ -475,6 +476,50 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 })
 
 async function handleMessage(request, sender) {
+  if (request.type === 'MCP_ARTICLE_DRAFT') {
+    if (
+      sender.url !== chrome.runtime.getURL('mcp-connect.html') ||
+      !Number.isInteger(sender.tab?.windowId)
+    ) {
+      return { status: 'not_confirmed', message: '请从 COSE 的 MCP 连接页确认草稿' }
+    }
+    const { title, markdown, text, platformId } = request
+    const article = markdown ?? text
+    const platform = typeof platformId === 'string' && resolveMcpPlatform(platformId)
+    if (!platform || platform.mode === 'requires_editor_connection') {
+      return {
+        status: 'not_confirmed',
+        message: '此平台无法在 MCP 中同步，请检查平台名称或使用 MD 编辑器连接账号',
+      }
+    }
+    if (
+      typeof title !== 'string' ||
+      !title.trim() ||
+      title.length > 200 ||
+      (markdown === undefined) === (text === undefined) ||
+      typeof article !== 'string' ||
+      !article.trim() ||
+      article.length > 20000
+    ) {
+      return { status: 'not_confirmed', message: '草稿标题或正文无效' }
+    }
+    const result = await syncToPlatform(
+      platform.id,
+      mcpArticleContent({ title, markdown, text }),
+      sender.tab.windowId
+    )
+    if (!result.success) return { status: 'not_confirmed', message: result.message }
+    if (platform.mode === 'confirmed_draft') {
+      return { status: 'saved', message: result.message || `${platform.name}已确认保存草稿` }
+    }
+    if (platform.id !== 'twitter' && !Object.hasOwn(SYNC_HANDLERS, platform.id)) {
+      return {
+        status: 'review_required',
+        message: '已运行自动填充，请检查编辑器的标题、正文和草稿状态',
+      }
+    }
+    return { status: 'filled', message: `已填写${platform.name}编辑器，请在页面检查内容和草稿状态` }
+  }
   console.log(`[COSE] handleMessage received type: ${request.type}`, request)
   switch (request.type) {
     case 'GET_PLATFORMS':
@@ -748,7 +793,7 @@ async function pasteWithDebugger(tabId) {
 
 const rednoteDraftSaves = new Map()
 
-async function syncRednoteDraft(platform, content) {
+async function syncRednoteDraft(platform, content, openTab, groupTab) {
   // Fingerprint the editor payload, which is stable across clipboard reads.
   const input = new TextEncoder().encode(JSON.stringify([content.title, content.body]))
   const digest = await crypto.subtle.digest('SHA-256', input)
@@ -761,8 +806,8 @@ async function syncRednoteDraft(platform, content) {
   const save = (async () => {
     const stored = await chrome.storage.local.get(key)
     const ids = stored[key] || []
-    const tab = await chrome.tabs.create({ url: platform.publishUrl, active: true })
-    await addTabToSyncGroup(tab.id, tab.windowId)
+    const tab = await openTab({ url: platform.publishUrl, active: true })
+    await groupTab(tab.id, tab.windowId)
     await waitForTab(tab.id)
     const [response] = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
@@ -792,14 +837,19 @@ async function syncRednoteDraft(platform, content) {
 }
 
 // 同步到平台
-async function syncToPlatform(platformId, content) {
+async function syncToPlatform(platformId, content, windowId) {
+  const openTab = options =>
+    chrome.tabs.create(windowId === undefined ? options : { ...options, windowId, active: true })
+  // A paired window must not join an MD sync batch in another window.
+  const groupTab = windowId === undefined ? addTabToSyncGroup : () => {}
   const platform = PLATFORMS.find(p => p && p.id === platformId)
   if (!platform || !platform.publishUrl) {
     return { success: false, message: '暂不支持该平台' }
   }
 
   try {
-    if (platformId === 'rednote') return await syncRednoteDraft(platform, content)
+    if (platformId === 'rednote')
+      return await syncRednoteDraft(platform, content, openTab, groupTab)
 
     let tab
 
@@ -809,14 +859,14 @@ async function syncToPlatform(platformId, content) {
       console.log(`[COSE] 使用 ${platformId} 平台特定同步处理器`)
       // 创建新标签页（对于微信等需要特殊处理的平台，使用首页）
       const initialUrl = platformId === 'wechat' ? 'https://mp.weixin.qq.com/' : platform.publishUrl
-      tab = await chrome.tabs.create({ url: initialUrl, active: false })
-      await addTabToSyncGroup(tab.id, tab.windowId)
+      tab = await openTab({ url: initialUrl, active: false })
+      await groupTab(tab.id, tab.windowId)
 
       // 调用平台特定处理器
       const helpers = {
         chrome,
         waitForTab,
-        addTabToSyncGroup,
+        addTabToSyncGroup: groupTab,
         PLATFORMS,
       }
       return await syncHandler(tab, content, helpers)
@@ -843,8 +893,8 @@ async function syncToPlatform(platformId, content) {
           const targetUrl = `https://xie.infoq.cn/draft/${draftId}`
           console.log('[COSE] InfoQ 创建草稿成功，ID:', draftId)
 
-          tab = await chrome.tabs.create({ url: targetUrl, active: false })
-          await addTabToSyncGroup(tab.id, tab.windowId)
+          tab = await openTab({ url: targetUrl, active: false })
+          await groupTab(tab.id, tab.windowId)
           await waitForTab(tab.id)
         } else {
           console.error('[COSE] InfoQ 创建草稿失败:', data)
@@ -896,8 +946,8 @@ async function syncToPlatform(platformId, content) {
           const targetUrl = `https://www.jianshu.com/writer#/notebooks/${notebookId}/notes/${noteId}`
           console.log('[COSE] 简书创建文章成功，ID:', noteId)
 
-          tab = await chrome.tabs.create({ url: targetUrl, active: false })
-          await addTabToSyncGroup(tab.id, tab.windowId)
+          tab = await openTab({ url: targetUrl, active: false })
+          await groupTab(tab.id, tab.windowId)
           await waitForTab(tab.id)
         } else {
           console.error('[COSE] 简书创建文章失败:', noteData)
@@ -912,8 +962,8 @@ async function syncToPlatform(platformId, content) {
       console.log('[COSE] 开始处理小红书同步...')
 
       // 打开发布页面
-      tab = await chrome.tabs.create({ url: platform.publishUrl, active: false })
-      await addTabToSyncGroup(tab.id, tab.windowId)
+      tab = await openTab({ url: platform.publishUrl, active: false })
+      await groupTab(tab.id, tab.windowId)
       await waitForTab(tab.id)
 
       // 等待页面加载完成
@@ -1094,9 +1144,12 @@ async function syncToPlatform(platformId, content) {
       return { success: true, message: '已同步到小红书', tabId: tab.id }
     } else if (platformId === 'twitter') {
       // Keep X in the foreground until the editor has accepted the draft.
-      const [currentTab] = await chrome.tabs.query({ active: true, currentWindow: true })
-      tab = await chrome.tabs.create({ url: platform.publishUrl, active: true })
-      await addTabToSyncGroup(tab.id, tab.windowId)
+      const [currentTab] = await chrome.tabs.query({
+        active: true,
+        ...(windowId === undefined ? { currentWindow: true } : { windowId }),
+      })
+      tab = await openTab({ url: platform.publishUrl, active: true })
+      await groupTab(tab.id, tab.windowId)
       await waitForTab(tab.id)
 
       async function restorePreviousTab() {
@@ -1492,8 +1545,8 @@ async function syncToPlatform(platformId, content) {
       }
 
       // 打开发布页面
-      tab = await chrome.tabs.create({ url: platform.publishUrl, active: false })
-      await addTabToSyncGroup(tab.id, tab.windowId)
+      tab = await openTab({ url: platform.publishUrl, active: false })
+      await groupTab(tab.id, tab.windowId)
 
       // 动态注入千帆拦截脚本（MAIN world，尽早执行）
       try {
@@ -1685,8 +1738,8 @@ async function syncToPlatform(platformId, content) {
       }
 
       // 直接打开发布页面
-      tab = await chrome.tabs.create({ url: targetUrl, active: false })
-      await addTabToSyncGroup(tab.id, tab.windowId)
+      tab = await openTab({ url: targetUrl, active: false })
+      await groupTab(tab.id, tab.windowId)
       await waitForTab(tab.id)
     }
 

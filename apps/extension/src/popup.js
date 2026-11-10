@@ -1,5 +1,10 @@
 import { wordPressPendingKey, wordPressPermission } from '@cose/core/src/platforms/wordpress.js'
 
+// Chromium builds use a Manifest V3 service worker.
+if (chrome.runtime.getManifest().background?.service_worker) {
+  document.getElementById('mcpEntry').hidden = false
+}
+
 // Popup script for COSE extension
 document.getElementById('openOfficial').addEventListener('click', e => {
   e.preventDefault()

@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>COSE · MCP 草稿</title>
+    <style>
+      body {
+        font:
+          16px system-ui,
+          sans-serif;
+        max-width: 48rem;
+        margin: 3rem auto;
+        padding: 0 1rem;
+        color-scheme: light dark;
+      }
+      label {
+        display: block;
+        margin-block: 0.75rem;
+      }
+      input {
+        display: block;
+        width: min(100%, 24rem);
+      }
+      pre {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        max-height: 45vh;
+        overflow: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>COSE · MCP 草稿</h1>
+    <p>在要用来创建草稿的 Chrome 窗口中连接。保持此标签页打开，关闭后即断开。</p>
+    <form id="pair">
+      <label
+        >浏览器实例名 <input id="name" maxlength="60" required placeholder="例如：工作 Chrome"
+      /></label>
+      <label
+        >配对令牌
+        <input
+          id="token"
+          type="password"
+          minlength="32"
+          maxlength="128"
+          autocomplete="off"
+          required
+      /></label>
+      <button id="connect" type="submit">连接</button>
+    </form>
+    <button id="disconnect" type="button" hidden>断开</button>
+    <p id="status" role="status">未连接</p>
+    <section id="draft" hidden>
+      <h2>确认同步到 <span id="target"></span></h2>
+      <p>将使用此 Chrome 配置文件在该平台登录的账号。</p>
+      <h3 id="title"></h3>
+      <pre id="text"></pre>
+      <button id="approve" type="button">保存为草稿</button>
+      <button id="decline" type="button">拒绝</button>
+    </section>
+    <script src="bundles/mcp-connect.js" type="module"></script>
+  </body>
+</html>
