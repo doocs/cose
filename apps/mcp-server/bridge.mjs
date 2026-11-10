@@ -1,16 +1,26 @@
-import { createHash, timingSafeEqual, randomUUID } from 'node:crypto'
+import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
 import { createServer } from 'node:http'
 import { WebSocket, WebSocketServer } from 'ws'
 import { mcpPlatforms, resolveMcpPlatform } from '@cose/core/mcp'
+import { MCP_BRIDGE_PORT, MCP_BRIDGE_VERSION, pairingProof } from '@cose/core/mcp-protocol'
 
 const address = '127.0.0.1'
+const chromeStoreId = 'ilhikcdphhpjofhlnbojifbihhfmmhfk'
+const extensionIdPattern = /^[a-p]{32}$/
+const uuidPattern = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i
+const proofPattern = /^[0-9a-f]{64}$/
 const completed = new Set(['saved', 'filled', 'review_required'])
 
-export async function startBridge(token, port = 17831) {
+export async function startBridge(token, port = MCP_BRIDGE_PORT, extensionId = chromeStoreId) {
   if (!/^[A-Za-z0-9_-]{32,128}$/.test(token || '')) {
     throw new Error('Set COSE_MCP_TOKEN to a random base64url token (32–128 characters).')
   }
-  const expected = Buffer.from(token)
+  if (!extensionIdPattern.test(extensionId)) throw new Error('Invalid COSE_MCP_EXTENSION_ID.')
+  const origin = `chrome-extension://${extensionId}`
+  const sign = (role, clientNonce, serverNonce) =>
+    createHmac('sha256', token)
+      .update(pairingProof(role, origin, clientNonce, serverNonce))
+      .digest()
   const profiles = new Map()
   const requests = new Map()
   const sockets = new WebSocketServer({ noServer: true, maxPayload: 8192 })
@@ -26,7 +36,8 @@ export async function startBridge(token, port = 17831) {
     return {
       request_id: request.id,
       platform: request.platform.id,
-      status: request.status,
+      status:
+        request.status === 'awaiting_confirmation' && request.autoFill ? 'queued' : request.status,
       message: request.message,
     }
   }
@@ -35,7 +46,7 @@ export async function startBridge(token, port = 17831) {
     if (
       request.url !== '/cose' ||
       request.headers.host !== `${address}:${http.address().port}` ||
-      !/^chrome-extension:\/\/[a-p]{32}$/.test(request.headers.origin || '') ||
+      request.headers.origin !== origin ||
       sockets.clients.size >= 20
     ) {
       socket.destroy()
@@ -46,6 +57,7 @@ export async function startBridge(token, port = 17831) {
 
   sockets.on('connection', socket => {
     let profile
+    let challenge
     let alive = true
     const send = message => socket.send(JSON.stringify(message))
     const authTimeout = setTimeout(() => socket.close(1008, 'Pairing required'), 5000)
@@ -84,30 +96,60 @@ export async function startBridge(token, port = 17831) {
         return
       }
       if (!profile) {
-        const presented = Buffer.from(typeof message?.token === 'string' ? message.token : '')
+        if (!challenge && message?.type === 'hello') {
+          if (message.protocol !== MCP_BRIDGE_VERSION) {
+            socket.close(1008, 'COSE extension and MCP bridge versions are incompatible')
+            return
+          }
+          if (typeof message.nonce !== 'string' || !proofPattern.test(message.nonce)) {
+            socket.close(1008, 'Invalid pairing challenge')
+            return
+          }
+          const clientNonce = message.nonce
+          const serverNonce = randomBytes(32).toString('hex')
+          challenge = { clientNonce, serverNonce }
+          send({
+            type: 'challenge',
+            nonce: serverNonce,
+            proof: sign('server', clientNonce, serverNonce).toString('hex'),
+          })
+          return
+        }
         const name = typeof message?.name === 'string' ? message.name.trim() : ''
+        const id = message?.browserId
         if (
+          !challenge ||
           message?.type !== 'pair' ||
           !name ||
           name.length > 60 ||
-          presented.length !== expected.length ||
-          !timingSafeEqual(presented, expected)
+          typeof id !== 'string' ||
+          !uuidPattern.test(id) ||
+          typeof message.proof !== 'string' ||
+          !proofPattern.test(message.proof) ||
+          !timingSafeEqual(
+            Buffer.from(message.proof, 'hex'),
+            sign('extension', challenge.clientNonce, challenge.serverNonce)
+          )
         ) {
-          socket.close(1008, 'Invalid token or browser name')
+          socket.close(1008, 'Invalid pairing proof or browser name')
           return
         }
-        if (message.protocol !== 2) {
-          socket.close(1008, 'COSE extension and MCP bridge versions are incompatible')
-          return
-        }
-        if ([...profiles.values()].some(other => other.name.toLowerCase() === name.toLowerCase())) {
-          socket.close(1008, 'Browser name already paired')
+        if (
+          profiles.has(id) ||
+          [...profiles.values()].some(other => other.name.toLowerCase() === name.toLowerCase())
+        ) {
+          socket.close(1008, 'Browser identity or name already paired')
           return
         }
         clearTimeout(authTimeout)
-        profile = { id: randomUUID(), name, socket }
-        profiles.set(profile.id, profile)
-        send({ type: 'paired', id: profile.id, name })
+        profile = { id, name, socket, autoFill: message.autoFill === true }
+        profiles.set(id, profile)
+        send({ type: 'paired', id, name })
+        return
+      }
+
+      if (message?.type === 'ping') {
+        send({ type: 'pong' })
         return
       }
 
@@ -157,7 +199,7 @@ export async function startBridge(token, port = 17831) {
         platforms: mcpPlatforms,
         browsers: [...profiles.values()]
           .filter(profile => profile.socket.readyState === WebSocket.OPEN)
-          .map(({ id, name }) => ({ id, name })),
+          .map(({ id, name, autoFill }) => ({ id, name, confirmation_required: !autoFill })),
       }
     },
     createDraft({
@@ -206,8 +248,11 @@ export async function startBridge(token, port = 17831) {
         browserId,
         platform,
         fingerprint,
+        autoFill: profile.autoFill,
         status: 'awaiting_confirmation',
-        message: 'Confirm the draft in the selected Chrome window.',
+        message: profile.autoFill
+          ? 'COSE is preparing the article automatically.'
+          : 'Confirm the draft in the selected Chrome window.',
       }
       requests.set(id, request)
       profile.requestId = id

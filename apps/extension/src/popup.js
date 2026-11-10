@@ -1,7 +1,6 @@
 import { wordPressPendingKey, wordPressPermission } from '@cose/core/src/platforms/wordpress.js'
 
-// Chromium builds use a Manifest V3 service worker.
-if (chrome.runtime.getManifest().background?.service_worker) {
+if (chrome.runtime.getManifest().permissions.includes('alarms')) {
   document.getElementById('mcpEntry').hidden = false
 }
 

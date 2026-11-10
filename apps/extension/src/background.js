@@ -1,6 +1,7 @@
 // 平台配置
 import { PLATFORMS, LOGIN_CHECK_CONFIG, SYNC_HANDLERS } from '@cose/core/src/platforms/index.js'
 import { mcpArticleContent, resolveMcpPlatform } from '@cose/core/src/mcp.js'
+import { installMcpBridge } from './mcp-background.js'
 import { checkDevtoLogin, syncDevtoDraft } from '@cose/core/src/platforms/devto.js'
 import {
   checkWordPressLogin,
@@ -452,7 +453,10 @@ async function logToStorage(msg, data = null) {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   // Let OFFSCREEN_* messages pass through to the offscreen document listener.
   // If we handle them here, sendResponse fires before the offscreen doc can reply.
-  if (request.type && request.type.startsWith('OFFSCREEN_')) {
+  if (
+    request.type &&
+    (request.type.startsWith('OFFSCREEN_') || request.type.startsWith('MCP_PAIR_'))
+  ) {
     return false
   }
 
@@ -475,51 +479,48 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   return true // 表示异步响应
 })
 
-async function handleMessage(request, sender) {
-  if (request.type === 'MCP_ARTICLE_DRAFT') {
-    if (
-      sender.url !== chrome.runtime.getURL('mcp-connect.html') ||
-      !Number.isInteger(sender.tab?.windowId)
-    ) {
-      return { status: 'not_confirmed', message: '请从 COSE 的 MCP 连接页确认草稿' }
+async function syncMcpArticle(article, windowId) {
+  const { title, markdown, text, platform: target } = article
+  const content = markdown ?? text
+  const platform = typeof target?.id === 'string' && resolveMcpPlatform(target.id)
+  if (!platform || platform.mode === 'requires_editor_connection') {
+    return {
+      status: 'not_confirmed',
+      message: '此平台无法在 MCP 中同步，请检查平台名称或使用 MD 编辑器连接账号',
     }
-    const { title, markdown, text, platformId } = request
-    const article = markdown ?? text
-    const platform = typeof platformId === 'string' && resolveMcpPlatform(platformId)
-    if (!platform || platform.mode === 'requires_editor_connection') {
-      return {
-        status: 'not_confirmed',
-        message: '此平台无法在 MCP 中同步，请检查平台名称或使用 MD 编辑器连接账号',
-      }
-    }
-    if (
-      typeof title !== 'string' ||
-      !title.trim() ||
-      title.length > 200 ||
-      (markdown === undefined) === (text === undefined) ||
-      typeof article !== 'string' ||
-      !article.trim() ||
-      article.length > 20000
-    ) {
-      return { status: 'not_confirmed', message: '草稿标题或正文无效' }
-    }
-    const result = await syncToPlatform(
-      platform.id,
-      mcpArticleContent({ title, markdown, text }),
-      sender.tab.windowId
-    )
-    if (!result.success) return { status: 'not_confirmed', message: result.message }
-    if (platform.mode === 'confirmed_draft') {
-      return { status: 'saved', message: result.message || `${platform.name}已确认保存草稿` }
-    }
-    if (platform.id !== 'twitter' && !Object.hasOwn(SYNC_HANDLERS, platform.id)) {
-      return {
-        status: 'review_required',
-        message: '已运行自动填充，请检查编辑器的标题、正文和草稿状态',
-      }
-    }
-    return { status: 'filled', message: `已填写${platform.name}编辑器，请在页面检查内容和草稿状态` }
   }
+  if (
+    typeof title !== 'string' ||
+    !title.trim() ||
+    title.length > 200 ||
+    (markdown === undefined) === (text === undefined) ||
+    typeof content !== 'string' ||
+    !content.trim() ||
+    content.length > 20000
+  ) {
+    return { status: 'not_confirmed', message: '草稿标题或正文无效' }
+  }
+  const result = await syncToPlatform(
+    platform.id,
+    mcpArticleContent({ title, markdown, text }),
+    windowId
+  )
+  if (!result.success) return { status: 'not_confirmed', message: result.message }
+  if (platform.mode === 'confirmed_draft') {
+    return { status: 'saved', message: result.message || `${platform.name}已确认保存草稿` }
+  }
+  if (platform.id !== 'twitter' && !Object.hasOwn(SYNC_HANDLERS, platform.id)) {
+    return {
+      status: 'review_required',
+      message: '已运行自动填充，请检查编辑器的标题、正文和草稿状态',
+    }
+  }
+  return { status: 'filled', message: `已填写${platform.name}编辑器，请在页面检查内容和草稿状态` }
+}
+
+installMcpBridge(syncMcpArticle)
+
+async function handleMessage(request, sender) {
   console.log(`[COSE] handleMessage received type: ${request.type}`, request)
   switch (request.type) {
     case 'GET_PLATFORMS':

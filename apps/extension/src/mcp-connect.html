@@ -18,7 +18,7 @@
         display: block;
         margin-block: 0.75rem;
       }
-      input {
+      input:not([type='checkbox']) {
         display: block;
         width: min(100%, 24rem);
       }
@@ -32,24 +32,20 @@
   </head>
   <body>
     <h1>COSE · MCP 草稿</h1>
-    <p>在要用来创建草稿的 Chrome 窗口中连接。保持此标签页打开，关闭后即断开。</p>
+    <p>在要用来同步文章的 Chrome 窗口中配对。本机保存配对，关闭此页面后可继续使用。</p>
     <form id="pair">
       <label
         >浏览器实例名 <input id="name" maxlength="60" required placeholder="例如：工作 Chrome"
       /></label>
       <label
         >配对令牌
-        <input
-          id="token"
-          type="password"
-          minlength="32"
-          maxlength="128"
-          autocomplete="off"
-          required
+        <input id="token" type="password" minlength="32" maxlength="128" autocomplete="off"
       /></label>
-      <button id="connect" type="submit">连接</button>
+      <label><input id="autoFill" type="checkbox" /> 允许自动填写文章和保存草稿</label>
+      <p>开启后，来自已配对 MCP 的请求会直接执行。关闭时，每篇文章都会先显示预览供你确认。</p>
+      <button id="connect" type="submit">启用并配对</button>
     </form>
-    <button id="disconnect" type="button" hidden>断开</button>
+    <button id="disconnect" type="button" hidden>关闭 MCP 并清除配对</button>
     <p id="status" role="status">未连接</p>
     <section id="draft" hidden>
       <h2>确认同步到 <span id="target"></span></h2>

@@ -3,7 +3,11 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 import { startBridge } from './bridge.mjs'
 
-const bridge = await startBridge(process.env.COSE_MCP_TOKEN)
+const bridge = await startBridge(
+  process.env.COSE_MCP_TOKEN,
+  undefined,
+  process.env.COSE_MCP_EXTENSION_ID
+)
 const server = new McpServer({ name: 'cose', version: '0.1.0' })
 const transport = new StdioServerTransport()
 const requestId = z
@@ -18,7 +22,7 @@ server.registerTool(
   'list_platforms',
   {
     description:
-      'List supported platforms and paired Chrome instances. Ask the user which browser to use if it is ambiguous.',
+      'List supported platforms, paired Chrome instances and whether each requires confirmation. Ask the user which browser to use if it is ambiguous.',
     annotations: { readOnlyHint: true },
   },
   () => result(bridge.listPlatforms())
@@ -28,7 +32,7 @@ server.registerTool(
   'create_draft',
   {
     description:
-      'Prepare an article on a platform in the selected paired Chrome window. COSE asks the user before filling the editor or saving a draft. Call get_draft_status for the result.',
+      'Prepare an article on a platform in the selected paired Chrome window. COSE uses the confirmation preference selected in Chrome. Call get_draft_status for the result.',
     inputSchema: {
       request_id: requestId,
       browser_id: z.uuid().describe('Exact ID of a connected browser from list_platforms.'),
