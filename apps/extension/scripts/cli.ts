@@ -125,7 +125,6 @@ const copyResources = async () => {
 
   for (const name of [
     'popup.html',
-    'mcp-connect.html',
     'offscreen.html',
     'devto-connect.html',
     'wordpress-connect.html',

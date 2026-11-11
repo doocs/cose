@@ -1,88 +1,289 @@
 <!doctype html>
-<html>
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <style>
+      :root {
+        --accent: #0069a8;
+        --accent-hover: #005585;
+        --accent-tint: #e9f5fc;
+        --accent-tint-hover: #dbeefa;
+        --line: #dce5eb;
+        scroll-padding-block-start: 3.5rem;
+      }
       * {
-        margin: 0;
-        padding: 0;
         box-sizing: border-box;
       }
       body {
         width: 320px;
-        padding: 20px;
-        font-family:
-          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        margin: 0;
+        padding: 0 16px 16px;
+        color: #182a38;
         background: #fff;
-        color: #333;
+        font:
+          13px / 1.5 system-ui,
+          sans-serif;
       }
-      .container {
-        text-align: center;
+      .popup-header {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        margin-inline: -16px;
+        padding: 14px 16px;
+        background: #f1f8fc;
+        border-bottom: 1px solid var(--line);
+      }
+      @supports (backdrop-filter: blur(12px)) {
+        @media (prefers-reduced-transparency: no-preference) {
+          body {
+            background: radial-gradient(ellipse at top right, #c9f3ff, transparent 70%) top / 100%
+              96px no-repeat #fff;
+          }
+          .popup-header {
+            background: rgb(246 251 255 / 65%);
+            backdrop-filter: blur(12px);
+          }
+        }
+      }
+      h1,
+      h3,
+      p {
+        margin: 0;
       }
       h1 {
-        font-size: 18px;
-        font-weight: 600;
-        margin-bottom: 12px;
+        font-size: 17px;
+        line-height: 1.4;
       }
-      p {
+      h3 {
         font-size: 13px;
-        line-height: 1.6;
-        color: #333;
-        margin-bottom: 16px;
+        overflow-wrap: anywhere;
       }
-      p a {
-        color: #fe5200;
-        text-decoration: none;
+      a {
+        color: var(--accent);
       }
-      p a:hover {
-        text-decoration: underline;
+      input[type='checkbox'] {
+        accent-color: var(--accent);
+      }
+      button,
+      input,
+      textarea {
+        font: inherit;
+      }
+      .button-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+      .editor-intro {
+        margin-top: 12px;
+      }
+      .editor-actions {
+        margin-top: 8px;
       }
       .btn {
-        display: inline-block;
-        padding: 10px 20px;
-        background: #fe5200;
-        color: #fff;
-        text-decoration: none;
-        border-radius: 8px;
+        --button-text: #fff;
+        --button-background: var(--accent);
+        --button-hover: var(--accent-hover);
+        min-height: 34px;
+        padding: 7px 14px;
+        color: var(--button-text);
+        background: var(--button-background);
+        border: 0;
+        border-radius: 999px;
         font-size: 14px;
         font-weight: 500;
-        transition: background 0.2s;
-        border: 1px solid #e64a00;
+        line-height: 20px;
+        text-decoration: none;
         cursor: pointer;
+        transition: background-color 120ms ease;
       }
-      .btn:hover {
-        background: #e64a00;
+      .btn:not([hidden]) {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
       }
-      .divider {
-        margin: 16px 0;
-        border-top: 1px solid #e5e5e5;
+      .btn:hover:not(:disabled),
+      .btn:active:not(:disabled) {
+        background: var(--button-hover);
       }
-      .hint {
-        font-size: 12px;
-        color: #666;
+      .btn:active:not(:disabled) {
+        opacity: 0.8;
+      }
+      .btn:focus-visible,
+      summary:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+      .btn-secondary {
+        --button-text: var(--accent);
+        --button-background: var(--accent-tint);
+        --button-hover: var(--accent-tint-hover);
+      }
+      .btn-text {
+        --button-text: var(--accent);
+        --button-background: transparent;
+        --button-hover: var(--accent-tint);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .btn {
+          transition: none;
+        }
+      }
+      #wordpressPermission {
+        margin-top: 12px;
+      }
+      #wordpressPermission p:not(:empty) {
+        margin: 6px 0;
+      }
+      #mcpPanel {
+        margin-top: 12px;
+        border-top: 1px solid var(--line);
+      }
+      #mcpPanel > summary {
+        padding-block: 7px;
+        font-size: 15px;
+        line-height: 20px;
+      }
+      .editor-hint,
+      .mcp-intro,
+      .mcp-status {
+        color: #506372;
+      }
+      .mcp-intro {
+        margin: 4px 0 10px;
+      }
+      #mcpPanel textarea:not([hidden]),
+      #mcpPanel input:not([type='checkbox']) {
+        display: block;
+        width: 100%;
+        margin-top: 4px;
+        padding: 6px 8px;
+        color: inherit;
+        border: 1px solid #a0b3c0;
+        border-radius: 5px;
+      }
+      #mcpSetupText {
+        min-height: 116px;
+        resize: vertical;
+        overflow-wrap: anywhere;
+        background: #f4f8fb;
+      }
+      #mcpSetupStatus {
+        margin-top: 4px;
+      }
+      #retryMcp {
+        margin-top: 6px;
+      }
+      #mcpSettings {
+        margin-top: 10px;
+      }
+      #mcpPanel summary {
+        cursor: pointer;
+        font-weight: 600;
+      }
+      #mcpSettings label {
+        display: block;
+        margin-top: 8px;
+      }
+      #mcpSettings button {
+        margin: 6px 0 0;
+      }
+      #mcpTokenStatus:not(:empty) {
+        margin-top: 4px;
+      }
+      #status {
+        margin-top: 8px;
+      }
+      #draft {
+        margin: 10px 0;
+        padding: 8px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+      }
+      #draft pre {
+        max-height: 9rem;
+        overflow: auto;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        margin: 6px 0;
       }
     </style>
   </head>
   <body>
-    <div class="container">
-      <h1>COSE - 多平台文章同步</h1>
-      <p>插件安装完成！</p>
-      <p>
-        在 <a href="https://md.doocs.org" target="_blank">Doocs MD</a> 或
-        <a href="https://github.com/doocs/md" target="_blank">自托管编辑器</a>中选择发布平台。
-      </p>
-      <section id="wordpressPermission" hidden>
-        <p id="wordpressHost"></p>
-        <button class="btn" id="allowWordPress" type="button">允许访问 / Allow access</button>
-        <p id="wordpressPermissionStatus" role="status"></p>
-      </section>
-      <div class="divider"></div>
-      <p class="hint">没有自托管编辑器？</p>
-      <a href="https://md.doocs.org" target="_blank" class="btn" id="openOfficial"
-        >也可使用官网编辑器</a
-      >
-      <p id="mcpEntry" hidden><a href="mcp-connect.html" target="_blank">连接本地 MCP</a></p>
+    <header class="popup-header">
+      <h1>COSE · 多平台文章同步</h1>
+    </header>
+    <p class="editor-intro">
+      在
+      <a href="https://github.com/doocs/md" target="_blank" rel="noopener noreferrer"
+        >自托管编辑器</a
+      >中选择发布平台。
+    </p>
+    <div class="button-row editor-actions">
+      <p class="editor-hint">没有自托管编辑器？</p>
+      <a href="https://md.doocs.org" class="btn" id="openOfficial">使用官方编辑器</a>
     </div>
+    <section id="wordpressPermission" hidden>
+      <p id="wordpressHost"></p>
+      <button class="btn" id="allowWordPress" type="button">允许访问 / Allow access</button>
+      <p id="wordpressPermissionStatus" role="status"></p>
+    </section>
+
+    <details id="mcpPanel" hidden>
+      <summary>AI 同步（MCP）</summary>
+      <section id="draft" hidden>
+        <h3>确认同步到 <span id="target"></span></h3>
+        <p id="title"></p>
+        <pre id="text"></pre>
+        <div class="button-row">
+          <button class="btn" id="approve" type="button">保存为草稿</button>
+          <button class="btn btn-secondary" id="decline" type="button">拒绝</button>
+        </div>
+      </section>
+      <p class="mcp-intro">让桌面 AI 把文章直接同步到已登录的平台</p>
+      <div class="button-row">
+        <button class="btn" id="copyMcpSetup" type="button">复制配置指令</button>
+        <button
+          class="btn btn-text"
+          id="toggleMcpSetup"
+          type="button"
+          aria-controls="mcpSetupText"
+          aria-expanded="false"
+        >
+          查看指令
+        </button>
+      </div>
+      <textarea id="mcpSetupText" aria-label="AI 配置指令" rows="6" readonly hidden>
+请按下面的说明帮我配置 COSE MCP。已有配对就沿用令牌，首次配对请在本机生成令牌。请勿在聊天中输出令牌。需要选 Chrome 或授权时请告诉我，最后确认连接成功。
+https://github.com/doocs/cose/blob/main/apps/mcp-server/README.md</textarea>
+      <p id="mcpSetupStatus" class="mcp-status" role="status" hidden></p>
+      <p id="status" class="mcp-status" role="status" hidden></p>
+      <button class="btn btn-secondary" id="retryMcp" type="button" hidden>立即重连</button>
+      <details id="mcpSettings">
+        <summary>手动配对与设置</summary>
+        <form id="pair">
+          <label>浏览器实例名 <input id="name" maxlength="60" placeholder="Chrome" /></label>
+          <label>
+            配对令牌
+            <input id="token" type="password" minlength="32" maxlength="128" autocomplete="off" />
+          </label>
+          <button class="btn btn-secondary" id="generateMcpToken" type="button">
+            生成并复制新令牌
+          </button>
+          <p id="mcpTokenStatus" class="mcp-status" role="status"></p>
+          <label><input id="autoFill" type="checkbox" /> 允许自动填写文章和保存草稿</label>
+          <button class="btn" id="connect" type="submit">启用并配对</button>
+        </form>
+        <button class="btn btn-text" id="disconnect" type="button" hidden>
+          关闭 MCP 并清除配对
+        </button>
+      </details>
+    </details>
     <script src="bundles/popup.js" type="module"></script>
   </body>
 </html>

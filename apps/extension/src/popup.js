@@ -1,7 +1,9 @@
 import { wordPressPendingKey, wordPressPermission } from '@cose/core/src/platforms/wordpress.js'
 
+import { showMcpSettings } from './mcp-popup.js'
+
 if (chrome.runtime.getManifest().permissions.includes('alarms')) {
-  document.getElementById('mcpEntry').hidden = false
+  showMcpSettings().catch(console.error)
 }
 
 // Popup script for COSE extension

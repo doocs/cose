@@ -1,4 +1,10 @@
-import { MCP_BRIDGE_PORT, MCP_BRIDGE_VERSION, pairingProof } from '@cose/core/src/mcp-protocol.js'
+import {
+  MCP_BRIDGE_PORT,
+  MCP_BRIDGE_VERSION,
+  MCP_DEFAULT_BROWSER_NAME,
+  MCP_SETUP_TOKEN_KEY,
+  pairingProof,
+} from '@cose/core/src/mcp-protocol.js'
 
 const settingsKey = 'coseMcpPairing'
 const windowKey = 'coseMcpWindow'
@@ -9,7 +15,7 @@ const hexPattern = /^[0-9a-f]{64}$/
 export function installMcpBridge(syncArticle) {
   if (!chrome.runtime.getManifest().permissions.includes('alarms')) return
 
-  const pageUrl = chrome.runtime.getURL('mcp-connect.html')
+  const popupUrl = chrome.runtime.getURL('popup.html')
   let connection
   let connecting
   let pending
@@ -43,21 +49,25 @@ export function installMcpBridge(syncArticle) {
     }
   }
 
+  function setPending(request) {
+    pending = request
+    chrome.action.setBadgeText({ text: request && !request.approved ? '1' : '' }).catch(() => {})
+  }
+
   function disconnect() {
     generation++
-    pending = undefined
+    setPending(undefined)
     const previous = connection
     connection = undefined
     previous?.socket.close()
   }
 
   async function showReview(windowId, socket) {
-    const tabs = await chrome.tabs.query({ windowId })
-    if (connection?.socket !== socket || !pending) return
-    const existing = tabs.find(tab => tab.url === pageUrl)
-    if (existing) await chrome.tabs.update(existing.id, { active: true })
-    else await chrome.tabs.create({ windowId, url: pageUrl, active: true })
+    if (!chrome.action.openPopup) return
     await chrome.windows.update(windowId, { focused: true })
+    if (connection?.socket === socket && pending) {
+      await chrome.action.openPopup({ windowId })
+    }
   }
 
   async function openConnection(currentGeneration, restoreWindow) {
@@ -99,8 +109,8 @@ export function installMcpBridge(syncArticle) {
       clearInterval(heartbeat)
       if (connection !== state) return
       connection = undefined
-      pending = undefined
-      outcome = event.reason || '本地 MCP 暂未连接，将自动重试。'
+      setPending(undefined)
+      outcome = event.reason || ''
     })
     socket.addEventListener('message', async event => {
       if (connection !== state) return
@@ -145,12 +155,13 @@ export function installMcpBridge(syncArticle) {
         }
 
         if (message.type === 'draft' && !pending && !running) {
-          pending = { ...message, approved: pairing.autoFill }
+          outcome = ''
+          setPending({ ...message, approved: pairing.autoFill })
           if (pairing.autoFill) {
             send(socket, { type: 'decision', id: message.id, approved: true })
           } else {
             await showReview(windowId, socket).catch(() => {
-              outcome = '请在目标窗口打开 COSE 的 MCP 页面确认文章。'
+              outcome = '请在目标窗口点击 COSE 图标确认文章。'
             })
           }
           return
@@ -158,11 +169,11 @@ export function installMcpBridge(syncArticle) {
 
         if (!pending || pending.id !== message.id) return
         if (message.type === 'expired') {
-          pending = undefined
+          setPending(undefined)
           outcome = '确认请求已超时。'
         } else if (message.type === 'execute' && pending.approved) {
           const article = pending
-          pending = undefined
+          setPending(undefined)
           running = true
           let result
           try {
@@ -221,15 +232,17 @@ export function installMcpBridge(syncArticle) {
     if (
       typeof request?.type !== 'string' ||
       !request.type.startsWith('MCP_PAIR_') ||
-      sender.url !== pageUrl ||
-      sender.frameId !== 0 ||
-      !Number.isInteger(sender.tab?.windowId) ||
-      sender.tab.incognito
+      sender.url !== popupUrl ||
+      !Number.isInteger(request.windowId) ||
+      (sender.tab && sender.tab.windowId !== request.windowId)
     ) {
       return false
     }
-    const windowId = sender.tab.windowId
+    const { windowId } = request
     async function handle() {
+      const window = await chrome.windows.get(windowId).catch(() => null)
+      if (window?.type !== 'normal' || window.incognito)
+        throw new Error('请在普通 Chrome 窗口打开 COSE。')
       const pairing = await settings()
       if (request.type === 'MCP_PAIR_STATUS') {
         return {
@@ -237,15 +250,19 @@ export function installMcpBridge(syncArticle) {
           name: pairing?.name,
           autoFill: pairing?.autoFill,
           connected: Boolean(connection?.authenticated),
+          isTargetWindow:
+            (connection?.windowId ?? (pairing && (await targetWindow(false)))) === windowId,
+          connecting: Boolean(connecting || (connection && !connection.authenticated)),
           outcome,
           running,
           pending: connection?.windowId === windowId && !pending?.approved ? pending : undefined,
         }
       }
       if (request.type === 'MCP_PAIR_SAVE') {
-        const name = typeof request.name === 'string' ? request.name.trim() : ''
+        const requestedName = typeof request.name === 'string' ? request.name.trim() : ''
+        const name = requestedName || pairing?.name || MCP_DEFAULT_BROWSER_NAME
         const token = request.token || pairing?.token
-        if (!name || name.length > 60 || !/^[A-Za-z0-9_-]{32,128}$/.test(token || '')) {
+        if (name.length > 60 || !/^[A-Za-z0-9_-]{32,128}$/.test(token || '')) {
           throw new Error('请输入实例名和有效的配对令牌。')
         }
         if (updating) throw new Error('配对设置正在更新，请稍后重试。')
@@ -262,10 +279,17 @@ export function installMcpBridge(syncArticle) {
             },
           })
           await chrome.storage.session.set({ [windowKey]: windowId })
+          await chrome.storage.session.remove(MCP_SETUP_TOKEN_KEY)
           outcome = ''
         } finally {
           updating = false
         }
+        await connect()
+      } else if (request.type === 'MCP_PAIR_RETRY') {
+        if (!pairing || (await targetWindow(false)) !== windowId) {
+          throw new Error('请先在此窗口保存配对设置。')
+        }
+        outcome = ''
         await connect()
       } else if (request.type === 'MCP_PAIR_DISABLE') {
         if (updating) throw new Error('配对设置正在更新，请稍后重试。')
@@ -274,7 +298,7 @@ export function installMcpBridge(syncArticle) {
           disconnect()
           await connecting
           await chrome.storage.local.remove(settingsKey)
-          await chrome.storage.session.remove(windowKey)
+          await chrome.storage.session.remove([windowKey, MCP_SETUP_TOKEN_KEY])
           await chrome.alarms.clear(reconnectAlarm)
           outcome = ''
         } finally {
@@ -291,9 +315,9 @@ export function installMcpBridge(syncArticle) {
         }
         const approved = request.approved === true
         send(connection.socket, { type: 'decision', id: pending.id, approved })
-        if (approved) pending.approved = true
+        if (approved) setPending({ ...pending, approved: true })
         else {
-          pending = undefined
+          setPending(undefined)
           outcome = '已拒绝。'
         }
       }
@@ -302,5 +326,6 @@ export function installMcpBridge(syncArticle) {
     handle().then(respond, error => respond({ error: error.message }))
     return true
   })
+  setPending(undefined)
   reconnect()
 }
