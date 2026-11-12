@@ -36,6 +36,7 @@ import { RednotePlatform } from './rednote.js'
 import { ElecfansPlatform } from './elecfans.js'
 import { DoubanPlatform } from './douban.js'
 import { DevtoPlatform } from './devto.js'
+import { SubstackPlatform, createSubstackMcpDraft } from './substack.js'
 import { WordPressPlatform } from './wordpress.js'
 import { XueqiuPlatform, syncXueqiuDraft } from './xueqiu.js'
 
@@ -75,6 +76,7 @@ const PLATFORMS = [
   DoubanPlatform,
   DevtoPlatform,
   WordPressPlatform,
+  SubstackPlatform,
   XueqiuPlatform,
 ]
 
@@ -128,5 +130,7 @@ const SYNC_HANDLERS = {
   xueqiu: syncXueqiuDraft,
 }
 
-// 导出
-export { PLATFORMS, LOGIN_CHECK_CONFIG, SYNC_HANDLERS, getPlatformFiller }
+// API-backed MCP destinations that do not need to open an editor tab.
+const MCP_DRAFT_HANDLERS = { substack: createSubstackMcpDraft }
+
+export { PLATFORMS, LOGIN_CHECK_CONFIG, SYNC_HANDLERS, MCP_DRAFT_HANDLERS, getPlatformFiller }

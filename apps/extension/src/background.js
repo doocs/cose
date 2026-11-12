@@ -1,7 +1,13 @@
 // 平台配置
-import { PLATFORMS, LOGIN_CHECK_CONFIG, SYNC_HANDLERS } from '@cose/core/src/platforms/index.js'
+import {
+  PLATFORMS,
+  LOGIN_CHECK_CONFIG,
+  SYNC_HANDLERS,
+  MCP_DRAFT_HANDLERS,
+} from '@cose/core/src/platforms/index.js'
 import { mcpArticleContent, resolveMcpPlatform } from '@cose/core/src/mcp.js'
 import { installMcpBridge } from './mcp-background.js'
+import { checkSubstackLogin, syncSubstackDraft } from '@cose/core/src/platforms/substack.js'
 import { checkDevtoLogin, syncDevtoDraft } from '@cose/core/src/platforms/devto.js'
 import {
   checkWordPressLogin,
@@ -500,14 +506,21 @@ async function syncMcpArticle(article, windowId) {
   ) {
     return { status: 'not_confirmed', message: '草稿标题或正文无效' }
   }
-  const result = await syncToPlatform(
-    platform.id,
-    mcpArticleContent({ title, markdown, text }),
-    windowId
-  )
+  const articleContent = mcpArticleContent({ title, markdown, text })
+  const draftHandler = Object.hasOwn(MCP_DRAFT_HANDLERS, platform.id)
+    ? MCP_DRAFT_HANDLERS[platform.id]
+    : null
+  const result = draftHandler
+    ? await draftHandler(articleContent)
+    : await syncToPlatform(platform.id, articleContent, windowId)
   if (!result.success) return { status: 'not_confirmed', message: result.message }
   if (platform.mode === 'confirmed_draft') {
-    return { status: 'saved', message: result.message || `${platform.name}已确认保存草稿` }
+    return {
+      status: 'saved',
+      message: [result.message || `${platform.name}已确认保存草稿`, result.draftLink]
+        .filter(Boolean)
+        .join(' '),
+    }
   }
   if (platform.id !== 'twitter' && !Object.hasOwn(SYNC_HANDLERS, platform.id)) {
     return {
@@ -557,6 +570,7 @@ async function handleMessage(request, sender) {
       currentSyncGroupId = null
       return { success: true }
     case 'SYNC_TO_PLATFORM':
+      if (request.platformId === 'substack') return await syncSubstackDraft(request.content, sender)
       if (request.platformId === 'devto') return await syncDevtoDraft(request.content, sender)
       if (request.platformId === 'wordpress')
         return await syncWordPressDraft(request.content, sender)
@@ -647,7 +661,7 @@ async function checkAllPlatformsProgressive(platforms, sender) {
             completed,
             total,
           }
-          if (platform.id === 'devto' || platform.id === 'wordpress') {
+          if (['devto', 'wordpress', 'substack'].includes(platform.id)) {
             await chrome.tabs.sendMessage(tabId, update, {
               frameId: sender.frameId,
               ...(sender.documentId && { documentId: sender.documentId }),
@@ -706,6 +720,7 @@ async function checkPlatformLogin(platform, sender) {
   if (!platform || !platform.id) {
     return { loggedIn: false, error: '无效的平台配置' }
   }
+  if (platform.id === 'substack') return await checkSubstackLogin(sender)
   if (platform.id === 'devto') return await checkDevtoLogin(sender)
   if (platform.id === 'wordpress') return await checkWordPressLogin(sender)
   if (platform.id === 'xueqiu') return await checkXueqiuLogin()

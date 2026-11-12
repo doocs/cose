@@ -14,6 +14,7 @@
     "offscreen"
   ],
   "host_permissions": [
+    "https://substack.com/*",
     "https://*.csdn.net/*",
     "https://*.juejin.cn/*",
     "https://*.jianshu.com/*",
@@ -88,7 +89,8 @@
         "bundles/inject.js",
         "bundles/platforms/*.js",
         "devto-connect.html",
-        "wordpress-connect.html"
+        "wordpress-connect.html",
+        "substack-connect.html"
       ],
       "matches": ["<all_urls>"]
     }

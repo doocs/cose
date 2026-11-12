@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Substack</title>
+    <style>
+      :root {
+        --accent: #0069a8;
+        --accent-hover: #005585;
+        --link: var(--accent);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --link: #9ed9fa;
+        }
+      }
+      body {
+        margin: 0;
+        font:
+          14px system-ui,
+          sans-serif;
+        color: CanvasText;
+        background: Canvas;
+      }
+      form {
+        display: flow-root;
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 12px;
+      }
+      #identity:not([hidden]) {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      #avatar {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        object-fit: cover;
+      }
+      .primary {
+        min-height: 34px;
+        padding: 7px 14px;
+        border: 0;
+        border-radius: 999px;
+        color: #fff;
+        background: var(--accent);
+        font: inherit;
+        font-weight: 500;
+      }
+      .primary:hover:not(:disabled) {
+        background: var(--accent-hover);
+      }
+      button:not(:disabled) {
+        cursor: pointer;
+      }
+      button:disabled {
+        opacity: 0.5;
+      }
+      button:focus-visible,
+      a:focus-visible {
+        outline: 2px solid var(--link);
+        outline-offset: 2px;
+      }
+      .actions a,
+      form:has(#settings:not([hidden])) #detect {
+        color: var(--link);
+      }
+      form:has(#settings:not([hidden])) #detect {
+        background: transparent;
+        box-shadow: inset 0 0 0 1px currentColor;
+      }
+      label {
+        display: block;
+        margin: 8px 0;
+      }
+      select {
+        box-sizing: border-box;
+        padding: 5px 8px;
+        font: inherit;
+      }
+      select {
+        display: block;
+        width: 100%;
+        margin-top: 4px;
+      }
+      p {
+        margin: 8px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <form>
+      <div class="actions">
+        <button id="detect" class="primary" type="button" disabled>Find my publications</button>
+        <a
+          id="login"
+          hidden
+          href="https://substack.com/sign-in"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Sign in to Substack
+        </a>
+        <span id="identity" hidden>
+          <img id="avatar" alt="" hidden />
+          <span id="username"></span>
+        </span>
+      </div>
+      <div id="settings" hidden>
+        <label
+          ><span id="publicationLabel">Publication</span
+          ><select id="publication" required></select
+        ></label>
+        <button id="save" class="primary" type="submit">Save and connect</button>
+      </div>
+      <p id="status" role="status"></p>
+    </form>
+    <script src="bundles/substack-connect.js" type="module"></script>
+  </body>
+</html>

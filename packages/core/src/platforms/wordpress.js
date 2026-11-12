@@ -2,6 +2,7 @@ import { editorOrigin } from './devto.js'
 
 const WordPressPlatform = {
   id: 'wordpress',
+  mcpMode: 'requires_editor_connection',
   name: 'WordPress',
   title: 'WordPress',
   type: 'wordpress',

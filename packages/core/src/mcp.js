@@ -1,8 +1,6 @@
 import { Marked } from 'marked'
 import { PLATFORMS } from './platforms/index.js'
 
-const editorOnly = new Set(['devto', 'wordpress'])
-const confirmedDrafts = new Set(['bilibili', 'rednote', 'xueqiu'])
 const aliases = {
   b站: 'bilibili',
   哔哩哔哩: 'bilibili',
@@ -14,16 +12,10 @@ const aliases = {
 
 const normalize = value => value.trim().normalize('NFKC').toLowerCase()
 
-export const mcpPlatforms = PLATFORMS.filter(
-  platform => platform.publishUrl || editorOnly.has(platform.id)
-).map(platform => ({
+export const mcpPlatforms = PLATFORMS.map(platform => ({
   id: platform.id,
   name: platform.title || platform.name,
-  mode: editorOnly.has(platform.id)
-    ? 'requires_editor_connection'
-    : confirmedDrafts.has(platform.id)
-      ? 'confirmed_draft'
-      : 'editor',
+  mode: platform.mcpMode || (platform.publishUrl ? 'editor' : 'requires_editor_connection'),
 }))
 
 export function resolveMcpPlatform(value) {

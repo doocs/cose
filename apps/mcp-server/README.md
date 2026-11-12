@@ -43,4 +43,6 @@ COSE_MCP_TOKEN = "replace_with_your_generated_token"
 
 请求的初始状态为 `queued`。COSE 收到请求后就在配对窗口依次填写编辑器或保存草稿。某个平台返回失败时会继续尝试后续平台。断线或超时时，本批尚未开始的平台会标记为 `cancelled`。
 
-用原请求 ID 调用 `get_draft_status`。批量请求在 `results` 中返回各平台的状态和说明。B 站、RedNote 和雪球收到平台确认后返回 `saved`。其他平台可能返回 `filled` 或 `review_required`。若返回 `not_confirmed`，先检查编辑器或草稿列表，再决定是否重试。重试时只为需要重试的平台创建新请求。请求 ID 的去重在同一个 MCP 进程内有效。WordPress 和 DEV.to 的账号连接依赖 MD 编辑器。
+用原请求 ID 调用 `get_draft_status`。批量请求在 `results` 中返回各平台的状态和说明。B 站、RedNote、雪球和 Substack 收到平台确认后返回 `saved`。其他平台可能返回 `filled` 或 `review_required`。若返回 `not_confirmed`，先检查编辑器或草稿列表，再决定是否重试。重试时只为需要重试的平台创建新请求。请求 ID 的去重在同一个 MCP 进程内有效。WordPress 和 DEV.to 的账号连接依赖 MD 编辑器。
+
+Substack 使用 MD 发布面板中已授权的出版物和配对浏览器的 Substack 登录态。MCP 的 `create_draft` 会创建新草稿，并返回编辑链接。

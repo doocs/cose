@@ -2,6 +2,7 @@ const origin = 'https://mp.xueqiu.com'
 
 const XueqiuPlatform = {
   id: 'xueqiu',
+  mcpMode: 'confirmed_draft',
   name: 'Xueqiu',
   title: '雪球',
   type: 'xueqiu',
