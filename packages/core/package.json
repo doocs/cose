@@ -7,7 +7,9 @@
   "exports": {
     ".": "./index.js",
     "./platforms/*": "./src/platforms/*.js",
-    "./utils": "./src/utils.js"
+    "./utils": "./src/utils.js",
+    "./mcp": "./src/mcp.js",
+    "./mcp-protocol": "./src/mcp-protocol.js"
   },
   "dependencies": {
     "@cose/detection": "workspace:*",

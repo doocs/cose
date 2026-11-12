@@ -177,6 +177,8 @@ const genManifest = async (options: BuildOptions) => {
     console.log('  ✓ Converted to Firefox manifest format')
   }
 
+  if (options.target === 'chromium') manifest.permissions.push('alarms')
+
   // Sync version from package.json
   manifest.version = packageJson.version
 

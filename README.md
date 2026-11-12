@@ -121,6 +121,10 @@ _**C**reate **O**nce **S**ync **E**verywhere_
   <img src="https://www.elecfans.com/static/main/img/elecfans-logo.jpg" alt="电子发烧友" width="35" />
 </p>
 
+## MCP 同步
+
+桌面 MCP 客户端可以将 Markdown 或纯文字发送到指定的 Chrome 窗口，由 COSE 填写平台编辑器或保存草稿。[安装与使用说明](apps/mcp-server/README.md)
+
 ## 开发者模式测试
 
 Firefox 140 及更新的桌面版可从 GitHub Releases 下载签名后的 `cose-<版本>-firefox.xpi`，在 `about:addons` 的齿轮菜单中选择「从文件安装附加组件」。测试构建的 Firefox ZIP 可在 `about:debugging` 中临时加载。
