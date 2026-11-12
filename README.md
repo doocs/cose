@@ -38,6 +38,14 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 - 同步的标签页自动归入分组，便于管理
 - 微信公众号同步时完整保留渲染样式并自动保存为草稿
 
+## MCP 同步
+
+> 用 AI 把文章同步到已登录的平台。[详细安装与使用说明](apps/mcp-server/README.md)
+
+点击 COSE 图标 → 展开「AI 同步（MCP）」→ 复制配置指令 → 粘贴给支持 MCP 的 AI，让它帮你安装和配对。
+
+告诉 AI「用 COSE，把这篇文章同步到xxx等平台」。
+
 ## 已支持的平台
 
 > 更多想要添加的平台欢迎提 [Issue](https://github.com/doocs/cose/issues) ！
@@ -45,23 +53,23 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 > <details>
 > <summary>已支持平台速查表(点击展开)</summary>
 >
-> | 字母 | 平台                                     |
-> | :--: | :--------------------------------------- |
-> |  A   | 阿里云社区                               |
-> |  B   | B站专栏、百度云千帆、百家号、博客园      |
-> |  C   | CSDN                                     |
-> |  D   | 豆瓣、电子发烧友、抖音文章               |
-> |  H   | 华为开发者文章、华为云博客、火山引擎社区 |
-> |  I   | InfoQ                                    |
-> |  J   | 简书、掘金、今日头条                     |
-> |  K   | 开源中国                                 |
-> |  M   | Medium、ModelScope 魔搭社区              |
-> |  S   | 少数派、搜狐号、思否                     |
-> |  T   | 腾讯云                                   |
-> |  W   | 网易号、微博文章、微信公众号             |
-> |  X   | 小红书长文、X(Formerly Twitter) Articles |
-> |  Z   | 支付宝开放平台、知乎                     |
-> |  5   | 51CTO                                    |
+> | 字母 | 平台                                                               |
+> | :--: | :----------------------------------------------------------------- |
+> |  A   | 阿里云社区                                                         |
+> |  B   | B站专栏、百度云千帆、百家号、博客园                                |
+> |  C   | CSDN                                                               |
+> |  D   | DEV.to、豆瓣、电子发烧友、抖音文章                                 |
+> |  H   | 华为开发者文章、华为云博客、火山引擎社区                           |
+> |  I   | InfoQ                                                              |
+> |  J   | 简书、掘金、今日头条                                               |
+> |  K   | 开源中国                                                           |
+> |  M   | Medium、ModelScope 魔搭社区                                        |
+> |  S   | 少数派、搜狐号、思否                                               |
+> |  T   | 腾讯云                                                             |
+> |  W   | WordPress、网易号、微博文章、微信公众号                            |
+> |  X   | 小红书（国内）、小红书（海外）、雪球、X(Formerly Twitter) Articles |
+> |  Z   | 支付宝开放平台、知乎                                               |
+> |  5   | 51CTO                                                              |
 >
 > </details>
 
@@ -72,7 +80,8 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 <img src="https://api.iconify.design/icon-park-solid/jinritoutiao.svg?color=%23ED1C24" alt="今日头条" width="60" />
 <img src="https://cdn.simpleicons.org/zhihu" alt="知乎" width="60" />
 <img src="https://cdn.simpleicons.org/tiktok" alt="抖音文章" width="60"/>
-<img src="https://cdn.simpleicons.org/xiaohongshu" alt="小红书" width="60" />
+<img src="https://cdn.simpleicons.org/xiaohongshu" alt="小红书（国内）" title="小红书（国内）" width="60" />
+<img src="https://www.rednote.com/favicon.ico" alt="小红书（海外）" title="小红书（海外）" width="60" />
 <img src="https://cdn.simpleicons.org/baidu" alt="百家号" width="60" />
 <img src="https://cdn.simpleicons.org/neteasecloudmusic" alt="网易号" width="60" />
 <img src="https://favicon.im/sohu.com?larger=true" alt="搜狐号" width="60" />
@@ -81,6 +90,7 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 <img src="https://cdn.simpleicons.org/douban" alt="豆瓣" width="55" />
 <img src="https://favicon.im/sspai.com?larger=true" alt="少数派" width="60" />
 <img src="https://cdn.simpleicons.org/x" alt="X(Formerly Twitter) Articles" width="50" />
+<img src="https://favicon.im/xueqiu.com?larger=true" alt="雪球" width="60" />
 </p>
 
 ### 博客平台
@@ -90,11 +100,13 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 <img src="https://favicon.im/cnblogs.com?larger=true" alt="博客园" width="60" />
 <img src="https://cdn.simpleicons.org/juejin/1E80FF" alt="掘金" width="60" />
 <img src="https://favicon.im/medium.com?larger=true" alt="Medium" width="60" />
-<img src="https://cdn.brandfetch.io/id5v32DsU5/w/400/h/400/theme/dark/icon.png?c=1bxid64Mup7aczewSAYMX&t=1767149702768" alt="思否" width="60" />
+<img src="https://favicon.im/segmentfault.com?larger=true" alt="思否" width="60" />
 <img src="https://www.google.com/s2/favicons?domain=infoq.cn&sz=128" alt="InfoQ" width="60" />
 <img src="https://favicon.im/jianshu.com?larger=true" alt="简书" width="60" />
-<img src="https://static.oschina.net/new-osc/img/logo_osc.svg" alt="开源中国" width="120" />
-<img src="https://cdn.brandfetch.io/id4vYQbdaC/w/168/h/62/theme/dark/logo.png?c=1bxid64Mup7aczewSAYMX&t=1743144928777" alt="51CTO" width="80" />
+<img src="https://cdn.simpleicons.org/devdotto" alt="DEV.to" width="60" />
+<img src="https://cdn.simpleicons.org/wordpress" alt="WordPress" width="60" />
+<img src="https://wsrv.nl/?url=static.oschina.net/new-osc/img/favicon.ico" alt="开源中国" width="60" />
+<img src="https://favicon.im/blog.51cto.com?larger=true" alt="51CTO" width="60" />
 </p>
 
 ### 云平台及其开发者社区
@@ -120,11 +132,3 @@ _**C**reate **O**nce **S**ync **E**verywhere_
   <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png/light/volcengine-text.png" alt="火山引擎" width="90" />
   <img src="https://www.elecfans.com/static/main/img/elecfans-logo.jpg" alt="电子发烧友" width="35" />
 </p>
-
-## MCP 同步
-
-> 用 AI 把文章同步到已登录的平台。[详细安装与使用说明](apps/mcp-server/README.md)
-
-点击 COSE 图标 → 展开「AI 同步（MCP）」→ 复制配置指令 → 粘贴给支持 MCP 的 AI，让它帮你安装和配对。
-
-告诉 AI「用 COSE，把这篇文章同步到xxx等平台」。
