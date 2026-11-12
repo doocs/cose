@@ -226,3 +226,28 @@ test(
     )
   }
 )
+
+test(
+  'lists Substack and dispatches it to the paired browser as a draft target',
+  { timeout: 5000 },
+  async t => {
+    const { bridge, pair } = await bridgeFixture(t)
+    const browser = await pair('Draft test')
+    const platform = { id: 'substack', name: 'Substack', mode: 'confirmed_draft' }
+    assert.deepEqual(
+      bridge.listPlatforms().platforms.find(item => item.id === 'substack'),
+      platform
+    )
+    const incoming = nextMessage(browser.socket)
+    bridge.createDraft({
+      request_id: randomUUID(),
+      browser_id: browser.id,
+      platform: 'Substack',
+      title: 'Draft test',
+      markdown: '## Heading',
+    })
+    const message = await incoming
+    assert.equal(message.platform, 'substack')
+    assert.deepEqual(message.article.platforms, [platform])
+  }
+)

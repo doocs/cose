@@ -4,6 +4,7 @@ const officialEditor = 'https://md.doocs.org'
 const devtoPermission = { origins: [`${origin}/*`] }
 const DevtoPlatform = {
   id: 'devto',
+  mcpMode: 'requires_editor_connection',
   name: 'DEV.to',
   title: 'DEV.to',
   type: 'devto',

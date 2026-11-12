@@ -150,7 +150,6 @@
         margin: 4px 0 10px;
       }
       #mcpPanel textarea:not([hidden]),
-      #substackSettings input,
       #mcpPanel input {
         display: block;
         width: 100%;
@@ -213,28 +212,6 @@
       <button class="btn" id="allowWordPress" type="button">允许访问 / Allow access</button>
       <p id="wordpressPermissionStatus" role="status"></p>
     </section>
-
-    <details>
-      <summary>Substack 草稿</summary>
-      <form id="substackSettings">
-        <p><strong>Substack 草稿</strong></p>
-        <p>
-          <label
-            >出版物网址
-            <input
-              id="substackSite"
-              type="url"
-              placeholder="https://你的站名.substack.com"
-              required
-          /></label>
-        </p>
-        <p>
-          <label>下次同步要更新的草稿链接（可选） <input id="substackDraft" type="url" /></label>
-        </p>
-        <button class="btn" type="submit">保存设置</button>
-        <p id="substackStatus" role="status"></p>
-      </form>
-    </details>
 
     <details id="mcpPanel" hidden>
       <summary>AI 同步（MCP）</summary>

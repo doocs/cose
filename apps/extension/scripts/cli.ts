@@ -128,6 +128,7 @@ const copyResources = async () => {
     'offscreen.html',
     'devto-connect.html',
     'wordpress-connect.html',
+    'substack-connect.html',
   ] as const) {
     const from = path.join(rootDir, 'src', name)
     const to = path.join(rootDir, 'dist', name)

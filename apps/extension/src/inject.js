@@ -427,6 +427,10 @@
       return injectedScriptUrl ? new URL('../devto-connect.html', injectedScriptUrl).href : null
     },
 
+    getSubstackSetupUrl() {
+      return injectedScriptUrl ? new URL('../substack-connect.html', injectedScriptUrl).href : null
+    },
+
     getWordPressSetupUrl() {
       return injectedScriptUrl ? new URL('../wordpress-connect.html', injectedScriptUrl).href : null
     },

@@ -2,6 +2,7 @@ const creatorUrl = 'https://creator.rednote.com'
 
 const RednotePlatform = {
   id: 'rednote',
+  mcpMode: 'confirmed_draft',
   name: 'RedNote',
   title: '小红书（海外）',
   type: 'rednote',

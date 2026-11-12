@@ -1,5 +1,6 @@
 const BilibiliPlatform = {
   id: 'bilibili',
+  mcpMode: 'confirmed_draft',
   name: 'Bilibili',
   icon: 'https://www.bilibili.com/favicon.ico',
   url: 'https://member.bilibili.com',

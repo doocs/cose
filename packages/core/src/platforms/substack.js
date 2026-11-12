@@ -2,11 +2,13 @@ import { marked } from 'marked'
 
 const accountOrigin = 'https://substack.com'
 const editorOrigin = 'https://md.doocs.org'
+const localEditorOrigin = 'http://localhost:5173'
 const connectionKey = 'substackConnection'
 const publisherRoles = ['admin', 'owner', 'editor', 'contributor']
 
 const SubstackPlatform = {
   id: 'substack',
+  mcpMode: 'confirmed_draft',
   name: 'Substack',
   title: 'Substack',
   type: 'substack',
@@ -30,17 +32,7 @@ function substackSite(value) {
 }
 
 function substackPermission(site) {
-  return { origins: [`${accountOrigin}/*`, `${site}/*`] }
-}
-
-function substackDraftId(value, site) {
-  try {
-    const url = new URL(value)
-    if (url.origin === site && !url.username && !url.password) {
-      return /^\/publish\/post\/([1-9][0-9]*)\/?$/.exec(url.pathname)?.[1] || null
-    }
-  } catch {}
-  return null
+  return { origins: [`${site}/*`] }
 }
 
 function httpLink(value) {
@@ -120,6 +112,27 @@ function substackDocument(markdown) {
   return { type: 'doc', content: blocks(marked.lexer(markdown)) }
 }
 
+async function validationDetail(response) {
+  try {
+    const body = await response.json()
+    const entries = Array.isArray(body?.errors) ? body.errors : [body]
+    return entries
+      .slice(0, 3)
+      .map(entry => {
+        const field = entry?.param ?? entry?.path
+        const message = entry?.msg ?? entry?.message ?? entry?.error
+        return [field, message]
+          .filter(value => typeof value === 'string' && value.trim())
+          .map(value => value.replace(/\s+/g, ' ').trim().slice(0, 120))
+          .join(' ')
+      })
+      .filter(Boolean)
+      .join('；')
+  } catch {
+    return ''
+  }
+}
+
 async function request(url, method = 'GET', body) {
   const response = await fetch(url, {
     method,
@@ -132,45 +145,77 @@ async function request(url, method = 'GET', body) {
     ...(body && { body: JSON.stringify(body) }),
     signal: AbortSignal.timeout(15000),
   })
-  if (response.status === 401 || response.status === 403) {
-    throw new Error(`Substack 拒绝了请求（HTTP ${response.status}），请检查登录状态和出版物权限`)
+  if (!response.ok) {
+    const status = response.status
+    const message =
+      status === 401 || status === 403
+        ? `Substack 拒绝了请求（HTTP ${status}），请检查登录状态和出版物权限`
+        : `Substack 请求失败（HTTP ${status}）`
+    const detail = status === 400 || status === 422 ? await validationDetail(response) : ''
+    throw Object.assign(new Error(detail ? `${message}：${detail}` : message), { status })
   }
-  if (!response.ok) throw new Error(`Substack 请求失败（HTTP ${response.status}）`)
   if (response.status === 204) return null
   return await response.json()
 }
 
-async function getConnection(sender) {
-  if (sender.frameId !== 0 || !sender.tab || new URL(sender.url).origin !== editorOrigin) {
-    return null
-  }
+async function getConnection() {
   const { [connectionKey]: connection } = await chrome.storage.local.get(connectionKey)
   const site = substackSite(connection?.site)
   if (!site || !(await chrome.permissions.contains(substackPermission(site)))) return null
-  return { site, draftId: connection.draftId }
+  return { ...connection, site }
+}
+
+function getEditorOrigin(sender) {
+  if (sender?.frameId !== 0 || !sender.tab || !sender.url) return null
+  const source = new URL(sender.url).origin
+  return source === editorOrigin || source === localEditorOrigin ? source : null
+}
+
+async function getEditorConnection(sender) {
+  const source = getEditorOrigin(sender)
+  if (!source) return null
+  const connection = await getConnection()
+  if (source === localEditorOrigin && !connection?.allowLocalEditor) return null
+  return connection
+}
+
+async function getSubstackPublications() {
+  const profile = await request(`${accountOrigin}/api/v1/user/profile/self`)
+  if (!profile?.id) throw new Error('Substack 未返回已登录账号')
+  const publications = (profile.publicationUsers || []).flatMap(member => {
+    const subdomain = member.publication?.subdomain
+    const site = subdomain && substackSite(`https://${subdomain}.substack.com`)
+    if (!site || !publisherRoles.includes(member.role)) return []
+    return [{ site, name: member.publication.name || subdomain, member }]
+  })
+  return { profile, publications }
 }
 
 async function getPublisher(site) {
-  const profile = await request(`${accountOrigin}/api/v1/user/profile/self`)
-  const member = profile.publicationUsers?.find(
-    row =>
-      `https://${row.publication?.subdomain}.substack.com` === site &&
-      publisherRoles.includes(row.role)
-  )
-  if (!member || !profile.id) throw new Error('当前账号没有该 Substack 出版物的编辑权限')
+  const { profile, publications } = await getSubstackPublications()
+  const member = publications.find(publication => publication.site === site)?.member
+  if (!member) throw new Error('当前账号没有该 Substack 出版物的编辑权限')
   return { profile, member }
+}
+
+function substackIdentity(profile) {
+  const username = typeof profile.handle === 'string' ? profile.handle.trim().replace(/^@/, '') : ''
+  const photo = httpLink(profile.photo_url || profile.photoUrl)
+  return {
+    ...(username && { username }),
+    ...(photo?.startsWith('https://') && { avatar: photo }),
+  }
 }
 
 async function checkSubstackLogin(sender) {
   try {
-    const connection = await getConnection(sender)
-    if (connection) {
-      const { member } = await getPublisher(connection.site)
-      return {
-        loggedIn: true,
-        username: member.publication.name || 'Substack',
-        home: connection.site,
-      }
+    if (!getEditorOrigin(sender)) return { loggedIn: false }
+    const { profile, publications } = await getSubstackPublications()
+    const connection = await getEditorConnection(sender)
+    return {
+      loggedIn: true,
+      ...substackIdentity(profile),
+      ...(publications.some(item => item.site === connection?.site) && { home: connection.site }),
     }
   } catch {}
   return { loggedIn: false }
@@ -197,57 +242,39 @@ function matchesSavedBody(body, expected) {
 
 let syncing = false
 
-async function syncSubstackDraft(content, sender) {
+async function saveSubstackDraft(content, sender) {
   if (syncing) return { success: false, message: 'Substack 草稿同步正在进行' }
   syncing = true
-  let writeAttempted = false
+  let phase = ''
   try {
-    const connection = await getConnection(sender)
-    if (!connection)
-      throw new Error('请在 COSE 扩展菜单中配置 Substack 测试出版物，并使用 Doocs MD 官网')
+    const connection = sender ? await getEditorConnection(sender) : await getConnection()
+    if (!connection) throw new Error('请在 MD 发布面板连接 Substack 并选择出版物')
     const title = typeof content?.title === 'string' ? content.title.trim() : ''
     const markdown = typeof content?.markdown === 'string' ? content.markdown : ''
     if (!title || !markdown.trim()) throw new Error('同步到 Substack 需要标题和 Markdown 正文')
 
     const doc = substackDocument(markdown)
     if (!doc.content.length) throw new Error('Substack 草稿正文不能为空')
-    const { site, draftId } = connection
-    if (content.substackSite !== site) throw new Error('Substack 出版物已变更，请重新打开发布窗口')
-    const { profile, member } = await getPublisher(site)
+    const { site } = connection
+    if (sender && content.substackSite !== site)
+      throw new Error('Substack 出版物已变更，请重新打开发布窗口')
+    const { profile } = await getPublisher(site)
     const endpoint = `${site}/api/v1/drafts`
-    const body = { draft_title: title, draft_body: JSON.stringify(doc) }
-    let id = draftId
-    if (id) {
-      if (!/^[1-9][0-9]*$/.test(id)) throw new Error('Substack 草稿链接无效')
-      const existing = await request(`${endpoint}/${id}`)
-      if (!isUnscheduledDraft(existing, id))
-        throw new Error('只能更新未发布且未排期的 Substack 草稿')
-      const current = await getConnection(sender)
-      if (current?.site !== site || current.draftId !== id) {
-        throw new Error('Substack 草稿设置已变更，请重新开始同步')
-      }
-      // Consume the explicit update target before writing so future articles cannot overwrite it.
-      await chrome.storage.local.set({ [connectionKey]: { site } })
-      writeAttempted = true
-      await request(`${endpoint}/${id}`, 'PUT', {
-        ...body,
-        draft_subtitle: existing.draft_subtitle,
-        draft_bylines: existing.draft_bylines,
-        audience: existing.audience,
-        last_updated_at: existing.draft_updated_at,
-      })
-    } else {
-      writeAttempted = true
-      const created = await request(endpoint, 'POST', {
-        ...body,
-        draft_subtitle: typeof content.desc === 'string' ? content.desc : '',
-        draft_bylines: [{ id: profile.id, ...(member.id && { publicationUserId: member.id }) }],
-        type: 'newsletter',
-      })
-      id = String(created?.id)
-      if (!/^[1-9][0-9]*$/.test(id)) throw new Error('Substack 未返回草稿 ID')
-    }
+    phase = '创建草稿'
+    const created = await request(endpoint, 'POST', {
+      draft_title: title,
+      draft_body: JSON.stringify(doc),
+      draft_subtitle: '',
+      draft_bylines: [{ id: profile.id, is_guest: false }],
+      type: 'newsletter',
+      audience: 'everyone',
+      section_chosen: false,
+      draft_section_id: null,
+    })
+    const id = String(created?.id)
+    if (!/^[1-9][0-9]*$/.test(id)) throw new Error('Substack 未返回草稿 ID')
 
+    phase = '回读草稿'
     const saved = await request(`${endpoint}/${id}`)
     if (
       !isUnscheduledDraft(saved, id) ||
@@ -256,23 +283,41 @@ async function syncSubstackDraft(content, sender) {
     ) {
       throw new Error('Substack 未确认草稿状态或内容')
     }
-    return { success: true, draftLink: `${site}/publish/post/${id}` }
+    return {
+      success: true,
+      message: '已确认保存 Substack 草稿',
+      draftLink: `${site}/publish/post/${id}`,
+    }
   } catch (error) {
     const message = error.message || 'Substack 同步失败'
     return {
       success: false,
-      message: writeAttempted ? `${message}。请在 Drafts 检查后再试` : message,
+      message: phase
+        ? `${phase}失败：${message}${phase === '创建草稿' && [400, 422].includes(error.status) ? '' : '。请在 Drafts 检查后再试'}`
+        : message,
     }
   } finally {
     syncing = false
   }
 }
 
+function syncSubstackDraft(content, sender) {
+  if (!sender) return { success: false, message: '缺少 MD 编辑器来源' }
+  return saveSubstackDraft(content, sender)
+}
+
+function createSubstackMcpDraft(content) {
+  return saveSubstackDraft(content)
+}
+
 export {
   SubstackPlatform,
   checkSubstackLogin,
   connectionKey,
-  substackDraftId,
+  createSubstackMcpDraft,
+  getSubstackPublications,
+  localEditorOrigin,
+  substackIdentity,
   substackPermission,
   substackSite,
   syncSubstackDraft,
