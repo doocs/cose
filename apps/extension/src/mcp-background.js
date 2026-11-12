@@ -18,7 +18,7 @@ export function installMcpBridge(syncArticle) {
   const popupUrl = chrome.runtime.getURL('popup.html')
   let connection
   let connecting
-  let pending
+  let batch
   let running = false
   let outcome = ''
   let generation = 0
@@ -49,25 +49,12 @@ export function installMcpBridge(syncArticle) {
     }
   }
 
-  function setPending(request) {
-    pending = request
-    chrome.action.setBadgeText({ text: request && !request.approved ? '1' : '' }).catch(() => {})
-  }
-
   function disconnect() {
     generation++
-    setPending(undefined)
+    batch = undefined
     const previous = connection
     connection = undefined
     previous?.socket.close()
-  }
-
-  async function showReview(windowId, socket) {
-    if (!chrome.action.openPopup) return
-    await chrome.windows.update(windowId, { focused: true })
-    if (connection?.socket === socket && pending) {
-      await chrome.action.openPopup({ windowId })
-    }
   }
 
   async function openConnection(currentGeneration, restoreWindow) {
@@ -109,7 +96,7 @@ export function installMcpBridge(syncArticle) {
       clearInterval(heartbeat)
       if (connection !== state) return
       connection = undefined
-      setPending(undefined)
+      batch = undefined
       outcome = event.reason || ''
     })
     socket.addEventListener('message', async event => {
@@ -141,7 +128,6 @@ export function installMcpBridge(syncArticle) {
               type: 'pair',
               browserId: pairing.id,
               name: pairing.name,
-              autoFill: pairing.autoFill,
               proof: hex(new Uint8Array(signatureBytes)),
             })
           } else if (serverVerified && message.type === 'paired' && message.id === pairing.id) {
@@ -154,25 +140,17 @@ export function installMcpBridge(syncArticle) {
           return
         }
 
-        if (message.type === 'draft' && !pending && !running) {
+        if (message.type === 'execute' && message.article && !batch && !running) {
           outcome = ''
-          setPending({ ...message, approved: pairing.autoFill, next: 0, outcomes: [] })
-          if (pairing.autoFill) {
-            send(socket, { type: 'decision', id: message.id, approved: true })
-          } else {
-            await showReview(windowId, socket).catch(() => {
-              outcome = '请在目标窗口点击 COSE 图标确认文章。'
-            })
-          }
-          return
+          batch = { ...message.article, id: message.id, next: 0, outcomes: [] }
         }
 
-        if (!pending || pending.id !== message.id) return
+        if (!batch || batch.id !== message.id) return
         if (message.type === 'expired') {
-          outcome = pending.approved ? '同步已超时，请检查编辑器或草稿列表。' : '确认请求已超时。'
-          setPending(undefined)
-        } else if (message.type === 'execute' && pending.approved && !running) {
-          const article = pending
+          outcome = '同步已超时，请检查编辑器或草稿列表。'
+          batch = undefined
+        } else if (message.type === 'execute' && !running) {
+          const article = batch
           const platform = article.platforms[article.next]
           if (!platform || message.platform !== platform.id) {
             socket.close(4008, 'Unexpected platform')
@@ -192,7 +170,7 @@ export function installMcpBridge(syncArticle) {
           } finally {
             running = false
           }
-          if (pending === article) {
+          if (batch === article) {
             article.next++
             article.outcomes.push(
               article.platforms.length === 1
@@ -200,7 +178,7 @@ export function installMcpBridge(syncArticle) {
                 : `${platform.name}：${result.message || '无法确认同步结果。'}`
             )
             outcome = article.outcomes.join(' ')
-            if (article.next === article.platforms.length) setPending(undefined)
+            if (article.next === article.platforms.length) batch = undefined
           }
           send(socket, {
             type: 'result',
@@ -262,14 +240,12 @@ export function installMcpBridge(syncArticle) {
         return {
           enabled: Boolean(pairing),
           name: pairing?.name,
-          autoFill: pairing?.autoFill,
           connected: Boolean(connection?.authenticated),
           isTargetWindow:
             (connection?.windowId ?? (pairing && (await targetWindow(false)))) === windowId,
           connecting: Boolean(connecting || (connection && !connection.authenticated)),
           outcome,
           running,
-          pending: connection?.windowId === windowId && !pending?.approved ? pending : undefined,
         }
       }
       if (request.type === 'MCP_PAIR_SAVE') {
@@ -289,7 +265,6 @@ export function installMcpBridge(syncArticle) {
               id: pairing?.id ?? crypto.randomUUID(),
               name,
               token,
-              autoFill: request.autoFill === true,
             },
           })
           await chrome.storage.session.set({ [windowKey]: windowId })
@@ -318,28 +293,11 @@ export function installMcpBridge(syncArticle) {
         } finally {
           updating = false
         }
-      } else if (request.type === 'MCP_PAIR_DECIDE') {
-        if (
-          connection?.windowId !== windowId ||
-          !pending ||
-          pending.approved ||
-          pending.id !== request.id
-        ) {
-          throw new Error('此请求已经失效。')
-        }
-        const approved = request.approved === true
-        send(connection.socket, { type: 'decision', id: pending.id, approved })
-        if (approved) setPending({ ...pending, approved: true })
-        else {
-          setPending(undefined)
-          outcome = '已拒绝。'
-        }
       }
       return { ok: true }
     }
     handle().then(respond, error => respond({ error: error.message }))
     return true
   })
-  setPending(undefined)
   reconnect()
 }

@@ -46,7 +46,6 @@
         }
       }
       h1,
-      h3,
       p {
         margin: 0;
       }
@@ -54,15 +53,8 @@
         font-size: 17px;
         line-height: 1.4;
       }
-      h3 {
-        font-size: 13px;
-        overflow-wrap: anywhere;
-      }
       a {
         color: var(--accent);
-      }
-      input[type='checkbox'] {
-        accent-color: var(--accent);
       }
       button,
       input,
@@ -158,7 +150,7 @@
         margin: 4px 0 10px;
       }
       #mcpPanel textarea:not([hidden]),
-      #mcpPanel input:not([type='checkbox']) {
+      #mcpPanel input {
         display: block;
         width: 100%;
         margin-top: 4px;
@@ -199,19 +191,6 @@
       #status {
         margin-top: 8px;
       }
-      #draft {
-        margin: 10px 0;
-        padding: 8px;
-        border: 1px solid var(--line);
-        border-radius: 6px;
-      }
-      #draft pre {
-        max-height: 9rem;
-        overflow: auto;
-        white-space: pre-wrap;
-        overflow-wrap: anywhere;
-        margin: 6px 0;
-      }
     </style>
   </head>
   <body>
@@ -236,15 +215,6 @@
 
     <details id="mcpPanel" hidden>
       <summary>AI 同步（MCP）</summary>
-      <section id="draft" hidden>
-        <h3>确认同步到 <span id="target"></span></h3>
-        <p id="title"></p>
-        <pre id="text"></pre>
-        <div class="button-row">
-          <button class="btn" id="approve" type="button">保存为草稿</button>
-          <button class="btn btn-secondary" id="decline" type="button">拒绝</button>
-        </div>
-      </section>
       <p class="mcp-intro">让桌面 AI 把文章直接同步到已登录的平台</p>
       <div class="button-row">
         <button class="btn" id="copyMcpSetup" type="button">复制配置指令</button>
@@ -276,7 +246,6 @@ https://github.com/doocs/cose/blob/main/apps/mcp-server/README.md</textarea>
             生成并复制新令牌
           </button>
           <p id="mcpTokenStatus" class="mcp-status" role="status"></p>
-          <label><input id="requireConfirmation" type="checkbox" /> 每次同步前先确认</label>
           <button class="btn" id="connect" type="submit" disabled>启用并配对</button>
         </form>
         <button class="btn btn-text" id="disconnect" type="button" hidden>

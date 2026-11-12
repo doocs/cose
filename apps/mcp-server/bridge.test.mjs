@@ -35,10 +35,10 @@ async function bridgeFixture(t) {
     return { socket, proof: sign('extension') }
   }
 
-  async function pair(name, browserId = randomUUID(), autoFill = false) {
+  async function pair(name, browserId = randomUUID()) {
     const { socket, proof } = await startPairing()
     const next = nextMessage(socket)
-    socket.send(JSON.stringify({ type: 'pair', name, browserId, proof, autoFill }))
+    socket.send(JSON.stringify({ type: 'pair', name, browserId, proof }))
     const { id } = await next
     assert.equal(id, browserId)
     return { socket, id }
@@ -47,7 +47,7 @@ async function bridgeFixture(t) {
 }
 
 test(
-  'routes drafts only to the selected Chrome connection and saves only after approval',
+  'starts sync immediately on the selected paired Chrome connection',
   { timeout: 5000 },
   async t => {
     const { bridge, url, startPairing, pair } = await bridgeFixture(t)
@@ -70,7 +70,7 @@ test(
     assert.equal((await strangerClosed)[0], 1008)
     assert.deepEqual(bridge.listPlatforms().browsers, [])
 
-    const work = await pair('工作 Chrome', randomUUID(), true)
+    const work = await pair('工作 Chrome')
     const personal = await pair('个人 Chrome')
     assert.deepEqual(
       bridge.listPlatforms().browsers.map(browser => browser.id),
@@ -86,31 +86,25 @@ test(
       title: 'COSE',
       text: 'test',
     }
-    const queued = once(personal.socket, 'message')
-    assert.equal(bridge.createDraft(args).status, 'awaiting_confirmation')
-    const [draft] = await queued
-    assert.deepEqual(JSON.parse(draft), {
-      type: 'draft',
+    const execute = nextMessage(personal.socket)
+    assert.equal(bridge.createDraft(args).status, 'queued')
+    assert.deepEqual(await execute, {
+      type: 'execute',
       id: args.request_id,
-      platforms: [{ id: 'zhihu', name: '知乎', mode: 'editor' }],
-      title: 'COSE',
-      text: 'test',
+      platform: 'zhihu',
+      article: {
+        platforms: [{ id: 'zhihu', name: '知乎', mode: 'editor' }],
+        title: 'COSE',
+        text: 'test',
+      },
     })
     assert.deepEqual(workMessages, [])
-    assert.equal(bridge.createDraft(args).status, 'awaiting_confirmation')
+    assert.equal(bridge.createDraft(args).status, 'saving')
     assert.throws(() => bridge.createDraft({ ...args, browser_id: work.id }), /another browser/)
     assert.throws(() => bridge.createDraft({ ...args, title: 'different' }), /different article/)
     assert.throws(() => bridge.createDraft({ ...args, platform: 'WordPress' }), /MD editor/)
 
-    const execute = once(personal.socket, 'message')
-    personal.socket.send(JSON.stringify({ type: 'decision', id: args.request_id, approved: true }))
-    assert.deepEqual(JSON.parse((await execute)[0]), {
-      type: 'execute',
-      id: args.request_id,
-      platform: 'zhihu',
-    })
     assert.equal(bridge.getDraft(args.request_id).status, 'saving')
-    assert.deepEqual(workMessages, [])
     const closed = once(personal.socket, 'close')
     personal.socket.close()
     await closed
@@ -122,19 +116,15 @@ test(
     const reconnected = await pair('个人 Chrome', personal.id)
     assert.equal(reconnected.id, personal.id)
     assert.equal(bridge.createDraft(args).status, 'not_confirmed')
-    assert.equal(
-      bridge.listPlatforms().browsers.find(browser => browser.id === work.id).confirmation_required,
-      false
-    )
-    const automatic = { ...args, request_id: randomUUID(), browser_id: work.id }
-    const autoDraft = once(work.socket, 'message')
-    assert.equal(bridge.createDraft(automatic).status, 'queued')
-    assert.equal(JSON.parse((await autoDraft)[0]).id, automatic.request_id)
+    const next = { ...args, request_id: randomUUID() }
+    const nextExecution = nextMessage(reconnected.socket)
+    assert.equal(bridge.createDraft(next).status, 'queued')
+    assert.equal((await nextExecution).id, next.request_id)
   }
 )
 
 test(
-  'one confirmation queues WeChat and Zhihu and keeps their separate results',
+  'executes WeChat and Zhihu in order and keeps their separate results',
   { timeout: 5000 },
   async t => {
     const { bridge, pair } = await bridgeFixture(t)
@@ -155,29 +145,31 @@ test(
       () => bridge.createDraft({ ...args, platforms: ['微信', 'WordPress'] }),
       /MD editor/
     )
-    const preview = nextMessage(socket)
+    const first = nextMessage(socket)
     const request = bridge.createDraft(args)
-    assert.equal(request.status, 'awaiting_confirmation')
+    assert.equal(request.status, 'queued')
     assert.deepEqual(platforms(request), [
-      ['wechat', 'awaiting_confirmation'],
-      ['zhihu', 'awaiting_confirmation'],
+      ['wechat', 'queued'],
+      ['zhihu', 'queued'],
     ])
-    const draft = await preview
-    assert.equal(draft.type, 'draft')
+    const wechat = await first
+    assert.equal(wechat.type, 'execute')
+    assert.equal(wechat.id, args.request_id)
+    assert.equal(wechat.platform, 'wechat')
     assert.deepEqual(
-      draft.platforms.map(platform => platform.name),
+      wechat.article.platforms.map(platform => platform.name),
       ['微信公众号', '知乎']
     )
-    assert.equal(draft.markdown, args.markdown)
-    assert.deepEqual(bridge.createDraft({ ...args, platforms: ['zhihu', '微信'] }), request)
+    assert.equal(wechat.article.markdown, args.markdown)
+    assert.deepEqual(
+      bridge.createDraft({ ...args, platforms: ['zhihu', '微信'] }),
+      bridge.getDraft(args.request_id)
+    )
     assert.throws(
       () => bridge.createDraft({ ...args, request_id: randomUUID() }),
       /already has a draft request/
     )
 
-    const wechat = nextMessage(socket)
-    send('decision', { approved: true })
-    assert.deepEqual(await wechat, { type: 'execute', id: args.request_id, platform: 'wechat' })
     assert.deepEqual(platforms(bridge.getDraft(args.request_id)), [
       ['wechat', 'saving'],
       ['zhihu', 'queued'],
@@ -204,7 +196,7 @@ test(
   { timeout: 5000 },
   async t => {
     const { bridge, pair } = await bridgeFixture(t)
-    const { id, socket } = await pair('Chrome', randomUUID(), true)
+    const { id, socket } = await pair('Chrome')
     const args = {
       request_id: randomUUID(),
       browser_id: id,
@@ -213,11 +205,8 @@ test(
       text: 'test',
     }
     const send = (type, data) => socket.send(JSON.stringify({ type, id: args.request_id, ...data }))
-    const draft = nextMessage(socket)
-    assert.equal(bridge.createDraft(args).status, 'queued')
-    assert.equal((await draft).type, 'draft')
     const first = nextMessage(socket)
-    send('decision', { approved: true })
+    assert.equal(bridge.createDraft(args).status, 'queued')
     assert.equal((await first).platform, 'wechat')
     const second = nextMessage(socket)
     send('result', { platform: 'wechat', status: 'filled' })

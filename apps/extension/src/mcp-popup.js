@@ -18,14 +18,7 @@ export async function showMcpSettings() {
   const token = document.getElementById('token')
   const generate = document.getElementById('generateMcpToken')
   const tokenStatus = document.getElementById('mcpTokenStatus')
-  const requireConfirmation = document.getElementById('requireConfirmation')
   const status = document.getElementById('status')
-  const draft = document.getElementById('draft')
-  const target = document.getElementById('target')
-  const approve = document.getElementById('approve')
-  const title = document.getElementById('title')
-  const text = document.getElementById('text')
-  let pending
   let initialized = false
   let busy = false
   let actionError
@@ -36,7 +29,6 @@ export async function showMcpSettings() {
     if (!state || busy) return
     if (!initialized) {
       name.value = state.name ?? MCP_DEFAULT_BROWSER_NAME
-      requireConfirmation.checked = state.enabled && state.autoFill !== true
       initialized = true
       connect.disabled = false
       const stored = await chrome.storage.session.get(MCP_SETUP_TOKEN_KEY)
@@ -63,20 +55,10 @@ export async function showMcpSettings() {
             : '等待桌面 MCP 服务。启动已配置 COSE 的客户端后会自动连接。'
     status.textContent =
       actionError ||
-      (state.pending ? '等待确认。' : [connectionStatus, state.outcome].filter(Boolean).join(' '))
+      [connectionStatus, state.running ? '正在同步文章。' : '', state.outcome]
+        .filter(Boolean)
+        .join(' ')
     status.hidden = !status.textContent
-    if (state.pending && state.pending.id !== pending?.id) panel.open = true
-    pending = state.pending
-    draft.hidden = !pending
-    title.textContent = pending?.title ?? ''
-    target.textContent = pending?.platforms.map(platform => platform.name).join('、') ?? ''
-    text.textContent = pending?.markdown ?? pending?.text ?? ''
-    approve.textContent =
-      pending?.platforms.length > 1
-        ? '确认同步'
-        : pending?.platforms[0]?.mode === 'confirmed_draft'
-          ? '保存为草稿'
-          : '填写文章'
   }
 
   async function update(request) {
@@ -160,7 +142,6 @@ export async function showMcpSettings() {
       type: 'MCP_PAIR_SAVE',
       name: name.value,
       token: pairingToken,
-      autoFill: !requireConfirmation.checked,
     })
     if (saved && token.value === pairingToken) {
       token.value = ''
@@ -171,21 +152,12 @@ export async function showMcpSettings() {
 
   disconnect.addEventListener('click', async () => {
     if (await update({ type: 'MCP_PAIR_DISABLE' })) {
-      requireConfirmation.checked = false
       name.value = MCP_DEFAULT_BROWSER_NAME
       token.value = ''
       token.type = 'password'
       tokenStatus.textContent = ''
     }
   })
-  for (const [button, approved] of [
-    ['approve', true],
-    ['decline', false],
-  ]) {
-    document.getElementById(button).addEventListener('click', () => {
-      if (pending) update({ type: 'MCP_PAIR_DECIDE', id: pending.id, approved })
-    })
-  }
   const refreshPage = () =>
     refresh().catch(() => {
       status.hidden = false

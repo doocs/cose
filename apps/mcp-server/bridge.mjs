@@ -35,8 +35,7 @@ export async function startBridge(token, port = MCP_BRIDGE_PORT, extensionId = c
   function view(request) {
     const view = {
       request_id: request.id,
-      status:
-        request.status === 'awaiting_confirmation' && request.autoFill ? 'queued' : request.status,
+      status: request.status,
       message: request.message,
     }
     if (!request.batch) return { ...view, platform: request.results[0].platform.id }
@@ -44,7 +43,7 @@ export async function startBridge(token, port = MCP_BRIDGE_PORT, extensionId = c
       ...view,
       results: request.results.map(({ platform, status, message }) => ({
         platform: platform.id,
-        status: status === 'awaiting_confirmation' && request.autoFill ? 'queued' : status,
+        status,
         message,
       })),
     }
@@ -66,27 +65,18 @@ export async function startBridge(token, port = MCP_BRIDGE_PORT, extensionId = c
     finish(request, status, message)
   }
 
-  function markRemaining(request, status, message) {
-    for (const result of request.results.slice(request.next)) {
-      result.status = status
-      result.message = message
-    }
-  }
-
-  function stop(request, status, message) {
-    markRemaining(request, status, message)
-    finish(request, status, message)
-  }
-
   function interruptSync(request, message) {
     const current = request.results[request.next++]
     current.status = 'not_confirmed'
     current.message = message
-    markRemaining(request, 'cancelled', 'COSE stopped before starting this platform.')
+    for (const result of request.results.slice(request.next)) {
+      result.status = 'cancelled'
+      result.message = 'COSE stopped before starting this platform.'
+    }
     finishResults(request, message)
   }
 
-  function executeNext(profile, request) {
+  function executeNext(profile, request, article) {
     const current = request.results[request.next]
     profile.executingPlatform = current.platform.id
     request.status = current.status = 'saving'
@@ -97,7 +87,7 @@ export async function startBridge(token, port = MCP_BRIDGE_PORT, extensionId = c
       profile.socket.send(JSON.stringify({ type: 'expired', id: request.id }))
     }, 120000)
     profile.socket.send(
-      JSON.stringify({ type: 'execute', id: request.id, platform: current.platform.id })
+      JSON.stringify({ type: 'execute', id: request.id, platform: current.platform.id, article })
     )
   }
 
@@ -135,9 +125,7 @@ export async function startBridge(token, port = MCP_BRIDGE_PORT, extensionId = c
       if (!profile) return
       profiles.delete(profile.id)
       const request = requests.get(profile.requestId)
-      if (request?.status === 'awaiting_confirmation') {
-        stop(request, 'cancelled', 'Chrome disconnected before approval.')
-      } else if (request?.status === 'saving') {
+      if (request?.status === 'saving') {
         interruptSync(
           request,
           'Chrome disconnected during sync. Check the editor or draft list before retrying.'
@@ -200,7 +188,7 @@ export async function startBridge(token, port = MCP_BRIDGE_PORT, extensionId = c
           return
         }
         clearTimeout(authTimeout)
-        profile = { id, name, socket, autoFill: message.autoFill === true }
+        profile = { id, name, socket }
         profiles.set(id, profile)
         send({ type: 'paired', id, name })
         return
@@ -212,34 +200,28 @@ export async function startBridge(token, port = MCP_BRIDGE_PORT, extensionId = c
       }
 
       const request = requests.get(profile.requestId)
-      if (!request || message?.id !== request.id) return
-      if (request.status === 'awaiting_confirmation' && message.type === 'decision') {
-        if (message.approved !== true) {
-          stop(request, 'declined', 'The user declined the draft.')
-          return
-        }
-        clearTimeout(request.timer)
-        for (const result of request.results) result.status = 'queued'
-        executeNext(profile, request)
-      } else if (
-        message.type === 'result' &&
-        profile.executingPlatform &&
-        message.platform === profile.executingPlatform
+      if (
+        !request ||
+        message?.id !== request.id ||
+        message.type !== 'result' ||
+        !profile.executingPlatform ||
+        message.platform !== profile.executingPlatform
       ) {
-        profile.executingPlatform = undefined
-        if (request.status !== 'saving') return
-        clearTimeout(request.timer)
-        const current = request.results[request.next++]
-        current.status =
-          message.status === 'saved' && current.platform.mode !== 'confirmed_draft'
-            ? 'review_required'
-            : completed.has(message.status)
-              ? message.status
-              : 'not_confirmed'
-        current.message = typeof message.message === 'string' ? message.message.slice(0, 500) : ''
-        if (request.next < request.results.length) executeNext(profile, request)
-        else finishResults(request, 'See the result for each platform.')
+        return
       }
+      profile.executingPlatform = undefined
+      if (request.status !== 'saving') return
+      clearTimeout(request.timer)
+      const current = request.results[request.next++]
+      current.status =
+        message.status === 'saved' && current.platform.mode !== 'confirmed_draft'
+          ? 'review_required'
+          : completed.has(message.status)
+            ? message.status
+            : 'not_confirmed'
+      current.message = typeof message.message === 'string' ? message.message.slice(0, 500) : ''
+      if (request.next < request.results.length) executeNext(profile, request)
+      else finishResults(request, 'See the result for each platform.')
     })
   })
 
@@ -255,7 +237,7 @@ export async function startBridge(token, port = MCP_BRIDGE_PORT, extensionId = c
         platforms: mcpPlatforms,
         browsers: [...profiles.values()]
           .filter(profile => profile.socket.readyState === WebSocket.OPEN)
-          .map(({ id, name, autoFill }) => ({ id, name, confirmation_required: !autoFill })),
+          .map(({ id, name }) => ({ id, name })),
       }
     },
     createDraft({
@@ -309,10 +291,7 @@ export async function startBridge(token, port = MCP_BRIDGE_PORT, extensionId = c
           'That Chrome instance is disconnected. Pair it in COSE and call list_platforms again.'
         )
       }
-      if (
-        profile.executingPlatform ||
-        requests.get(profile.requestId)?.status === 'awaiting_confirmation'
-      ) {
+      if (profile.executingPlatform) {
         throw new Error('This browser already has a draft request in progress.')
       }
       if (requests.size >= 512) throw new Error('Request history is full. Restart COSE MCP.')
@@ -321,22 +300,16 @@ export async function startBridge(token, port = MCP_BRIDGE_PORT, extensionId = c
         browserId,
         batch,
         next: 0,
-        results: platforms.map(platform => ({ platform, status: 'awaiting_confirmation' })),
+        results: platforms.map(platform => ({ platform, status: 'queued' })),
         fingerprint,
-        autoFill: profile.autoFill,
-        status: 'awaiting_confirmation',
-        message: profile.autoFill
-          ? 'COSE is preparing the article automatically.'
-          : 'Confirm the draft in the selected Chrome window.',
+        status: 'queued',
+        message: 'COSE is preparing the article in the selected browser.',
       }
       requests.set(id, request)
       profile.requestId = id
-      request.timer = setTimeout(() => {
-        stop(request, 'cancelled', 'Approval timed out.')
-        profile.socket.send(JSON.stringify({ type: 'expired', id }))
-      }, 300000)
-      profile.socket.send(JSON.stringify({ type: 'draft', id, platforms, title, markdown, text }))
-      return view(request)
+      const accepted = view(request)
+      executeNext(profile, request, { platforms, title, markdown, text })
+      return accepted
     },
     getDraft(id) {
       const request = requests.get(id)

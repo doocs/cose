@@ -6,7 +6,7 @@ MCP 是桌面 Chrome 的可选功能。只有在 COSE 中启用配对后，桌�
 
 在 COSE 弹窗展开「AI 同步（MCP）」，点「复制配置指令」，也可以先点「查看指令」。还可以复制下面这段话给能运行本地命令和配置 MCP 的桌面 AI。普通 COSE 用户可直接使用扩展的同步功能。
 
-> 请按 COSE 官方说明帮我配置可选的 COSE MCP，使用支持 MCP 的 COSE 扩展和同一版本的本地服务。请先检查 Node.js 和已安装的 COSE，优先用用户级 MCP 配置并保留其他设置。如果已有配对，请继续使用同一个本地令牌。首次配对时再生成令牌。需要选 Chrome 窗口、确认授权或重启客户端时请告诉我。不要在聊天中输出令牌，请保留我在 COSE 里保存的确认偏好。配置完成后，请用 `list_platforms` 核对目标 Chrome 和可用平台。使用说明见 https://github.com/doocs/cose/blob/main/apps/mcp-server/README.md
+> 请按 COSE 官方说明帮我配置可选的 COSE MCP，使用支持 MCP 的 COSE 扩展和同一版本的本地服务。请先检查 Node.js 和已安装的 COSE，优先用用户级 MCP 配置并保留其他设置。如果已有配对，请继续使用同一个本地令牌。首次配对时再生成令牌。需要选 Chrome 窗口、确认授权或重启客户端时请告诉我。不要在聊天中输出令牌。配置完成后，请用 `list_platforms` 核对目标 Chrome 和可用平台。使用说明见 https://github.com/doocs/cose/blob/main/apps/mcp-server/README.md
 
 配好后，可以说「用 COSE，把上面这篇文章同步到工作 Chrome 的微信公众号和知乎」。如果有多个浏览器连接，指定配对时填写的名字。
 
@@ -30,7 +30,7 @@ COSE_MCP_TOKEN = "replace_with_your_generated_token"
 
 如果 Codex 找不到 `node`，把 `command` 改为 Node.js 22 可执行文件的绝对路径。服务默认仅接受 Chrome 商店版 COSE 的扩展 ID。测试未打包版本时，须填入扩展详情页显示的 ID。
 
-3. 在目标 Chrome 窗口点击工具栏的 COSE 图标，依次展开「AI 同步（MCP）」和「手动配对与设置」。实例名默认为「Chrome」，连接多个实例时可改成不同的名字。确认令牌与客户端配置相同，再点击「启用并配对」。弹窗生成的令牌会自动填入，重新打开弹窗也可以继续配置。首次配对后，AI 的同步请求默认直接填写编辑器或保存草稿。想先看预览，可以勾选「每次同步前先确认」；已配对的浏览器会沿用保存的设置。开启确认后，如果弹窗没有自动打开，点击带数字提示的 COSE 图标即可。
+3. 在目标 Chrome 窗口点击工具栏的 COSE 图标，依次展开「AI 同步（MCP）」和「手动配对与设置」。实例名默认为「Chrome」，连接多个实例时可改成不同的名字。确认令牌与客户端配置相同，再点击「启用并配对」。弹窗生成的令牌会自动填入，重新打开弹窗也可以继续配置。
 4. 配对成功后可以关掉弹窗。本机保存配对设置，MCP 服务重启后扩展会自动重连。Chrome 重启后，若该配置文件只有一个普通窗口，扩展会在首次重试时恢复连接；若有多个窗口，打开目标窗口里的 COSE 弹窗，点击「保存并使用此窗口」。在同一次 Chrome 会话里，关闭配对窗口后也需重新选窗口。
 
 弹窗显示「等待桌面 MCP 服务」时，请启动已配置 COSE 的客户端，再等自动重连或点击「立即重连」。
@@ -41,6 +41,6 @@ COSE_MCP_TOKEN = "replace_with_your_generated_token"
 
 `list_platforms` 返回平台名称、ID 和在线的 Chrome 实例。`create_draft` 可用 `platforms: ["微信公众号", "知乎"]` 把同一篇文章提交到多个平台，也可用 `platform: "zhihu"` 同步到单个平台。平台支持名称和 ID。传入标题及 `markdown` 或 `text` 其中之一。Markdown 的链接和图片使用 HTTP 或 HTTPS 地址。
 
-自动模式的初始状态为 `queued`，手动模式为 `awaiting_confirmation`。手动模式只需确认一次整批平台。COSE 在同一窗口依次同步，某个平台返回失败时会继续尝试后续平台。断线或超时时，本批尚未开始的平台会标记为 `cancelled`。
+请求的初始状态为 `queued`。COSE 收到请求后就在配对窗口依次填写编辑器或保存草稿。某个平台返回失败时会继续尝试后续平台。断线或超时时，本批尚未开始的平台会标记为 `cancelled`。
 
 用原请求 ID 调用 `get_draft_status`。批量请求在 `results` 中返回各平台的状态和说明。B 站、RedNote 和雪球收到平台确认后返回 `saved`。其他平台可能返回 `filled` 或 `review_required`。若返回 `not_confirmed`，先检查编辑器或草稿列表，再决定是否重试。重试时只为需要重试的平台创建新请求。请求 ID 的去重在同一个 MCP 进程内有效。WordPress 和 DEV.to 的账号连接依赖 MD 编辑器。

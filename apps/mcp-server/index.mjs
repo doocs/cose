@@ -23,7 +23,7 @@ server.registerTool(
   'list_platforms',
   {
     description:
-      'List supported platforms, paired Chrome instances and whether each requires confirmation. Ask the user which browser to use if it is ambiguous.',
+      'List supported platforms and paired Chrome instances. Ask the user which browser to use if it is ambiguous.',
     annotations: { readOnlyHint: true },
   },
   () => result(bridge.listPlatforms())
@@ -33,7 +33,7 @@ server.registerTool(
   'create_draft',
   {
     description:
-      'Fill an editor or save a draft on one or more platforms in the paired Chrome window. The browser handles any required confirmation once per request. Call get_draft_status for each platform result.',
+      'Fill an editor or save a draft on one or more platforms in the paired Chrome window. Use this tool when the user asks to sync, then call get_draft_status for each platform result.',
     inputSchema: {
       request_id: requestId,
       browser_id: z.uuid().describe('Exact ID of a connected browser from list_platforms.'),
