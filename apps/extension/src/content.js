@@ -1,6 +1,5 @@
 async function isDoocsEditor() {
   if (window.location.origin === 'https://md.doocs.org') return true
-  if (document.querySelector('meta[name="doocs-md"][content="editor"]')) return true
 
   const app = document.getElementById('app')
   if (!app) return false
@@ -279,7 +278,7 @@ async function isDoocsEditor() {
   // 监听来自页面的消息
   window.addEventListener('message', async event => {
     if (event.source !== window) return
-    if (!event.data || event.data.source !== 'cose-page-v2') return
+    if (!event.data || event.data.source !== 'cose-page') return
 
     const { type, requestId, payload } = event.data
 
@@ -321,7 +320,7 @@ async function isDoocsEditor() {
       // 发送响应回页面
       window.postMessage(
         {
-          source: 'cose-extension-v2',
+          source: 'cose-extension',
           requestId,
           result,
         },
@@ -330,7 +329,7 @@ async function isDoocsEditor() {
     } catch (error) {
       window.postMessage(
         {
-          source: 'cose-extension-v2',
+          source: 'cose-extension',
           requestId,
           error: error.message,
         },
@@ -344,7 +343,7 @@ async function isDoocsEditor() {
     if (message.type === 'PLATFORM_STATUS_UPDATE' || message.type === 'PLATFORM_STATUS_COMPLETE') {
       window.postMessage(
         {
-          source: 'cose-extension-v2',
+          source: 'cose-extension',
           type: message.type,
           ...message,
         },

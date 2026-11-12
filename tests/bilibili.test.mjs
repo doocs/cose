@@ -32,7 +32,7 @@ function createSourcePage(t) {
       queueMicrotask(() =>
         onMessage({
           source: window,
-          data: { source: 'cose-extension-v2', requestId, result: { success: true } },
+          data: { source: 'cose-extension', requestId, result: { success: true } },
         })
       )
     },
@@ -243,12 +243,4 @@ test('a failed save or a stale autosave message cannot confirm the Bilibili draf
     assert.equal(page.draft.click.mock.callCount(), 1)
     assert.equal(page.publish.click.mock.callCount(), 0)
   }
-})
-
-test('the new editor bridge keeps Halo available when an older extension replaces the legacy global', () => {
-  const window = { addEventListener() {}, dispatchEvent() {} }
-  vm.runInNewContext(pageScript, { window, document: {}, CustomEvent })
-  window.$cose = { getPlatforms: () => [] }
-  assert.ok(window.$coseV2.getPlatforms().some(({ id }) => id === 'halo'))
-  assert.equal(typeof window.$coseV2.getHaloSetupUrl, 'function')
 })

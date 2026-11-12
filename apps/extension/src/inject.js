@@ -17,7 +17,7 @@
   // 监听来自 content script 的响应
   window.addEventListener('message', event => {
     if (event.source !== window) return
-    if (!event.data || event.data.source !== 'cose-extension-v2') return
+    if (!event.data || event.data.source !== 'cose-extension') return
 
     const {
       type,
@@ -102,7 +102,7 @@
       try {
         window.postMessage(
           {
-            source: 'cose-page-v2',
+            source: 'cose-page',
             type,
             requestId: id,
             payload,
@@ -409,7 +409,7 @@
   ]
 
   // 暴露 $cose 全局对象
-  const api = {
+  window.$cose = {
     // 版本标识
     version: '1.0.0',
 
@@ -670,9 +670,6 @@
       syncAll()
     },
   }
-
-  window.$coseV2 = api
-  window.$cose = api
 
   // 通知页面插件已加载
   console.log('[COSE] 文章同步助手已加载')

@@ -183,7 +183,6 @@ const genManifest = async (options: BuildOptions) => {
 
   // Sync version from package.json
   manifest.version = packageJson.version
-  if (!options.release) manifest.name += '（本地开发版）'
 
   // Write manifest to dist
   const outputPath = path.join(rootDir, 'dist/manifest.json')
