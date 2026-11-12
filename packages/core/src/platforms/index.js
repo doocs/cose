@@ -36,6 +36,7 @@ import { RednotePlatform } from './rednote.js'
 import { ElecfansPlatform } from './elecfans.js'
 import { DoubanPlatform } from './douban.js'
 import { DevtoPlatform } from './devto.js'
+import { SubstackPlatform } from './substack.js'
 import { WordPressPlatform } from './wordpress.js'
 import { XueqiuPlatform, syncXueqiuDraft } from './xueqiu.js'
 
@@ -75,6 +76,7 @@ const PLATFORMS = [
   DoubanPlatform,
   DevtoPlatform,
   WordPressPlatform,
+  SubstackPlatform,
   XueqiuPlatform,
 ]
 

@@ -136,6 +136,13 @@
       url: 'https://dev.to/settings/extensions',
     },
     {
+      id: 'substack',
+      name: 'Substack',
+      title: 'Substack',
+      type: 'substack',
+      icon: 'https://substack.com/favicon.ico',
+    },
+    {
       id: 'wordpress',
       name: 'WordPress',
       icon: 'https://s.w.org/style/images/about/WordPress-logotype-wmark.png',
@@ -614,6 +621,7 @@
                 markdown: post.markdown,
                 thumb: post.thumb,
                 desc: post.desc,
+                ...(platformId === 'substack' && { substackSite: account.home }),
                 ...(platformId === 'wordpress' && { wordpressSite: account.home }),
                 // 微信公众号、百家号、网易号、Medium、少数派、微博头条和小红书使用剪贴板中带样式的 HTML
                 wechatHtml:

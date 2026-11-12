@@ -1,3 +1,10 @@
+import {
+  connectionKey,
+  substackDraftId,
+  substackPermission,
+  substackSite,
+} from '@cose/core/src/platforms/substack.js'
+
 import { wordPressPendingKey, wordPressPermission } from '@cose/core/src/platforms/wordpress.js'
 
 import { showMcpSettings } from './mcp-popup.js'
@@ -49,3 +56,45 @@ async function showWordPressPermission() {
 }
 
 showWordPressPermission().catch(() => {})
+
+const substackForm = document.getElementById('substackSettings')
+const substackSiteInput = document.getElementById('substackSite')
+const substackDraftInput = document.getElementById('substackDraft')
+const substackStatus = document.getElementById('substackStatus')
+
+chrome.storage.local
+  .get(connectionKey)
+  .then(({ [connectionKey]: connection }) => {
+    if (!connection) return
+    substackSiteInput.value = connection.site
+    if (connection.draftId) {
+      substackDraftInput.value = `${connection.site}/publish/post/${connection.draftId}`
+    }
+  })
+  .catch(() => {})
+
+substackForm.addEventListener('submit', async event => {
+  event.preventDefault()
+  const site = substackSite(substackSiteInput.value)
+  const draftUrl = substackDraftInput.value.trim()
+  const draftId = draftUrl && substackDraftId(draftUrl, site)
+  if (!site || (draftUrl && !draftId)) {
+    substackStatus.textContent = '请输入 Substack 出版物网址和同站草稿编辑链接'
+    return
+  }
+
+  const button = substackForm.querySelector('button')
+  button.disabled = true
+  try {
+    if (!(await chrome.permissions.request(substackPermission(site)))) {
+      substackStatus.textContent = '未授权访问 Substack'
+      return
+    }
+    await chrome.storage.local.set({ [connectionKey]: { site, ...(draftId && { draftId }) } })
+    substackStatus.textContent = '已保存。请在 Doocs MD 的发布窗口选择 Substack。'
+  } catch {
+    substackStatus.textContent = '无法保存 Substack 设置'
+  } finally {
+    button.disabled = false
+  }
+})
