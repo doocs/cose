@@ -17,7 +17,7 @@
   // 监听来自 content script 的响应
   window.addEventListener('message', event => {
     if (event.source !== window) return
-    if (!event.data || event.data.source !== 'cose-extension') return
+    if (!event.data || event.data.source !== 'cose-extension-v2') return
 
     const {
       type,
@@ -102,7 +102,7 @@
       try {
         window.postMessage(
           {
-            source: 'cose-page',
+            source: 'cose-page-v2',
             type,
             requestId: id,
             payload,
@@ -149,6 +149,7 @@
       title: 'WordPress',
       type: 'wordpress',
     },
+    { id: 'halo', name: 'Halo', title: 'Halo', type: 'halo' },
     {
       id: 'csdn',
       name: 'CSDN',
@@ -408,7 +409,7 @@
   ]
 
   // 暴露 $cose 全局对象
-  window.$cose = {
+  const api = {
     // 版本标识
     version: '1.0.0',
 
@@ -433,6 +434,10 @@
 
     getWordPressSetupUrl() {
       return injectedScriptUrl ? new URL('../wordpress-connect.html', injectedScriptUrl).href : null
+    },
+
+    getHaloSetupUrl() {
+      return injectedScriptUrl ? new URL('../halo-connect.html', injectedScriptUrl).href : null
     },
 
     // 获取账号列表（带登录状态）
@@ -626,6 +631,7 @@
                 thumb: post.thumb,
                 desc: post.desc,
                 ...(platformId === 'substack' && { substackSite: account.home }),
+                ...(platformId === 'halo' && { haloSite: account.home }),
                 ...(platformId === 'wordpress' && { wordpressSite: account.home }),
                 // 微信公众号、百家号、网易号、Medium、少数派、微博头条和小红书使用剪贴板中带样式的 HTML
                 wechatHtml:
@@ -664,6 +670,9 @@
       syncAll()
     },
   }
+
+  window.$coseV2 = api
+  window.$cose = api
 
   // 通知页面插件已加载
   console.log('[COSE] 文章同步助手已加载')

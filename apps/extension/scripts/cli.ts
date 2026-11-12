@@ -129,6 +129,7 @@ const copyResources = async () => {
     'devto-connect.html',
     'wordpress-connect.html',
     'substack-connect.html',
+    'halo-connect.html',
   ] as const) {
     const from = path.join(rootDir, 'src', name)
     const to = path.join(rootDir, 'dist', name)
@@ -182,6 +183,7 @@ const genManifest = async (options: BuildOptions) => {
 
   // Sync version from package.json
   manifest.version = packageJson.version
+  if (!options.release) manifest.name += '（本地开发版）'
 
   // Write manifest to dist
   const outputPath = path.join(rootDir, 'dist/manifest.json')

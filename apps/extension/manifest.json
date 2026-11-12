@@ -90,7 +90,8 @@
         "bundles/platforms/*.js",
         "devto-connect.html",
         "wordpress-connect.html",
-        "substack-connect.html"
+        "substack-connect.html",
+        "halo-connect.html"
       ],
       "matches": ["<all_urls>"]
     }

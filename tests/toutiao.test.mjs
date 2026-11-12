@@ -46,7 +46,7 @@ async function mockEditorPage(t, { batchError } = {}) {
         receive({
           source: window,
           data: {
-            source: 'cose-extension',
+            source: 'cose-extension-v2',
             requestId: message.requestId,
             result: { success: true },
             error: message.type === 'START_SYNC_BATCH' ? batchError : undefined,

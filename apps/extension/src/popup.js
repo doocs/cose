@@ -29,7 +29,8 @@ async function showWordPressPermission() {
   const section = document.getElementById('wordpressPermission')
   const button = document.getElementById('allowWordPress')
   const status = document.getElementById('wordpressPermissionStatus')
-  document.getElementById('wordpressHost').textContent = `WordPress · ${pending.host}`
+  document.getElementById('wordpressHost').textContent =
+    `${pending.platform ?? 'WordPress'} · ${pending.host}`
   section.hidden = false
   button.addEventListener('click', async () => {
     button.disabled = true
