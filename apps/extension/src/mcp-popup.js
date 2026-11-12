@@ -18,7 +18,7 @@ export async function showMcpSettings() {
   const token = document.getElementById('token')
   const generate = document.getElementById('generateMcpToken')
   const tokenStatus = document.getElementById('mcpTokenStatus')
-  const autoFill = document.getElementById('autoFill')
+  const requireConfirmation = document.getElementById('requireConfirmation')
   const status = document.getElementById('status')
   const draft = document.getElementById('draft')
   const target = document.getElementById('target')
@@ -36,8 +36,9 @@ export async function showMcpSettings() {
     if (!state || busy) return
     if (!initialized) {
       name.value = state.name ?? MCP_DEFAULT_BROWSER_NAME
-      autoFill.checked = state.autoFill === true
+      requireConfirmation.checked = state.enabled && state.autoFill !== true
       initialized = true
+      connect.disabled = false
       const stored = await chrome.storage.session.get(MCP_SETUP_TOKEN_KEY)
       if (!token.value && stored[MCP_SETUP_TOKEN_KEY]) {
         token.value = stored[MCP_SETUP_TOKEN_KEY]
@@ -159,7 +160,7 @@ export async function showMcpSettings() {
       type: 'MCP_PAIR_SAVE',
       name: name.value,
       token: pairingToken,
-      autoFill: autoFill.checked,
+      autoFill: !requireConfirmation.checked,
     })
     if (saved && token.value === pairingToken) {
       token.value = ''
@@ -170,7 +171,7 @@ export async function showMcpSettings() {
 
   disconnect.addEventListener('click', async () => {
     if (await update({ type: 'MCP_PAIR_DISABLE' })) {
-      autoFill.checked = false
+      requireConfirmation.checked = false
       name.value = MCP_DEFAULT_BROWSER_NAME
       token.value = ''
       token.type = 'password'

@@ -276,8 +276,8 @@ https://github.com/doocs/cose/blob/main/apps/mcp-server/README.md</textarea>
             生成并复制新令牌
           </button>
           <p id="mcpTokenStatus" class="mcp-status" role="status"></p>
-          <label><input id="autoFill" type="checkbox" /> 允许自动填写文章和保存草稿</label>
-          <button class="btn" id="connect" type="submit">启用并配对</button>
+          <label><input id="requireConfirmation" type="checkbox" /> 每次同步前先确认</label>
+          <button class="btn" id="connect" type="submit" disabled>启用并配对</button>
         </form>
         <button class="btn btn-text" id="disconnect" type="button" hidden>
           关闭 MCP 并清除配对

@@ -33,7 +33,7 @@ server.registerTool(
   'create_draft',
   {
     description:
-      'Prepare the same article on one or more platforms in the paired Chrome window. Use platforms for a batch with one confirmation. Call get_draft_status for each platform result.',
+      'Fill an editor or save a draft on one or more platforms in the paired Chrome window. The browser handles any required confirmation once per request. Call get_draft_status for each platform result.',
     inputSchema: {
       request_id: requestId,
       browser_id: z.uuid().describe('Exact ID of a connected browser from list_platforms.'),
