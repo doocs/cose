@@ -156,7 +156,7 @@ export function installMcpBridge(syncArticle) {
 
         if (message.type === 'draft' && !pending && !running) {
           outcome = ''
-          setPending({ ...message, approved: pairing.autoFill })
+          setPending({ ...message, approved: pairing.autoFill, next: 0, outcomes: [] })
           if (pairing.autoFill) {
             send(socket, { type: 'decision', id: message.id, approved: true })
           } else {
@@ -169,11 +169,15 @@ export function installMcpBridge(syncArticle) {
 
         if (!pending || pending.id !== message.id) return
         if (message.type === 'expired') {
+          outcome = pending.approved ? '同步已超时，请检查编辑器或草稿列表。' : '确认请求已超时。'
           setPending(undefined)
-          outcome = '确认请求已超时。'
-        } else if (message.type === 'execute' && pending.approved) {
+        } else if (message.type === 'execute' && pending.approved && !running) {
           const article = pending
-          setPending(undefined)
+          const platform = article.platforms[article.next]
+          if (!platform || message.platform !== platform.id) {
+            socket.close(4008, 'Unexpected platform')
+            return
+          }
           running = true
           let result
           try {
@@ -181,17 +185,27 @@ export function installMcpBridge(syncArticle) {
             if (!window || connection !== state) {
               result = { status: 'not_confirmed', message: '目标窗口已关闭或配对已断开。' }
             } else {
-              result = await syncArticle(article, windowId)
+              result = await syncArticle({ ...article, platform }, windowId)
             }
           } catch (error) {
             result = { status: 'not_confirmed', message: error.message || '无法确认同步结果。' }
           } finally {
             running = false
           }
-          outcome = result.message
+          if (pending === article) {
+            article.next++
+            article.outcomes.push(
+              article.platforms.length === 1
+                ? result.message
+                : `${platform.name}：${result.message || '无法确认同步结果。'}`
+            )
+            outcome = article.outcomes.join(' ')
+            if (article.next === article.platforms.length) setPending(undefined)
+          }
           send(socket, {
             type: 'result',
             id: article.id,
+            platform: platform.id,
             status: result.status,
             message: result.message,
           })

@@ -8,7 +8,7 @@ MCP 是桌面 Chrome 的可选功能。只有在 COSE 中启用配对后，桌�
 
 > 请按 COSE 官方说明帮我配置可选的 COSE MCP，使用支持 MCP 的 COSE 扩展和同一版本的本地服务。请先检查 Node.js 和已安装的 COSE，优先用用户级 MCP 配置并保留其他设置。如果已有配对，请继续使用同一个本地令牌。首次配对时再生成令牌。需要选 Chrome 窗口、确认授权或重启客户端时请告诉我。不要在聊天中输出令牌，也不要替我开启自动填写。配置完成后，请用 `list_platforms` 核对目标 Chrome 和可用平台。使用说明见 https://github.com/doocs/cose/blob/main/apps/mcp-server/README.md
 
-配好后，可以说「用 COSE，把上面这篇文章存到工作 Chrome 的 X Articles」。如果有多个浏览器连接，指定配对时填写的名字。
+配好后，可以说「用 COSE，把上面这篇文章同步到工作 Chrome 的微信公众号和知乎」。如果有多个浏览器连接，指定配对时填写的名字。
 
 如果文章写在 Doocs MD 官方编辑器或自托管编辑器里，可以直接在编辑器里选平台同步，也可以把标题和 Markdown 交给桌面 AI，由 AI 调用 COSE 同步。
 
@@ -39,6 +39,8 @@ COSE_MCP_TOKEN = "replace_with_your_generated_token"
 
 ## 工具及结果
 
-`list_platforms` 返回平台名称、ID 和在线的 Chrome 实例。`create_draft` 的 `platform` 接受平台名称或 ID，例如「知乎」或 `zhihu`。传入标题及 `markdown` 或 `text` 其中之一。Markdown 的链接和图片使用 HTTP 或 HTTPS 地址。
+`list_platforms` 返回平台名称、ID 和在线的 Chrome 实例。`create_draft` 可用 `platforms: ["微信公众号", "知乎"]` 把同一篇文章提交到多个平台，也可用 `platform: "zhihu"` 同步到单个平台。平台支持名称和 ID。传入标题及 `markdown` 或 `text` 其中之一。Markdown 的链接和图片使用 HTTP 或 HTTPS 地址。
 
-自动模式的初始状态为 `queued`，手动模式为 `awaiting_confirmation`。用原请求 ID 调用 `get_draft_status`。B 站、RedNote 和雪球收到平台确认后返回 `saved`。其他平台可能返回 `filled` 或 `review_required`。若返回 `not_confirmed`，先检查编辑器或草稿列表，再决定是否重试。请求 ID 的去重在同一个 MCP 进程内有效。WordPress 和 DEV.to 的账号连接依赖 MD 编辑器。
+自动模式的初始状态为 `queued`，手动模式为 `awaiting_confirmation`。手动模式只需确认一次整批平台。COSE 在同一窗口依次同步，某个平台返回失败时会继续尝试后续平台。断线或超时时，本批尚未开始的平台会标记为 `cancelled`。
+
+用原请求 ID 调用 `get_draft_status`。批量请求在 `results` 中返回各平台的状态和说明。B 站、RedNote 和雪球收到平台确认后返回 `saved`。其他平台可能返回 `filled` 或 `review_required`。若返回 `not_confirmed`，先检查编辑器或草稿列表，再决定是否重试。重试时只为需要重试的平台创建新请求。请求 ID 的去重在同一个 MCP 进程内有效。WordPress 和 DEV.to 的账号连接依赖 MD 编辑器。

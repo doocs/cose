@@ -68,9 +68,14 @@ export async function showMcpSettings() {
     pending = state.pending
     draft.hidden = !pending
     title.textContent = pending?.title ?? ''
-    target.textContent = pending?.platform?.name ?? ''
+    target.textContent = pending?.platforms.map(platform => platform.name).join('、') ?? ''
     text.textContent = pending?.markdown ?? pending?.text ?? ''
-    approve.textContent = pending?.platform?.mode === 'confirmed_draft' ? '保存为草稿' : '填写文章'
+    approve.textContent =
+      pending?.platforms.length > 1
+        ? '确认同步'
+        : pending?.platforms[0]?.mode === 'confirmed_draft'
+          ? '保存为草稿'
+          : '填写文章'
   }
 
   async function update(request) {

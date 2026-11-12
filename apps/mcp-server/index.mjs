@@ -13,6 +13,7 @@ const transport = new StdioServerTransport()
 const requestId = z
   .uuid()
   .describe('Client-generated UUID. Reuse it to check or retry the same request.')
+const platformName = z.string().trim().min(1).max(100)
 const result = value => ({
   content: [{ type: 'text', text: JSON.stringify(value) }],
   structuredContent: value,
@@ -32,16 +33,20 @@ server.registerTool(
   'create_draft',
   {
     description:
-      'Prepare an article on a platform in the selected paired Chrome window. COSE uses the confirmation preference selected in Chrome. Call get_draft_status for the result.',
+      'Prepare the same article on one or more platforms in the paired Chrome window. Use platforms for a batch with one confirmation. Call get_draft_status for each platform result.',
     inputSchema: {
       request_id: requestId,
       browser_id: z.uuid().describe('Exact ID of a connected browser from list_platforms.'),
-      platform: z
-        .string()
-        .trim()
+      platform: platformName
+        .optional()
+        .describe('Single platform ID or name. Omit when using platforms.'),
+      platforms: z
+        .array(platformName)
         .min(1)
-        .max(100)
-        .describe('Platform ID or name from list_platforms, such as 知乎 or juejin.'),
+        .optional()
+        .describe(
+          'Platform IDs or names from list_platforms, e.g. ["微信公众号", "知乎"]. Omit platform.'
+        ),
       title: z.string().trim().min(1).max(200),
       markdown: z
         .string()
@@ -67,7 +72,7 @@ server.registerTool(
   'get_draft_status',
   {
     description:
-      'Check whether COSE saved a draft, filled the editor, or requires verification. If the outcome is not confirmed, ask the user to check the editor or draft list before retrying.',
+      'Check whether COSE saved a draft, filled the editor, or requires verification. For a batch, read each item in results. Check the editor or draft list before retrying unconfirmed platforms.',
     inputSchema: { request_id: requestId },
     annotations: { readOnlyHint: true },
   },
