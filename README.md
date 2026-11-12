@@ -123,38 +123,8 @@ _**C**reate **O**nce **S**ync **E**verywhere_
 
 ## MCP 同步
 
-桌面 MCP 客户端可以将 Markdown 或纯文字发送到指定的 Chrome 窗口，由 COSE 填写平台编辑器或保存草稿。[安装与使用说明](apps/mcp-server/README.md)
+> 用 AI 把文章同步到已登录的平台。[详细安装与使用说明](apps/mcp-server/README.md)
 
-## 开发者模式测试
+点击 COSE 图标 → 展开「AI 同步（MCP）」→ 复制配置指令 → 粘贴给支持 MCP 的 AI，让它帮你安装和配对。
 
-Firefox 140 及更新的桌面版可从 GitHub Releases 下载签名后的 `cose-<版本>-firefox.xpi`，在 `about:addons` 的齿轮菜单中选择「从文件安装附加组件」。测试构建的 Firefox ZIP 可在 `about:debugging` 中临时加载。
-
-1. 从本仓库的 GitHub Release 下载 `cose-<版本>-chromium.zip` 并解压，也可以从 Actions 的 CI 运行中下载 `cose-extensions`，再解压其中的 Chromium 包
-2. 打开 Chrome 浏览器，进入 `chrome://extensions/`
-3. 开启右上角的 **开发者模式**
-4. 点击 **加载已解压的扩展程序**
-5. 选择解压后包含 `manifest.json` 的目录
-
-## 插件测试与发版
-
-提交 PR、推送到 `main`，或在 Actions 手动运行 CI，都会检查格式、在模拟的微信公众号图文编辑器里验证 COSE 会把标题和正文填到正确的位置，并能传入含图片的正文，并构建 Chromium 和 Firefox 的生产包。CI 从 Chromium ZIP 加载扩展，在本地测试页确认页面和后台都能返回微信平台；Firefox 构建还运行 `web-ext lint`。两个包随本次运行保存七天。
-
-合并前由维护者决定是否发版。新增平台、修复同步失败或内容丢失、恢复浏览器或平台兼容性，以及用户需要尽快安装的安全修复，都可以随 PR 发版。文档、测试、内部重构和常规依赖维护通常可以等到下一次发布。多个小修复也可以先合入，再用一个版本 PR 一起发。
-
-要随 PR 发版，就在 `apps/extension/package.json` 递增版本。一般修复升补丁版本，例如从 `1.3.7` 升到 `1.3.8`，向后兼容的新功能可升次版本。合并到 `main` 后，CI 比较这次推送前后的版本。测试通过后，CI 将 Firefox 构建提交给 Mozilla 签名。签名完成后，CI 为本次构建的提交创建同名标签，并将 Chromium ZIP 和签名后的 Firefox XPI 一起发布到 GitHub Releases。版本相同的合并只运行 CI。需要手动补发时，仍可推送与对应提交版本匹配的 `v*` 标签。
-
-### Firefox 签名配置
-
-1. 使用维护 `cose@doocs.org` 的 Mozilla Add-ons 账号生成 [AMO API 凭据](https://addons.mozilla.org/en-US/developers/addon/api/key/)。
-2. 在 [GitHub Actions Secrets](https://github.com/doocs/cose/settings/secrets/actions) 保存两个仓库密钥，`AMO_JWT_ISSUER` 对应 JWT issuer，`AMO_JWT_SECRET` 对应 JWT secret。
-3. 发版任务使用 Unlisted 渠道。提交后只检查一次审核状态。如果 AMO 仍在审核，运行会结束并跳过发布。收到 Mozilla 审核通过通知后，在原来的 Actions 运行中选择「Re-run all jobs」。CI 会取回同版本的已签名 XPI，核对它与本次构建的内容，再继续发布。密钥缺失或审核失败时，任务会报错。
-
-Mozilla 审核者可用 Node.js 22 和仓库指定的 pnpm 版本复现 Firefox 构建。在提交的源码归档根目录运行 `pnpm install --frozen-lockfile`，再运行 `pnpm -C apps/extension run build:release --target firefox`，产物位于 `apps/extension/dist`。
-
-### Edge 商店自动提交
-
-1. 在 Microsoft Partner Center 的 **Microsoft Edge → Publish API** 启用 API v1.1，获取 Client ID 和 API Key。在 COSE 的产品概览页获取 Product ID（GUID）。商店详情链接中的扩展 ID 用于定位公开页面。
-2. 在仓库的 [Actions Secrets](https://github.com/doocs/cose/settings/secrets/actions) 新增 `EDGE_API_KEY`、`EDGE_CLIENT_ID` 和 `EDGE_PRODUCT_ID`。两个 ID 也可以存到 [Actions Variables](https://github.com/doocs/cose/settings/variables/actions)，同名 Secret 优先。
-3. 版本号递增合入 `main` 且 CI 通过后，Edge 任务会上传与 Chrome 商店相同的 Chromium ZIP。任务确认上传成功后提交审核，操作 ID 会出现在日志中，审核进度可在 Partner Center 查看。
-
-补提已有版本时，在 Actions 的 CI 工作流选择 `main`，将 `edge_store_action` 设为 `submit`，并在 `release_commit` 填入要提交的完整提交 SHA。若上一次请求仍在处理或审核中，先在 Partner Center 核对状态。
+告诉 AI「用 COSE，把这篇文章同步到xxx等平台」。
