@@ -8,6 +8,7 @@ import {
 import { mcpArticleContent, resolveMcpPlatform } from '@cose/core/src/mcp.js'
 import { installMcpBridge } from './mcp-background.js'
 import { checkSubstackLogin, syncSubstackDraft } from '@cose/core/src/platforms/substack.js'
+import { checkHaloLogin, haloSite, syncHaloDraft } from '@cose/core/src/platforms/halo.js'
 import { checkDevtoLogin, syncDevtoDraft } from '@cose/core/src/platforms/devto.js'
 import {
   checkWordPressLogin,
@@ -544,23 +545,30 @@ async function handleMessage(request, sender) {
       // 渐进式检测：每个平台检测完成后立即返回结果
       checkAllPlatformsProgressive(request.platforms || PLATFORMS, sender)
       return { started: true, total: (request.platforms || PLATFORMS).length }
+    case 'CHECK_HALO_HOST':
     case 'CHECK_WORDPRESS_HOST': {
+      const isHalo = request.type === 'CHECK_HALO_HOST'
+      const setupPage = isHalo ? 'halo-connect.html' : 'wordpress-connect.html'
       const frameUrl = sender.url && new URL(sender.url)
       if (
         !sender.frameId ||
         !sender.tab?.id ||
         !frameUrl ||
-        frameUrl.href.split('?')[0] !== chrome.runtime.getURL('wordpress-connect.html')
+        frameUrl.href.split('?')[0] !== chrome.runtime.getURL(setupPage)
       ) {
         return { granted: false }
       }
-      const site = wordPressSite(request.site)
+      const site = isHalo ? haloSite(request.site) : wordPressSite(request.site)
       const permission = wordPressPermission(site)
       const granted = await chrome.permissions.contains(permission)
       if (!granted) {
         const key = wordPressPendingKey(sender.tab.id)
         await chrome.storage.session.set({
-          [key]: { host: new URL(site).hostname, expires: Date.now() + 5 * 60 * 1000 },
+          [key]: {
+            platform: isHalo ? 'Halo' : 'WordPress',
+            host: new URL(site).hostname,
+            expires: Date.now() + 5 * 60 * 1000,
+          },
         })
       }
       return { granted }
@@ -572,6 +580,7 @@ async function handleMessage(request, sender) {
     case 'SYNC_TO_PLATFORM':
       if (request.platformId === 'substack') return await syncSubstackDraft(request.content, sender)
       if (request.platformId === 'devto') return await syncDevtoDraft(request.content, sender)
+      if (request.platformId === 'halo') return await syncHaloDraft(request.content, sender)
       if (request.platformId === 'wordpress')
         return await syncWordPressDraft(request.content, sender)
       return await syncToPlatform(request.platformId, request.content)
@@ -661,7 +670,7 @@ async function checkAllPlatformsProgressive(platforms, sender) {
             completed,
             total,
           }
-          if (['devto', 'wordpress', 'substack'].includes(platform.id)) {
+          if (['devto', 'wordpress', 'substack', 'halo'].includes(platform.id)) {
             await chrome.tabs.sendMessage(tabId, update, {
               frameId: sender.frameId,
               ...(sender.documentId && { documentId: sender.documentId }),
@@ -722,6 +731,7 @@ async function checkPlatformLogin(platform, sender) {
   }
   if (platform.id === 'substack') return await checkSubstackLogin(sender)
   if (platform.id === 'devto') return await checkDevtoLogin(sender)
+  if (platform.id === 'halo') return await checkHaloLogin(sender)
   if (platform.id === 'wordpress') return await checkWordPressLogin(sender)
   if (platform.id === 'xueqiu') return await checkXueqiuLogin()
   if (platform.id === 'rednote') {

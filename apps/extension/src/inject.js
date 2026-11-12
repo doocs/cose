@@ -149,6 +149,7 @@
       title: 'WordPress',
       type: 'wordpress',
     },
+    { id: 'halo', name: 'Halo', title: 'Halo', type: 'halo' },
     {
       id: 'csdn',
       name: 'CSDN',
@@ -435,6 +436,10 @@
       return injectedScriptUrl ? new URL('../wordpress-connect.html', injectedScriptUrl).href : null
     },
 
+    getHaloSetupUrl() {
+      return injectedScriptUrl ? new URL('../halo-connect.html', injectedScriptUrl).href : null
+    },
+
     // 获取账号列表（带登录状态）
     async getAccounts(callback, platformIds) {
       const platforms = Array.isArray(platformIds)
@@ -626,6 +631,7 @@
                 thumb: post.thumb,
                 desc: post.desc,
                 ...(platformId === 'substack' && { substackSite: account.home }),
+                ...(platformId === 'halo' && { haloSite: account.home }),
                 ...(platformId === 'wordpress' && { wordpressSite: account.home }),
                 // 微信公众号、百家号、网易号、Medium、少数派、微博头条和小红书使用剪贴板中带样式的 HTML
                 wechatHtml:

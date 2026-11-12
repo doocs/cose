@@ -37,6 +37,7 @@ import { ElecfansPlatform } from './elecfans.js'
 import { DoubanPlatform } from './douban.js'
 import { DevtoPlatform } from './devto.js'
 import { SubstackPlatform, createSubstackMcpDraft } from './substack.js'
+import { HaloPlatform } from './halo.js'
 import { WordPressPlatform } from './wordpress.js'
 import { XueqiuPlatform, syncXueqiuDraft } from './xueqiu.js'
 
@@ -77,6 +78,7 @@ const PLATFORMS = [
   DevtoPlatform,
   WordPressPlatform,
   SubstackPlatform,
+  HaloPlatform,
   XueqiuPlatform,
 ]
 
