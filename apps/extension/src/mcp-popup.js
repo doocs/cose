@@ -115,7 +115,7 @@ export async function showMcpSettings() {
     setupStatus.hidden = false
     try {
       await navigator.clipboard.writeText(setupText.value.trim())
-      setupStatus.textContent = '配置指令已复制。请粘贴给你的桌面 AI。'
+      setupStatus.textContent = '配置指令已复制。请粘贴给你的 AI agent。'
     } catch {
       showSetupPrompt(true)
       setupText.focus()
