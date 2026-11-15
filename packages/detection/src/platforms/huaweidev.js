@@ -10,6 +10,16 @@ import { convertAvatarToBase64 } from '../utils.js'
  */
 export async function detectHuaweiDevUser() {
   try {
+    const credentials = await Promise.all(
+      ['authInfo', 'authdata'].map(name =>
+        chrome.cookies.get({ url: 'https://developer.huawei.com', name })
+      )
+    )
+    if (!credentials.some(cookie => cookie?.value)) {
+      await chrome.storage.local.remove('huaweidev_user')
+      return { loggedIn: false }
+    }
+
     // 1. 先检查缓存
     const stored = await chrome.storage.local.get('huaweidev_user')
     const cachedUser = stored.huaweidev_user

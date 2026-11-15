@@ -207,6 +207,16 @@
       <p class="editor-hint">没有自托管编辑器？</p>
       <a href="https://md.doocs.org" class="btn" id="openOfficial">使用官方编辑器</a>
     </div>
+    <details>
+      <summary id="sessionSummary">清理平台登录 Cookie</summary>
+      <p id="sessionHelp">清理后，同一浏览器配置中的平台标签页可能会退出登录。</p>
+      <label id="sessionLabel" for="sessionPlatform">选择平台</label>
+      <select id="sessionPlatform">
+        <option value="">请选择</option>
+      </select>
+      <button class="btn" id="clearSession" type="button" disabled>Log out</button>
+      <p id="clearSessionStatus" role="status"></p>
+    </details>
     <section id="wordpressPermission" hidden>
       <p id="wordpressHost"></p>
       <button class="btn" id="allowWordPress" type="button">允许访问 / Allow access</button>

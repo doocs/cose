@@ -1,13 +1,13 @@
 /**
  * Xiaohongshu (Little Red Book) platform detection logic
  * Strategy:
- * 1. Check `a1` cookie on creator.xiaohongshu.com as login indicator
+ * 1. Check for the browser's visitor cookie before contacting the creator API
  * 2. Best-effort: fetch user info via offscreen document or open tab
  * 3. Fall back to chrome.storage.local cache for user details
  */
 export async function detectXiaohongshuUser() {
   try {
-    // 1. Check a1 cookie as login indicator (MV3 service worker compatible)
+    // a1 identifies the browser and can be present after logout.
     const a1Cookie = await chrome.cookies.get({
       url: 'https://creator.xiaohongshu.com',
       name: 'a1',
@@ -16,13 +16,13 @@ export async function detectXiaohongshuUser() {
       return { loggedIn: false }
     }
 
-    // Logged in — now try to get user details
-
+    let sessionRejected = false
     // 2a. Try offscreen fetch (document context, cookies sent automatically)
     try {
       const offscreenDetect = globalThis.__coseDetectXiaohongshu
       if (offscreenDetect) {
         const offResult = await offscreenDetect()
+        sessionRejected = offResult?.sessionRejected === true
         if (offResult && offResult.loggedIn) {
           // Update cache
           const userInfo = { ...offResult, cachedAt: Date.now() }
@@ -51,6 +51,7 @@ export async function detectXiaohongshuUser() {
                 credentials: 'include',
                 headers: { Accept: 'application/json' },
               })
+              if (response.status === 401) return { loggedIn: false, sessionRejected: true }
               if (!response.ok) return null
               const data = await response.json()
               if (data?.success === true && data?.code === 0 && data?.data?.userId) {
@@ -68,6 +69,7 @@ export async function detectXiaohongshuUser() {
           },
         })
         const result = results?.[0]?.result
+        sessionRejected ||= result?.sessionRejected === true
         if (result && result.loggedIn) {
           const userInfo = { ...result, cachedAt: Date.now() }
           await chrome.storage.local.set({ xiaohongshu_user: userInfo })
@@ -82,7 +84,16 @@ export async function detectXiaohongshuUser() {
       console.log('[COSE] xiaohongshu tab detection failed:', e.message)
     }
 
-    // 2c. Fall back to cache for user details
+    // Cached identity is only usable while the creator session cookie exists.
+    const session = await chrome.cookies.get({
+      url: 'https://creator.xiaohongshu.com/',
+      name: 'web_session',
+    })
+    if (sessionRejected || !session?.value) {
+      await chrome.storage.local.remove('xiaohongshu_user')
+      return { loggedIn: false }
+    }
+
     const stored = await chrome.storage.local.get('xiaohongshu_user')
     const cachedUser = stored.xiaohongshu_user
     if (cachedUser && cachedUser.username) {
@@ -98,8 +109,7 @@ export async function detectXiaohongshuUser() {
       }
     }
 
-    // Cookie exists but couldn't get user details — still logged in
-    return { loggedIn: true, username: '', avatar: '' }
+    return { loggedIn: false }
   } catch (e) {
     console.log('[COSE] xiaohongshu 检测失败:', e.message)
     return { loggedIn: false }

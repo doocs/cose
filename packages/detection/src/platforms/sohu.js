@@ -1,13 +1,17 @@
 /**
  * Sohu (搜狐号) platform detection logic
  * Strategy:
- * 1. Check ppinf cookie on mp.sohu.com
+ * 1. Check for a passport or creator session cookie
  * 2. Call account list API for nickname/avatar
  */
 export async function detectSohuUser() {
   try {
-    const ppinfCookie = await chrome.cookies.get({ url: 'https://mp.sohu.com', name: 'ppinf' })
-    if (!ppinfCookie || !ppinfCookie.value) return { loggedIn: false }
+    const credentials = await Promise.all(
+      ['pprdig', 'umab_access_token'].map(name =>
+        chrome.cookies.get({ url: 'https://mp.sohu.com', name })
+      )
+    )
+    if (!credentials.some(cookie => cookie?.value)) return { loggedIn: false }
 
     try {
       const response = await fetch('https://mp.sohu.com/mpbp/bp/account/list', {

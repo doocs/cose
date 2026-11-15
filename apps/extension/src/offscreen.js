@@ -1,10 +1,16 @@
 import { fetchRednoteUser } from '@cose/detection/src/platforms/xiaohongshu.js'
 import { DomUtils, parseDocument } from 'htmlparser2'
+import { clearSspaiStorage } from './sspai-storage.js'
 
 // Offscreen document for making fetch requests with cookies
 // This runs in a document context where credentials: 'include' actually works
 // (unlike the service worker where cookies are not sent/received automatically)
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'OFFSCREEN_CLEAR_SSPAI_STORAGE') {
+    clearSspaiStorage().then(sendResponse)
+    return true
+  }
+
   if (message.type === 'OFFSCREEN_PING') {
     sendResponse({ pong: true })
     return false
@@ -184,17 +190,17 @@ async function handleDetectCto51() {
 }
 
 /**
- * Cnblogs detection: fetch account.cnblogs.com/user/userinfo in document context.
+ * Cnblogs detection: fetch the account page's user info in document context.
  * Cookies are sent automatically (unlike service worker fetch which strips Cookie headers).
  */
 async function handleDetectCnblogs() {
   try {
-    const resp = await fetch('https://account.cnblogs.com/user/userinfo', {
+    const resp = await fetch('https://account.cnblogs.com/api/user/info', {
       method: 'GET',
       credentials: 'include',
       headers: { Accept: 'application/json' },
     })
-    if (!resp.ok) return { loggedIn: false }
+    if (!resp.ok || resp.status === 204) return { loggedIn: false }
 
     const data = await resp.json()
     if (!data?.spaceUserId) return { loggedIn: false }
@@ -222,6 +228,7 @@ async function handleDetectXiaohongshu() {
       credentials: 'include',
       headers: { Accept: 'application/json' },
     })
+    if (resp.status === 401) return { loggedIn: false, sessionRejected: true }
     if (!resp.ok) return { loggedIn: false }
 
     const data = await resp.json()

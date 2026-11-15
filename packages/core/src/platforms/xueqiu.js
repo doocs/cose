@@ -12,8 +12,12 @@ const XueqiuPlatform = {
 }
 
 async function checkXueqiuLogin() {
-  const cookie = await chrome.cookies.get({ url: origin, name: 'xq_is_login' })
-  if (cookie?.value !== '1') return { loggedIn: false }
+  const [loginFlag, accessToken, editorToken] = await Promise.all(
+    ['xq_is_login', 'xq_a_token', 'xqat'].map(name => chrome.cookies.get({ url: origin, name }))
+  )
+  if (loginFlag?.value !== '1' || (!accessToken?.value && !editorToken?.value)) {
+    return { loggedIn: false }
+  }
 
   try {
     const response = await fetch(XueqiuPlatform.publishUrl, {

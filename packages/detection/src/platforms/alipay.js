@@ -1,46 +1,53 @@
+const cacheKey = 'alipayopen_user'
+const cacheLifetime = 8 * 60 * 60 * 1000
+
+async function alipaySessionKey() {
+  const session = await chrome.cookies.get({
+    url: 'https://developerportal.alipay.com/',
+    name: 'ALIPAYJSESSIONID',
+  })
+  if (!session?.value) return null
+
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(session.value))
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
+}
+
+export async function cacheAlipayUser(account, sessionKey) {
+  const currentSessionKey = await alipaySessionKey()
+  if (!account.loggedIn || !currentSessionKey || (sessionKey && currentSessionKey !== sessionKey))
+    return
+  await chrome.storage.local.set({
+    [cacheKey]: {
+      loggedIn: true,
+      username: account.username || '',
+      avatar: account.avatar || '',
+      cachedAt: Date.now(),
+      sessionKey: currentSessionKey,
+    },
+  })
+}
+
 /**
  * Alipay Open platform detection logic
- * Strategy:
- * 1. Check chrome.storage.local cache (1 hour TTL)
- * 2. If cache miss, inject script into open Alipay tab to call API
+ * Verify the current account in an open Alipay tab or use its session-bound cache.
  */
 export async function detectAlipayUser() {
-  const platformId = 'alipayopen'
   try {
-    // 从 storage 读取缓存的用户信息
-    const stored = await chrome.storage.local.get('alipayopen_user')
-    const cachedUser = stored.alipayopen_user
-
-    if (cachedUser && cachedUser.loggedIn) {
-      // 检查缓存是否过期（1小时）
-      const cacheAge = Date.now() - (cachedUser.cachedAt || 0)
-      const maxAge = 1 * 60 * 60 * 1000 // 1 hour
-
-      if (cacheAge < maxAge) {
-        console.log(`[COSE] alipayopen 从缓存读取用户信息:`, cachedUser.username)
-        return {
-          loggedIn: true,
-          username: cachedUser.username || '',
-          avatar: cachedUser.avatar || '',
-        }
-      } else {
-        console.log(`[COSE] alipayopen 缓存已过期`)
-        // 清除过期缓存
-        await chrome.storage.local.remove('alipayopen_user')
-      }
+    const sessionKey = await alipaySessionKey()
+    if (!sessionKey) {
+      await chrome.storage.local.remove(cacheKey)
+      return { loggedIn: false }
     }
 
-    // 尝试从已打开的支付宝页面获取用户信息并缓存
-    let tabs = await chrome.tabs.query({ url: 'https://open.alipay.com/*' })
-    if (tabs.length === 0) {
-      tabs = await chrome.tabs.query({ url: 'https://*.alipay.com/*' })
-    }
+    // Prefer an open platform tab, where the forum identity is available.
+    const tabs = await chrome.tabs.query({ url: 'https://open.alipay.com/*' })
+    const tab = tabs.find(tab => tab.id && !tab.discarded)
 
-    if (tabs.length > 0) {
+    if (tab) {
       try {
         // 在已打开的页面上下文中调用 API
         const results = await chrome.scripting.executeScript({
-          target: { tabId: tabs[0].id },
+          target: { tabId: tab.id },
           func: async () => {
             try {
               const response = await fetch(
@@ -64,28 +71,41 @@ export async function detectAlipayUser() {
         })
 
         const data = results?.[0]?.result
-        console.log(`[COSE] alipayopen API 数据:`, data)
-
         if (data?.stat === 'ok' && data?.data?.isLoginUser === 1) {
           const username = data.data.nickname || ''
           const avatar = data.data.avatar || ''
 
-          // 缓存用户信息
-          await chrome.storage.local.set({
-            alipayopen_user: {
-              loggedIn: true,
-              username,
-              avatar,
-              cachedAt: Date.now(),
-            },
-          })
-
-          console.log(`[COSE] alipayopen 用户信息:`, username, avatar ? '有头像' : '无头像')
-          return { loggedIn: true, username, avatar }
+          const account = { loggedIn: true, username, avatar }
+          await cacheAlipayUser(account, sessionKey)
+          return account
         }
       } catch (e) {
         console.log(`[COSE] alipayopen 从页面获取用户信息失败:`, e.message)
       }
+    }
+
+    const account = await globalThis.__coseFetchInOpenSiteTab?.(
+      'https://open.alipay.com/',
+      'https://developerportal.alipay.com/account/getOpenAccount.json'
+    )
+    if (account?.stat === 'ok' && account.data?.uid) {
+      const { name, avatar } = account.data
+      const result = { loggedIn: true, username: name || '', avatar: avatar || '' }
+      await cacheAlipayUser(result, sessionKey)
+      return result
+    }
+    if (account?.stat === 'deny') {
+      await chrome.storage.local.remove(cacheKey)
+      return { loggedIn: false }
+    }
+
+    const { [cacheKey]: cached } = await chrome.storage.local.get(cacheKey)
+    if (
+      cached?.loggedIn &&
+      cached.sessionKey === sessionKey &&
+      Date.now() - cached.cachedAt < cacheLifetime
+    ) {
+      return { loggedIn: true, username: cached.username, avatar: cached.avatar }
     }
 
     console.log(`[COSE] alipayopen 未检测到登录状态`)

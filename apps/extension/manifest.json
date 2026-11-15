@@ -36,6 +36,8 @@
     "https://*.51cto.com/*",
     "https://*.infoq.cn/*",
     "https://*.baijiahao.baidu.com/*",
+    "https://baidu.com/*",
+    "https://bce.baidu.com/*",
     "https://*.163.com/*",
     "https://*.cloud.tencent.com/*",
     "https://*.medium.com/*",
@@ -72,6 +74,12 @@
     "type": "module"
   },
   "content_scripts": [
+    {
+      "matches": ["https://sspai.com/robots.txt"],
+      "js": ["bundles/sspai-logout-frame.js"],
+      "all_frames": true,
+      "run_at": "document_start"
+    },
     {
       "matches": ["http://*/*", "https://*/*"],
       "js": ["bundles/content.js"],
