@@ -8,6 +8,35 @@ import { convertAvatarToBase64 } from '../utils.js'
  */
 export async function detectElecfansUser() {
   try {
+    const forumSession = await chrome.cookies.get({
+      url: 'https://bbs.elecfans.com/',
+      name: 'auth',
+    })
+    if (forumSession?.value) {
+      const account = await detectElecfansForumUser()
+      if (account.loggedIn) return account
+    }
+
+    // The article center can stay signed in after the forum session is gone.
+    const creator = 'https://www.elecfans.com/'
+    const creatorSession = await chrome.cookies.get({ url: creator, name: 'auth_www' })
+    if (!creatorSession?.value) return { loggedIn: false }
+
+    const response = await fetch(new URL('webapi/Mcenter/article/articleList', creator), {
+      credentials: 'include',
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(8000),
+    })
+    if (!response.ok) return { loggedIn: false }
+    const data = await response.json()
+    return { loggedIn: data?.code === 0 }
+  } catch {
+    return { loggedIn: false }
+  }
+}
+
+async function detectElecfansForumUser() {
+  try {
     // Collect cookies for bbs.elecfans.com
     const cookies = await chrome.cookies.getAll({ domain: '.elecfans.com' })
     const bbsCookies = await chrome.cookies.getAll({ url: 'https://bbs.elecfans.com' })

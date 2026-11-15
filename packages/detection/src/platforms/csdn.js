@@ -3,19 +3,20 @@ import { convertAvatarToBase64 } from '../utils.js'
 /**
  * CSDN platform detection logic
  * Strategy:
- * 1. Check 'UserName' cookie (reliable indicator of login)
+ * 1. Check the UserToken credential and its associated UserName cookie
  * 2. Use 'UserNick' cookie for display name (UserName is the user ID, UserNick is the display name)
  * 3. If logged in, fetch public blog page to get avatar
  */
 export async function detectCSDNUser() {
   try {
     console.log('[COSE] CSDN Detection: Starting cookie check')
-    const userNameCookie = await chrome.cookies.get({
-      url: 'https://www.csdn.net',
-      name: 'UserName',
-    })
+    const url = 'https://www.csdn.net'
+    const [tokenCookie, userNameCookie] = await Promise.all([
+      chrome.cookies.get({ url, name: 'UserToken' }),
+      chrome.cookies.get({ url, name: 'UserName' }),
+    ])
 
-    if (userNameCookie && userNameCookie.value) {
+    if (tokenCookie?.value && userNameCookie?.value) {
       const userId = userNameCookie.value
       console.log(`[COSE] CSDN UserName cookie found: ${userId}`)
 

@@ -21,6 +21,7 @@ export default defineConfig({
         content: resolve(__dirname, 'src/content.js'),
         inject: resolve(__dirname, 'src/inject.js'),
         offscreen: resolve(__dirname, 'src/offscreen.js'),
+        'sspai-logout-frame': resolve(__dirname, 'src/sspai-logout-frame.js'),
         popup: resolve(__dirname, 'src/popup.js'),
         'devto-connect': resolve(__dirname, 'src/devto-connect.js'),
         'substack-connect': resolve(__dirname, 'src/substack-connect.js'),

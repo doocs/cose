@@ -1,6 +1,9 @@
+import { clearPlatformSession, platformSessions } from './platform-sessions.js'
 import { wordPressPendingKey, wordPressPermission } from '@cose/core/src/platforms/wordpress.js'
 
+import { logoutConfirmation, logoutMessages } from './logout-messages.js'
 import { showMcpSettings } from './mcp-popup.js'
+import { clearSspaiStorage } from './sspai-storage.js'
 
 if (chrome.runtime.getManifest().permissions.includes('alarms')) {
   showMcpSettings().catch(console.error)
@@ -50,3 +53,44 @@ async function showWordPressPermission() {
 }
 
 showWordPressPermission().catch(() => {})
+
+const platformSelect = document.getElementById('sessionPlatform')
+const clearSessionButton = document.getElementById('clearSession')
+const clearSessionStatus = document.getElementById('clearSessionStatus')
+
+const locale = new URLSearchParams(location.search).get('lang') || chrome.i18n.getUILanguage()
+const messages = logoutMessages(locale)
+document.getElementById('sessionSummary').textContent = messages.summary
+document.getElementById('sessionHelp').textContent = messages.help
+document.getElementById('sessionLabel').textContent = messages.label
+platformSelect.options[0].textContent = messages.placeholder
+
+for (const [index, platform] of platformSessions.entries()) {
+  platformSelect.add(new Option(platform.name, String(index)))
+}
+
+platformSelect.addEventListener('change', () => {
+  clearSessionButton.disabled = !platformSelect.value
+  clearSessionStatus.textContent = ''
+})
+
+clearSessionButton.addEventListener('click', async () => {
+  if (!platformSelect.value) return
+  const platform = platformSessions[Number(platformSelect.value)]
+  if (!platform) return
+  if (!window.confirm(logoutConfirmation(platform, locale))) {
+    return
+  }
+
+  clearSessionButton.disabled = true
+  platformSelect.disabled = true
+  try {
+    clearSessionStatus.textContent =
+      messages[await clearPlatformSession(platform, clearSspaiStorage)]
+  } catch {
+    clearSessionStatus.textContent = messages.failed
+  } finally {
+    platformSelect.disabled = false
+    clearSessionButton.disabled = false
+  }
+})

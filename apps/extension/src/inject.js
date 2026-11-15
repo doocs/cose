@@ -46,6 +46,7 @@
           home: platformResult.home || platform.url || '',
           checked: false,
           loggedIn: platformResult.loggedIn || false,
+          ...(platformResult.accountClosed && { accountClosed: true }),
           isChecking: false,
         }
         progressiveCallbacks.onProgress(account, completed, total)
@@ -424,6 +425,14 @@
       }))
     },
 
+    getLogoutPlatforms() {
+      return sendMessage('GET_LOGOUT_PLATFORMS')
+    },
+
+    clearPlatformSession(platformId, locale) {
+      return sendMessage('CLEAR_PLATFORM_SESSION', { platformId, locale })
+    },
+
     getDevtoSetupUrl() {
       return injectedScriptUrl ? new URL('../devto-connect.html', injectedScriptUrl).href : null
     },
@@ -463,6 +472,7 @@
             home: platformStatus.home || p.url || '',
             checked: false,
             loggedIn: isLoggedIn,
+            ...(platformStatus.accountClosed && { accountClosed: true }),
           }
         })
 

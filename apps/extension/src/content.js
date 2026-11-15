@@ -306,6 +306,29 @@ async function isDoocsEditor() {
         case 'GET_DEBUG_LOGS':
           result = await chrome.runtime.sendMessage({ type: 'GET_DEBUG_LOGS' })
           break
+        case 'GET_LOGOUT_PLATFORMS':
+          result = await chrome.runtime.sendMessage({ type: 'GET_LOGOUT_PLATFORMS' })
+          break
+        case 'CLEAR_PLATFORM_SESSION': {
+          const platform = await chrome.runtime.sendMessage({
+            type: 'GET_PLATFORM_LOGOUT_CONFIRM',
+            platformId: payload?.platformId,
+            locale: payload?.locale,
+          })
+          if (typeof platform?.message !== 'string') {
+            result = { status: 'failed' }
+            break
+          }
+          if (!window.confirm(platform.message)) {
+            result = { status: 'cancelled' }
+            break
+          }
+          result = await chrome.runtime.sendMessage({
+            type: 'CLEAR_PLATFORM_SESSION',
+            platformId: payload.platformId,
+          })
+          break
+        }
         case 'SYNC_TO_PLATFORM':
           result = await chrome.runtime.sendMessage({
             type: 'SYNC_TO_PLATFORM',

@@ -34,6 +34,7 @@ export async function detectWangyihaoUser() {
     if (!response.ok) return { loggedIn: false }
 
     const data = await response.json()
+    if (Number(data?.code) === 100028) return { loggedIn: false, accountClosed: true }
     if (data?.code !== 1 || !data?.data?.wemediaId) return { loggedIn: false }
 
     const username = data.data.tname || ''

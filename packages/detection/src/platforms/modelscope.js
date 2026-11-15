@@ -22,8 +22,10 @@ export async function detectModelScopeUser() {
           Accept: 'application/json',
         },
       })
+      if (response.status === 401) return { loggedIn: false }
       if (response.ok) {
         const data = await response.json()
+        if (data?.Code === 10019901001) return { loggedIn: false }
         if (data?.Success !== false && data?.Code !== 10019901001) {
           const user = data?.Data?.User || data?.Data || {}
           username =
@@ -44,6 +46,13 @@ export async function detectModelScopeUser() {
       if (avatar) avatar = await convertAvatarToBase64(avatar, 'https://modelscope.cn/')
       return { loggedIn: true, username, avatar }
     }
+
+    // An open page can still show the previous account after logout.
+    const session = await chrome.cookies.get({
+      url: 'https://modelscope.cn/',
+      name: 'm_session_id',
+    })
+    if (!session?.value) return { loggedIn: false }
 
     // Fallback: extract from open tab DOM
     try {

@@ -8,6 +8,15 @@
 export async function detectWechatUser() {
   const platformId = 'wechat'
   try {
+    const session = await chrome.cookies.get({
+      url: 'https://mp.weixin.qq.com/',
+      name: 'slave_sid',
+    })
+    if (!session?.value) {
+      await chrome.storage.local.remove('wechat_user')
+      return { loggedIn: false }
+    }
+
     // 先检查缓存
     const stored = await chrome.storage.local.get('wechat_user')
     const cachedUser = stored.wechat_user

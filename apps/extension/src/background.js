@@ -1,3 +1,6 @@
+import { logoutConfirmation } from './logout-messages.js'
+import { clearPlatformSession, platformSessions } from './platform-sessions.js'
+import { clearSspaiStorage } from './sspai-storage.js'
 // 平台配置
 import {
   PLATFORMS,
@@ -20,6 +23,7 @@ import {
 import { checkXueqiuLogin } from '@cose/core/src/platforms/xueqiu.js'
 import { saveRednoteDraft } from '@cose/core/src/platforms/rednote.js'
 import { fetchRednoteUser } from '@cose/detection/src/platforms/xiaohongshu.js'
+import { cacheAlipayUser } from '@cose/detection/src/platforms/alipay.js'
 import { qianfanIntercept } from '@cose/core/src/platforms/qianfan.js'
 import {
   insertTwitterTables,
@@ -37,8 +41,8 @@ async function ensureOffscreen() {
     if (!existing) {
       await chrome.offscreen.createDocument({
         url: 'offscreen.html',
-        reasons: ['DOM_SCRAPING'],
-        justification: 'Fetch with credentials in document context for login detection',
+        reasons: ['DOM_SCRAPING', 'IFRAME_SCRIPTING'],
+        justification: 'Check platform sessions and clear site login storage on request',
       })
       // Wait for the offscreen document's scripts to load and register listeners.
       // createDocument resolves when the document is created, but scripts may not
@@ -138,115 +142,39 @@ function sendOffscreenMessage(msg, timeoutMs = 15000) {
 }
 
 /**
- * Execute a fetch in the context of a target site's tab.
- * This is needed for sites whose auth cookies are SameSite=Lax (default),
- * which won't be sent from cross-site contexts like offscreen documents.
- *
- * Strategy: find an existing tab for the domain, or create a temporary one,
- * then inject a script that makes the fetch with credentials: 'include'.
+ * Check a session in an existing site tab so the browser sends first-party cookies.
  */
-async function tabContextFetch(siteUrl, apiUrl, options = {}) {
-  const { responseType = 'json', timeout = 15000 } = options
-  let createdTabId = null
+async function fetchInOpenSiteTab(siteUrl, apiUrl) {
+  const { hostname } = new URL(siteUrl)
+  const tabs = await chrome.tabs.query({ url: `https://${hostname}/*` })
+  const tab = tabs.find(item => item.id && !item.discarded)
+  if (!tab) return null
+
   try {
-    const urlObj = new URL(siteUrl)
-    const pattern = `*://*.${urlObj.hostname.replace(/^www\./, '')}/*`
-    console.log(`[COSE] tabContextFetch: looking for tabs matching ${pattern}`)
-
-    // Find existing tab
-    let tabs = await chrome.tabs.query({ url: pattern })
-    let tab = tabs.find(t => t.id && !t.discarded)
-    console.log(
-      `[COSE] tabContextFetch: found ${tabs.length} tabs, usable: ${tab ? tab.id : 'none'}`
-    )
-
-    if (!tab) {
-      // Create a background tab (not active, for other platforms that need it)
-      const newTab = await chrome.tabs.create({ url: siteUrl, active: false })
-      tab = newTab
-      createdTabId = tab.id
-      console.log(`[COSE] tabContextFetch: created background tab ${tab.id}`)
-      // Wait for the tab to finish loading
-      const currentTab = await chrome.tabs.get(tab.id)
-      if (currentTab.status !== 'complete') {
-        await new Promise((resolve, reject) => {
-          const timer = setTimeout(() => {
-            chrome.tabs.onUpdated.removeListener(listener)
-            reject(new Error('Tab load timeout'))
-          }, timeout)
-          const listener = (tabId, info) => {
-            if (tabId === tab.id && info.status === 'complete') {
-              chrome.tabs.onUpdated.removeListener(listener)
-              clearTimeout(timer)
-              resolve()
-            }
-          }
-          chrome.tabs.onUpdated.addListener(listener)
-        })
-      }
-    }
-
-    // Inject script to make the fetch in the page's main world
-    // so that credentials: 'include' sends the page's cookies
-    const results = await chrome.scripting.executeScript({
+    const [execution] = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      func: async (fetchUrl, respType) => {
+      world: 'MAIN',
+      func: async url => {
         try {
-          const resp = await fetch(fetchUrl, {
-            method: 'GET',
+          const response = await fetch(url, {
             credentials: 'include',
-            headers: { Accept: respType === 'json' ? 'application/json' : 'text/html' },
+            headers: { Accept: 'application/json' },
           })
-          const status = resp.status
-          const finalUrl = resp.url
-          let body = null
-          if (respType === 'json') {
-            try {
-              body = await resp.json()
-            } catch (e) {
-              body = null
-            }
-          } else {
-            body = await resp.text()
-          }
-          return { status, url: finalUrl, body }
-        } catch (e) {
-          return { error: e.message }
+          return response.ok ? await response.json() : null
+        } catch {
+          return null
         }
       },
-      args: [apiUrl, responseType],
-      world: 'MAIN',
+      args: [apiUrl],
     })
-
-    // Clean up created tab
-    if (createdTabId) {
-      try {
-        await chrome.tabs.remove(createdTabId)
-      } catch (e) {
-        /* ignore */
-      }
-    }
-
-    console.log(
-      `[COSE] tabContextFetch result:`,
-      JSON.stringify(results?.[0]?.result).substring(0, 200)
-    )
-    return results?.[0]?.result || null
-  } catch (e) {
-    // Clean up on error
-    if (createdTabId) {
-      try {
-        await chrome.tabs.remove(createdTabId)
-      } catch (e2) {
-        /* ignore */
-      }
-    }
-    console.log(`[COSE] tabContextFetch failed for ${apiUrl}:`, e.message)
+    return execution?.result ?? null
+  } catch {
+    // The tab may have closed or navigated since it was found.
     return null
   }
 }
 
-globalThis.__coseTabContextFetch = tabContextFetch
+globalThis.__coseFetchInOpenSiteTab = fetchInOpenSiteTab
 
 /**
  * 51CTO detection via offscreen document (爱贝壳 approach).
@@ -537,6 +465,27 @@ installMcpBridge(syncMcpArticle)
 async function handleMessage(request, sender) {
   console.log(`[COSE] handleMessage received type: ${request.type}`, request)
   switch (request.type) {
+    case 'GET_LOGOUT_PLATFORMS':
+      return platformSessions.map(platform => platform.id)
+    case 'GET_PLATFORM_LOGOUT_CONFIRM': {
+      const platform = platformSessions.find(item => item.id === request.platformId)
+      if (!platform) return null
+      return {
+        message: logoutConfirmation(platform, request.locale),
+      }
+    }
+    case 'CLEAR_PLATFORM_SESSION': {
+      const platform = platformSessions.find(item => item.id === request.platformId)
+      if (!platform || sender.frameId !== 0 || !sender.tab) return { status: 'failed' }
+      try {
+        const clearStorage = chrome.offscreen
+          ? () => sendOffscreenMessage({ type: 'OFFSCREEN_CLEAR_SSPAI_STORAGE' })
+          : clearSspaiStorage
+        return { status: await clearPlatformSession(platform, clearStorage) }
+      } catch {
+        return { status: 'failed' }
+      }
+    }
     case 'GET_PLATFORMS':
       return { platforms: PLATFORMS }
     case 'CHECK_PLATFORM_STATUS':
@@ -590,8 +539,9 @@ async function handleMessage(request, sender) {
         await chrome.storage.local.set({ xiaohongshu_user: request.userInfo })
         console.log('[COSE] 小红书用户信息已缓存:', request.userInfo.username)
       } else if (request.platform === 'alipayopen' && request.userInfo) {
-        await chrome.storage.local.set({ alipayopen_user: request.userInfo })
-        console.log('[COSE] 支付宝用户信息已缓存:', request.userInfo.username)
+        const host = sender.url && URL.canParse(sender.url) ? new URL(sender.url).hostname : ''
+        if (host === 'alipay.com' || host.endsWith('.alipay.com'))
+          await cacheAlipayUser(request.userInfo)
       } else if (request.platform === 'huaweicloud' && request.userInfo) {
         const hwcInfo = { ...request.userInfo }
         if (hwcInfo.avatar && hwcInfo.avatar.startsWith('http')) {

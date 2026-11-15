@@ -2,7 +2,7 @@ import { convertAvatarToBase64 } from '../utils.js'
 
 /**
  * Cnblogs (博客园) detection logic (offscreen approach)
- * Fetch https://account.cnblogs.com/user/userinfo via offscreen document,
+ * Fetch https://account.cnblogs.com/api/user/info via offscreen document,
  * where cookies are sent automatically in document context.
  */
 export async function detectCnblogsUser() {
